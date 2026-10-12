@@ -1,0 +1,60 @@
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Credenciales y secretos
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+secrets/
+credentials/
+
+# Dependencias
+node_modules/
+vendor/
+.venv/
+venv/
+
+# Resultados de compilacion
+dist/
+build/
+target/
+out/
+coverage/
+__pycache__/
+*.pyc
+*.class
+
+# Prisma Client generado
+frontend/src/generated/
+backend/src/generated/
+backend/generated/
+
+# Archivos temporales
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Configuracion de editores
+.idea/
+.vscode/
+*.iml
+
+# Datos locales de Docker y PostgreSQL
+postgres-data/
+docker-data/
