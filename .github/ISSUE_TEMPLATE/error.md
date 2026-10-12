@@ -1,4 +1,3 @@
-
 ---
 name: "Error"
 about: "Reportar un error del sistema RutaEC"
