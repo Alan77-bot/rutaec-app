@@ -2,47 +2,106 @@
 import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
+import { obtenerCooperativas } from '../cooperativas/services/cooperativas.service'
 
 const COLORES = ['#f2a33a', '#e4572e', '#2a9d8f', '#4f7cac', '#8a5a9e', '#c0392b']
 
-function Cooperativas() {
-  const { cooperativas, acciones, ejecutar } = useApp()
-  const [f, setF] = useState({ nombre: '', ciudad: '', ruc: '' })
 
-  const agregar = async (e) => {
-    e.preventDefault()
-    const r = await ejecutar(() => acciones.crearCooperativa(f), 'Cooperativa registrada.')
-    if (r.ok) setF({ nombre: '', ciudad: '', ruc: '' })
+function Cooperativas() {
+  const [cooperativas, setCooperativas] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  async function cargarCooperativas() {
+    setCargando(true)
+    setError('')
+
+    try {
+      const datos = await obtenerCooperativas()
+      setCooperativas(datos)
+    } catch {
+      setError('No se pudieron cargar las cooperativas.')
+    } finally {
+      setCargando(false)
+    }
   }
 
+  useEffect(() => {
+    let activo = true
+
+    obtenerCooperativas()
+      .then((datos) => {
+        if (activo) setCooperativas(datos)
+      })
+      .catch(() => {
+        if (activo) setError('No se pudieron cargar las cooperativas.')
+      })
+      .finally(() => {
+        if (activo) setCargando(false)
+      })
+
+    return () => {
+      activo = false
+    }
+  }, [])
+
   return (
-    <div className="dos-col">
+    <div className="panel">
+      <div className="seccion-cab izq">
+        <h3>Cooperativas registradas</h3>
+        <button
+          type="button"
+          className="btn btn-oscuro"
+          onClick={cargarCooperativas}
+          disabled={cargando}
+        >
+          {cargando ? 'Cargando...' : 'Actualizar listado'}
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="muted">
+          {error}
+        </p>
+      )}
+
       <div className="tabla-wrap">
         <table className="tabla">
-          <thead><tr><th>Cooperativa</th><th>Sede</th><th>RUC</th><th>Activa</th><th /></tr></thead>
+          <thead>
+            <tr>
+              <th>Cooperativa</th>
+              <th>Razón social</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+
           <tbody>
             {cooperativas.map((c) => (
               <tr key={c.id} className={c.activa ? '' : 'inactiva'}>
-                <td><CoopLogo coop={c} size={34} /><b>{c.nombre}</b></td>
-                <td>{c.ciudad}</td>
-                <td>{c.ruc}</td>
-                <td><button className={'switch' + (c.activa ? ' on' : '')} onClick={() => ejecutar(() => acciones.alternarCooperativa(c.id, !c.activa))} aria-label="Activar"><i /></button></td>
-                <td><button className="btn-link rojo" onClick={() => ejecutar(() => acciones.borrarCooperativa(c.id), 'Cooperativa eliminada.')}>Eliminar</button></td>
+                <td><b>{c.nombre_comercial}</b></td>
+                <td>{c.razon_social}</td>
+                <td>
+                  <span className={'badge ' + (c.activa ? 'verde' : 'gris')}>
+                    {c.activa ? 'Activa' : 'Inactiva'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {!cargando && !error && cooperativas.length === 0 && (
+          <div className="vacio">
+            <b>No hay cooperativas registradas.</b>
+          </div>
+        )}
+
+        {cargando && <p className="muted">Cargando cooperativas...</p>}
       </div>
-      <form className="panel" onSubmit={agregar}>
-        <h4>Nueva cooperativa</h4>
-        <label>Nombre<input value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></label>
-        <label>Ciudad sede<input value={f.ciudad} onChange={(e) => setF({ ...f, ciudad: e.target.value })} /></label>
-        <label>RUC<input value={f.ruc} maxLength={13} inputMode="numeric" onChange={(e) => setF({ ...f, ruc: e.target.value })} /></label>
-        <button className="btn btn-oscuro">Registrar</button>
-      </form>
     </div>
   )
 }
+
 
 function Configuracion() {
   const { config, acciones, ejecutar, avisar } = useApp()
