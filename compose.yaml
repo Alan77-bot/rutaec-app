@@ -2,8 +2,8 @@
 services:
  
   postgres:
-    image: postgres:18-alpine
-    container_name: rutaec-app-postgres18
+    image: postgres:17-alpine
+    container_name: rutaec-app-postgres17
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
