@@ -12,6 +12,7 @@ export default function Navbar() {
   const [scroll, setScroll] = useState(false)
   const [ver, setVer] = useState(null)
   const nav = useNavigate()
+  const [saliendo, setSaliendo] = useState(false)
 
   useEffect(() => {
     const f = () => setScroll(window.scrollY > 12)
