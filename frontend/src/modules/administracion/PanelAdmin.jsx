@@ -89,6 +89,15 @@ function Cooperativas() {
                   <span className={'badge ' + (c.activa ? 'verde' : 'gris')}>
                     {c.activa ? 'Activa' : 'Inactiva'}
                   </span>
+
+                  <button
+                    type="button"
+                    className="btn-link"
+                    disabled
+                    title="Disponible cuando se integren los permisos"
+                  >
+                    {c.activa ? 'Desactivar' : 'Activar'}
+                  </button>
                 </td>
                 <td>
                   <button
