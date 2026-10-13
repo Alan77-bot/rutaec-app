@@ -32,11 +32,22 @@ export default function Navbar() {
     setAbierto(false)
   }
 
-  const salir = () => {
-    cerrarSesion()
-    setMenu(false)
-    setAbierto(false)
-    nav('/')
+   const salir = async () => {
+    if (saliendo) return
+
+    setSaliendo(true)
+
+    try {
+      const cerrado = await cerrarSesion()
+
+      if (!cerrado) return
+
+      setMenu(false)
+      setAbierto(false)
+      nav('/ingresar', { replace: true })
+    } finally {
+      setSaliendo(false)
+    }
   }
 
   return (
@@ -86,7 +97,13 @@ export default function Navbar() {
                 <b>{sesion.nombre}</b>
                 <small>{ROLES[sesion.rol]}</small>
               </div>
-              <button onClick={salir} className="btn-link">Salir</button>
+              <button
+                onClick={salir}
+                className="btn-link"
+                disabled={saliendo}
+              >
+                {saliendo ? 'Cerrando...' : 'Salir'}
+              </button>
             </div>
           ) : (
             <Link to="/ingresar" className="btn btn-oscuro">Ingresar</Link>
