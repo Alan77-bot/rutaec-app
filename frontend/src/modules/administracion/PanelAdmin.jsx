@@ -4,6 +4,7 @@ import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
 import { obtenerCooperativas } from '../cooperativas/services/cooperativas.service'
 import CooperativaRegistroForm from '../cooperativas/CooperativaRegistroForm'
+import CooperativaEditarForm from '../cooperativas/CooperativaEditarForm'
 
 const COLORES = ['#f2a33a', '#e4572e', '#2a9d8f', '#4f7cac', '#8a5a9e', '#c0392b']
 
@@ -12,6 +13,7 @@ function Cooperativas() {
   const [cooperativas, setCooperativas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [cooperativaEditar, setCooperativaEditar] = useState(null)
 
   async function cargarCooperativas() {
     setCargando(true)
@@ -74,6 +76,7 @@ function Cooperativas() {
               <th>Cooperativa</th>
               <th>Razón social</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
 
@@ -86,6 +89,15 @@ function Cooperativas() {
                   <span className={'badge ' + (c.activa ? 'verde' : 'gris')}>
                     {c.activa ? 'Activa' : 'Inactiva'}
                   </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => setCooperativaEditar(c)}
+                  >
+                    Editar
+                  </button>
                 </td>
               </tr>
             ))}
@@ -101,7 +113,14 @@ function Cooperativas() {
         {cargando && <p className="muted">Cargando cooperativas...</p>}
       </div>
     </div>
+      {cooperativaEditar ? (
+      <CooperativaEditarForm
+        cooperativa={cooperativaEditar}
+        onCancelar={() => setCooperativaEditar(null)}
+      />
+    ) : (
       <CooperativaRegistroForm />
+    )}
     </div>
   )
 }
