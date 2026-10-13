@@ -102,6 +102,9 @@ export function AppProvider({ children }) {
       setCargando(false)
     }
   }, [cargarPublico, cargarPrivado, limpiarSesion])
+    useEffect(() => {
+    arrancar()
+  }, [arrancar])
 
   // La sesiÃ³n venciÃ³ en el servidor
   useEffect(() => {
