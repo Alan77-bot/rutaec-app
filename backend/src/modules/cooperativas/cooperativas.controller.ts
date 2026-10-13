@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import {
   listarCooperativas,
   registrarCooperativa,
+  actualizarCooperativa,
 } from "./cooperativas.service.js";
 
 export async function obtenerCooperativas(
@@ -105,6 +106,129 @@ export async function crearCooperativa(
 
     res.status(500).json({
       error: "No se pudo registrar la cooperativa",
+    });
+  }
+}
+
+
+
+export async function editarCooperativa(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const id = req.params.id;
+
+  if (typeof id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    res.status(400).json({
+      error: "El identificador de la cooperativa no es válido",
+    });
+    return;
+  }
+
+  const cuerpo = req.body;
+
+  if (
+    !cuerpo ||
+    typeof cuerpo !== "object" ||
+    Array.isArray(cuerpo)
+  ) {
+    res.status(400).json({
+      error: "Debes proporcionar los datos a actualizar",
+    });
+    return;
+  }
+
+  const camposPermitidos = [
+    "razon_social",
+    "nombre_comercial",
+    "correo",
+    "telefono",
+    "direccion",
+    "sitio_web",
+  ] as const;
+
+  const camposRecibidos = Object.keys(cuerpo);
+
+  if (
+    camposRecibidos.length === 0 ||
+    camposRecibidos.some(
+      (campo) => !camposPermitidos.includes(campo as typeof camposPermitidos[number])
+    )
+  ) {
+    res.status(400).json({
+      error: "La solicitud contiene campos no permitidos o está vacía",
+    });
+    return;
+  }
+
+  const datos: Record<string, string | null> = {};
+
+  for (const campo of camposPermitidos) {
+    if (!(campo in cuerpo)) continue;
+
+    const valor = cuerpo[campo];
+
+    if (campo === "sitio_web" && valor === null) {
+      datos[campo] = null;
+      continue;
+    }
+
+    if (typeof valor !== "string") {
+      res.status(400).json({
+        error: `El campo ${campo} debe ser texto`,
+      });
+      return;
+    }
+
+    const limpio = valor.trim();
+
+    if (campo !== "sitio_web" && limpio === "") {
+      res.status(400).json({
+        error: `El campo ${campo} no puede estar vacío`,
+      });
+      return;
+    }
+
+    if (
+      campo === "correo" &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio)
+    ) {
+      res.status(400).json({
+        error: "El correo electrónico no es válido",
+      });
+      return;
+    }
+
+    datos[campo] = limpio;
+  }
+
+  try {
+    const cooperativa = await actualizarCooperativa(id, datos);
+
+    res.status(200).json({
+      mensaje: "Cooperativa actualizada correctamente",
+      datos: cooperativa,
+    });
+  } catch (error) {
+    const codigo =
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error
+        ? error.code
+        : null;
+
+    if (codigo === "P2025") {
+      res.status(404).json({
+        error: "La cooperativa no existe",
+      });
+      return;
+    }
+
+    console.error("Error al actualizar cooperativa:", error);
+
+    res.status(500).json({
+      error: "No se pudo actualizar la cooperativa",
     });
   }
 }
