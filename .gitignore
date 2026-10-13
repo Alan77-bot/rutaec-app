@@ -70,3 +70,5 @@ skills-lock.json
 backend/prisma/introspeccion.prisma
 backend/prisma/schema.backup
 backend/prisma/schema.sin-modelos.backup
+
+/frontend/viajaya-reference/
