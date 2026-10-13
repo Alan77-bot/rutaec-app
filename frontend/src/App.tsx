@@ -1,6 +1,6 @@
 
-import ViajaYaApp from "./viajaya/App";
+import ViajaYaRoutes from "./ViajaYaRoutes";
 
 export default function App() {
-  return <ViajaYaApp />;
+  return <ViajaYaRoutes />;
 }
