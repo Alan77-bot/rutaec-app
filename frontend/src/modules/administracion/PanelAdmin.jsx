@@ -177,7 +177,8 @@ export default function PanelAdmin() {
       const datos = await obtenerResumenAdministracion()
       setResumen(datos)
     } catch {
-      setError('No se pudieron cargar los indicadores.')
+      setResumen(null)
+      setError('No se pudo conectar con el servidor. Inténtalo nuevamente.')
     } finally {
       setCargando(false)
     }
@@ -230,7 +231,20 @@ export default function PanelAdmin() {
         </div>
       </div>
 
-      {error && <p role="alert" className="muted">{error}</p>}
+      {error && (
+  <div role="alert" className="panel">
+    <p>{error}</p>
+
+    <button
+      type="button"
+      className="btn btn-oscuro"
+      onClick={cargarResumen}
+      disabled={cargando}
+    >
+      Reintentar
+    </button>
+  </div>
+)}
 
       <div className="tabs">
         <button className={tab === 'coops' ? 'on' : ''} onClick={() => setTab('coops')}>Cooperativas</button>
