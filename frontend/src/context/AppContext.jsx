@@ -1,5 +1,6 @@
 ﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, guardarToken, hayToken } from '../services/viajayaApi'
+import { api, guardarToken } from '../services/viajayaApi'
+import { usuariosService } from '../modules/usuarios/services/usuarios.service'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -66,42 +67,41 @@ export function AppProvider({ children }) {
     setUsuarios([])
   }, [])
 
-  const arrancar = useCallback(async () => {
+    const arrancar = useCallback(async () => {
     setCargando(true)
     setErrorRed(null)
+    guardarToken(null)
+
     try {
-      if (MODO_VISTA_PREVIA) {
-        setConfig(AJUSTES_INICIALES)
-        setCooperativas([])
-        setBuses([])
-        setFrecuencias([])
-        setHojas({})
-        setOcupacion({})
-        limpiarSesion()
-        return
+      if (!MODO_VISTA_PREVIA) {
+        await cargarPublico()
       }
 
-      await cargarPublico()
-      if (hayToken()) {
-        try {
-          const { sesion: s } = await api.get('/auth/yo')
-          setSesion(s)
-          await cargarPrivado(s)
-        } catch (e) {
-          if (e.estado === 401) limpiarSesion()
-          else throw e
+      let usuario
+
+      try {
+        const respuesta = await usuariosService.yo()
+        usuario = respuesta.sesion
+      } catch (error) {
+        if (error.estado === 401 || error.estado === 403) {
+          limpiarSesion()
+          return
         }
+
+        throw error
       }
-    } catch (e) {
-      setErrorRed(e.message)
+
+      setSesion(usuario)
+
+      if (!MODO_VISTA_PREVIA) {
+        await cargarPrivado(usuario)
+      }
+    } catch (error) {
+      setErrorRed(error.message)
     } finally {
       setCargando(false)
     }
   }, [cargarPublico, cargarPrivado, limpiarSesion])
-
-  useEffect(() => {
-    arrancar()
-  }, [arrancar])
 
   // La sesiÃ³n venciÃ³ en el servidor
   useEffect(() => {
@@ -129,32 +129,86 @@ export function AppProvider({ children }) {
 
   /* ---------- sesiÃ³n ---------- */
 
-  const entrarConRespuesta = useCallback(
-    async ({ token, sesion: s }) => {
-      guardarToken(token)
-      setSesion(s)
-      try {
-        await cargarPrivado(s)
-      } catch {
-        /* se reintenta en la siguiente actualizaciÃ³n */
+    const entrarConRespuesta = useCallback(
+    async ({ sesion: usuario }) => {
+      guardarToken(null)
+      setSesion(usuario)
+
+      if (!MODO_VISTA_PREVIA) {
+        try {
+          await cargarPrivado(usuario)
+        } catch {
+          avisar('Ingresaste, pero algunos datos no pudieron cargarse.')
+        }
       }
-      return s
+
+      return usuario
     },
-    [cargarPrivado]
+    [cargarPrivado, avisar]
   )
 
-  const iniciarSesion = useCallback(
+    const iniciarSesion = useCallback(
     async (correo, clave) => {
       try {
-        const r = await api.post('/auth/login', { correo, clave })
-        const s = await entrarConRespuesta(r)
-        return { ok: true, sesion: s }
-      } catch (e) {
-        return { ok: false, campo: e.campo || 'correo', error: e.message }
+        const respuesta = await usuariosService.login(correo, clave)
+        const usuario = await entrarConRespuesta(respuesta)
+
+        return {
+          ok: true,
+          sesion: usuario,
+        }
+      } catch (error) {
+        return {
+          ok: false,
+          campo: 'correo',
+          error: error.message,
+        }
       }
     },
     [entrarConRespuesta]
   )
+
+    const cerrarSesion = useCallback(async () => {
+    try {
+      await usuariosService.logout()
+      limpiarSesion()
+      return true
+    } catch {
+      avisar('No se pudo cerrar la sesión. Inténtalo nuevamente.')
+      return false
+    }
+  }, [limpiarSesion, avisar])
+
+  useEffect(() => {
+    if (!sesion) return
+
+    let vigente = true
+
+    const comprobar = async () => {
+      try {
+        await usuariosService.yo()
+      } catch (error) {
+        if (
+          vigente &&
+          (error.estado === 401 || error.estado === 403 || error.estado === 409)
+        ) {
+          limpiarSesion()
+          avisar('Tu sesión terminó o cambió. Ingresa nuevamente.')
+        }
+      }
+    }
+
+    const intervalo = setInterval(comprobar, 60000)
+    window.addEventListener('focus', comprobar)
+
+    return () => {
+      vigente = false
+      clearInterval(intervalo)
+      window.removeEventListener('focus', comprobar)
+    }
+  }, [sesion, limpiarSesion, avisar])
+
+
 
   /* ---------- acciones (cada una lanza ApiError si el servidor las rechaza) ---------- */
 
@@ -272,14 +326,56 @@ export function AppProvider({ children }) {
     [frecuencias]
   )
 
-  const valor = useMemo(
+    const valor = useMemo(
     () => ({
-      cargando, errorRed, reintentar: arrancar,
-      sesion, setSesion, iniciarSesion, entrarConRespuesta, cerrarSesion: limpiarSesion,
-      config, cooperativas, buses, frecuencias, hojas, ocupacion, compras, usuarios, correos, ciudades,
-      acciones, ejecutar, marcarLeidos, aviso, avisar,
+      cargando,
+      errorRed,
+      reintentar: arrancar,
+      sesion,
+      setSesion,
+      iniciarSesion,
+      entrarConRespuesta,
+      cerrarSesion,
+      config,
+      cooperativas,
+      buses,
+      frecuencias,
+      hojas,
+      ocupacion,
+      compras,
+      usuarios,
+      correos,
+      ciudades,
+      acciones,
+      ejecutar,
+      marcarLeidos,
+      aviso,
+      avisar,
     }),
-    [cargando, errorRed, arrancar, sesion, iniciarSesion, entrarConRespuesta, limpiarSesion, config, cooperativas, buses, frecuencias, hojas, ocupacion, compras, usuarios, correos, ciudades, acciones, ejecutar, marcarLeidos, aviso, avisar]
+    [
+      cargando,
+      errorRed,
+      arrancar,
+      sesion,
+      iniciarSesion,
+      entrarConRespuesta,
+      cerrarSesion,
+      config,
+      cooperativas,
+      buses,
+      frecuencias,
+      hojas,
+      ocupacion,
+      compras,
+      usuarios,
+      correos,
+      ciudades,
+      acciones,
+      ejecutar,
+      marcarLeidos,
+      aviso,
+      avisar,
+    ]
   )
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>
