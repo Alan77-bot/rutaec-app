@@ -1,0 +1,15 @@
+
+node_modules
+dist
+.env
+.env.*
+.git
+.agents
+.claude
+.windsurf
+skills-lock.json
+src/generated
+prisma/introspeccion.prisma
+prisma/schema.backup
+prisma/schema.sin-modelos.backup
+npm-debug.log*
