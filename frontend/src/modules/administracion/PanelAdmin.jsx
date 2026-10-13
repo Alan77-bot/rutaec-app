@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
 import { obtenerCooperativas } from '../cooperativas/services/cooperativas.service'
+import CooperativaRegistroForm from '../cooperativas/CooperativaRegistroForm'
 
 const COLORES = ['#f2a33a', '#e4572e', '#2a9d8f', '#4f7cac', '#8a5a9e', '#c0392b']
 
@@ -46,6 +47,7 @@ function Cooperativas() {
   }, [])
 
   return (
+    <div className="dos-col">
     <div className="panel">
       <div className="seccion-cab izq">
         <h3>Cooperativas registradas</h3>
@@ -98,6 +100,8 @@ function Cooperativas() {
 
         {cargando && <p className="muted">Cargando cooperativas...</p>}
       </div>
+    </div>
+      <CooperativaRegistroForm />
     </div>
   )
 }
@@ -157,6 +161,7 @@ function Configuracion() {
         </div>
         <p className="muted">Al guardar, los cambios se aplican a toda la aplicaciÃ³n.</p>
       </div>
+      
     </div>
   )
 }
