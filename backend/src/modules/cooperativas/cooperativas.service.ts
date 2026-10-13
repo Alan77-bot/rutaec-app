@@ -47,3 +47,39 @@ export async function registrarCooperativa(
     },
   });
 }
+
+
+
+export interface DatosActualizarCooperativa {
+  razon_social?: string;
+  nombre_comercial?: string;
+  correo?: string;
+  telefono?: string;
+  direccion?: string;
+  sitio_web?: string | null;
+}
+
+export async function actualizarCooperativa(
+  id: string,
+  datos: DatosActualizarCooperativa
+) {
+  return prisma.cooperativas.update({
+    where: { id },
+    data: {
+      ...datos,
+      actualizado_en: new Date(),
+    },
+    select: {
+      id: true,
+      ruc: true,
+      razon_social: true,
+      nombre_comercial: true,
+      correo: true,
+      telefono: true,
+      direccion: true,
+      sitio_web: true,
+      activa: true,
+      actualizado_en: true,
+    },
+  });
+}
