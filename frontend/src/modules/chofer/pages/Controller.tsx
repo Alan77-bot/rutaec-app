@@ -3,7 +3,7 @@ import { Badge, Button, Icon, Logo } from "../../../components/ui";
 
 export default function Controller({ onExit = () => {} }: { onExit?: () => void }) {
   const [view, setView] = useState<"home" | "scanner" | "result">("home");
-  const [scannedTicket, setScannedTicket] = useState({
+  const [scannedTicket] = useState({
     code: "REC-8F29-A71",
     passenger: "María Fernanda Torres",
     seat: "08",

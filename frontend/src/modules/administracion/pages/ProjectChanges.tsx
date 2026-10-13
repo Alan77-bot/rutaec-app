@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AppShell, Badge, Button, DataTable, Icon, Stat } from "../../../components/ui";
+import { AppShell, Button, DataTable, Icon, Stat } from "../../../components/ui";
 
 export default function ProjectChanges({ onExit = () => {} }: { onExit?: () => void }) {
   const [active, setActive] = useState("Dashboard de cambios");
