@@ -162,31 +162,29 @@ function Usuarios() {
 }
 
 
+
 export default function PanelAdmin() {
   const [tab, setTab] = useState('coops')
   const [resumen, setResumen] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
+  async function cargarResumen() {
+    setCargando(true)
+    setError('')
+
+    try {
+      const datos = await obtenerResumenAdministracion()
+      setResumen(datos)
+    } catch {
+      setError('No se pudieron cargar los indicadores.')
+    } finally {
+      setCargando(false)
+    }
+  }
+
   useEffect(() => {
-    let activo = true
-
-    async function cargarResumen() {
-      try {
-        const datos = await obtenerResumenAdministracion()
-        if (activo) setResumen(datos)
-      } catch {
-        if (activo) setError('No se pudieron cargar los indicadores.')
-      } finally {
-        if (activo) setCargando(false)
-      }
-    }
-
     cargarResumen()
-
-    return () => {
-      activo = false
-    }
   }, [])
 
   return (
@@ -194,36 +192,43 @@ export default function PanelAdmin() {
       <div className="seccion-cab izq">
         <h1>Administración</h1>
         <p>Cooperativas, usuarios y apariencia de la aplicación.</p>
+
+        <button
+          type="button"
+          className="btn btn-oscuro"
+          onClick={cargarResumen}
+          disabled={cargando}
+        >
+          {cargando ? 'Actualizando...' : 'Actualizar indicadores'}
+        </button>
       </div>
 
-      
-<div className="dos-col">
-  <div className="panel">
-    <h4>Cooperativas registradas</h4>
-    <h2>{cargando ? '...' : resumen?.totalCooperativas ?? '—'}</h2>
-  </div>
+      <div className="dos-col">
+        <div className="panel">
+          <h4>Cooperativas registradas</h4>
+          <h2>{cargando ? '...' : resumen?.totalCooperativas ?? '—'}</h2>
+        </div>
 
-  <div className="panel">
-    <h4>Cooperativas activas</h4>
-    <h2>{cargando ? '...' : resumen?.cooperativasActivas ?? '—'}</h2>
-  </div>
+        <div className="panel">
+          <h4>Cooperativas activas</h4>
+          <h2>{cargando ? '...' : resumen?.cooperativasActivas ?? '—'}</h2>
+        </div>
 
-  <div className="panel">
-    <h4>Cooperativas inactivas</h4>
-    <h2>{cargando ? '...' : resumen?.cooperativasInactivas ?? '—'}</h2>
-  </div>
+        <div className="panel">
+          <h4>Cooperativas inactivas</h4>
+          <h2>{cargando ? '...' : resumen?.cooperativasInactivas ?? '—'}</h2>
+        </div>
 
-  <div className="panel">
-    <h4>Buses registrados</h4>
-    <h2>{cargando ? '...' : resumen?.totalBuses ?? '—'}</h2>
-  </div>
+        <div className="panel">
+          <h4>Buses registrados</h4>
+          <h2>{cargando ? '...' : resumen?.totalBuses ?? '—'}</h2>
+        </div>
 
-  <div className="panel">
-    <h4>Usuarios registrados</h4>
-    <h2>{cargando ? '...' : resumen?.totalUsuarios ?? '—'}</h2>
-  </div>
-</div>
-
+        <div className="panel">
+          <h4>Usuarios registrados</h4>
+          <h2>{cargando ? '...' : resumen?.totalUsuarios ?? '—'}</h2>
+        </div>
+      </div>
 
       {error && <p role="alert" className="muted">{error}</p>}
 
@@ -239,6 +244,7 @@ export default function PanelAdmin() {
     </div>
   )
 }
+
 
 
 
