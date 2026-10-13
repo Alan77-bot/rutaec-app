@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { obtenerResumenAdministracion } from './services/administracion.service'
+import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
@@ -160,23 +161,70 @@ function Usuarios() {
   )
 }
 
+
 export default function PanelAdmin() {
   const [tab, setTab] = useState('coops')
+  const [resumen, setResumen] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let activo = true
+
+    async function cargarResumen() {
+      try {
+        const datos = await obtenerResumenAdministracion()
+        if (activo) setResumen(datos)
+      } catch {
+        if (activo) setError('No se pudieron cargar los indicadores.')
+      } finally {
+        if (activo) setCargando(false)
+      }
+    }
+
+    cargarResumen()
+
+    return () => {
+      activo = false
+    }
+  }, [])
+
   return (
     <div className="contenedor">
       <div className="seccion-cab izq">
-        <h1>AdministraciÃ³n</h1>
-        <p>Cooperativas, usuarios y apariencia de la aplicaciÃ³n.</p>
+        <h1>Administración</h1>
+        <p>Cooperativas, usuarios y apariencia de la aplicación.</p>
       </div>
+
+      <div className="dos-col">
+        <div className="panel">
+          <h4>Cooperativas registradas</h4>
+          <h2>{cargando ? '...' : resumen?.totalCooperativas ?? '—'}</h2>
+        </div>
+        <div className="panel">
+          <h4>Buses registrados</h4>
+          <h2>{cargando ? '...' : resumen?.totalBuses ?? '—'}</h2>
+        </div>
+        <div className="panel">
+          <h4>Usuarios registrados</h4>
+          <h2>{cargando ? '...' : resumen?.totalUsuarios ?? '—'}</h2>
+        </div>
+      </div>
+
+      {error && <p role="alert" className="muted">{error}</p>}
+
       <div className="tabs">
         <button className={tab === 'coops' ? 'on' : ''} onClick={() => setTab('coops')}>Cooperativas</button>
         <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>Usuarios</button>
-        <button className={tab === 'config' ? 'on' : ''} onClick={() => setTab('config')}>ConfiguraciÃ³n</button>
+        <button className={tab === 'config' ? 'on' : ''} onClick={() => setTab('config')}>Configuración</button>
       </div>
+
       {tab === 'coops' && <Cooperativas />}
       {tab === 'users' && <Usuarios />}
       {tab === 'config' && <Configuracion />}
     </div>
   )
 }
+
+
 
