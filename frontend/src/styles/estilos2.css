@@ -1,0 +1,280 @@
+/* ===== v2: fotos, animaciones y login ===== */
+.ico { flex: none; vertical-align: middle; }
+.btn .ico { margin-top: -1px; }
+.btn:active:not(:disabled) { transform: translateY(0) scale(.98); }
+h1, h2, h3 { font-weight: 800; letter-spacing: -.02em; }
+
+/* animaciones base */
+@keyframes subirSuave { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes entrar { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes zoomLento { from { transform: scale(1.08); } to { transform: scale(1); } }
+@keyframes sacudir { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-7px); } 40%, 60% { transform: translateX(7px); } }
+@keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes trazo { to { stroke-dashoffset: 0; } }
+@keyframes ticketEntra { from { opacity: 0; transform: translateY(40px) rotate(-1.2deg) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.pagina { animation: entrar .35s ease both; }
+.pop { opacity: 0; animation: subirSuave .7s cubic-bezier(.2, .7, .2, 1) forwards; }
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1); }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .pop, .pagina { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* navbar */
+.navbar { transition: box-shadow .25s, background .25s; }
+.navbar.sombra { box-shadow: 0 6px 24px rgba(27, 63, 104, .1); }
+.marca { font-weight: 800; letter-spacing: -.02em; }
+.marca-pin { background: linear-gradient(135deg, var(--pino), var(--pino-2)); color: var(--acento); }
+.links a { position: relative; transition: background .15s, color .15s; }
+.links a.active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--acento); }
+.campana { color: var(--pino); display: grid; place-items: center; transition: background .15s, transform .15s; }
+.campana:hover { background: #ebe4d2; transform: rotate(-8deg); }
+.cajon { animation: entrar .2s ease; }
+
+/* hero con foto */
+.hero { background-color: #122c4a; background-size: cover; background-position: center 40%; min-height: 560px; padding: 110px 20px 130px; display: flex; align-items: center; }
+.hero-velo { position: absolute; inset: 0; z-index: 1; background: linear-gradient(95deg, rgba(12, 32, 56, .92) 0%, rgba(12, 32, 56, .72) 45%, rgba(12, 32, 56, .15) 100%), linear-gradient(0deg, rgba(12, 32, 56, .55), transparent 45%); }
+.hero-in { position: relative; z-index: 2; width: 100%; }
+.hero h1 { font-size: clamp(2.2rem, 5.2vw, 3.7rem); max-width: 680px; line-height: 1.05; }
+.hero-stats { display: flex; gap: 34px; margin-top: 30px; }
+.hero-stats div { display: flex; flex-direction: column; }
+.hero-stats b { font-size: 2.1rem; font-weight: 800; color: var(--acento); line-height: 1; }
+.hero-stats span { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: #b9cae0; margin-top: 4px; }
+.buscador-wrap { max-width: 1040px; margin: -70px auto 0; padding: 0 20px; position: relative; z-index: 6; }
+.buscador { max-width: none; border: 1px solid rgba(255, 255, 255, .6); animation: subirSuave .8s .5s cubic-bezier(.2, .7, .2, 1) both; }
+.buscador label span { display: inline-flex; align-items: center; gap: 5px; }
+.buscador select, .buscador input { transition: border-color .15s, box-shadow .15s; }
+.buscador select:focus, .buscador input:focus { outline: none; border-color: var(--acento); box-shadow: 0 0 0 3px rgba(242, 163, 58, .25); }
+.swap { display: grid; place-items: center; transition: transform .35s, background .15s; }
+.swap:hover { transform: rotate(180deg); }
+
+/* destinos con foto */
+.seccion { padding: 72px 20px; }
+.seccion-cab h2 { font-size: 2.2rem; }
+.destinos { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+.destinos .destino { height: 300px; padding: 0; background: #122c4a; border-radius: 20px; display: block; position: relative; overflow: hidden; box-shadow: var(--sombra); }
+.destinos .destino::before { display: none; }
+.destinos .destino img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.2, .7, .2, 1); }
+.destinos .destino::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(8, 24, 44, .88) 0%, rgba(8, 24, 44, .15) 55%, transparent); }
+.destinos .destino:hover img { transform: scale(1.09); }
+.destinos .destino:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(27, 63, 104, .22); }
+.destino-info { position: absolute; left: 20px; right: 20px; bottom: 18px; z-index: 2; color: #fff; display: flex; flex-direction: column; }
+.destinos .destino-info small { opacity: .85; text-transform: none; letter-spacing: 0; font-size: .82rem; }
+.destinos .destino-info strong { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
+.destinos .destino-info span b { color: var(--acento); font-size: 1.1rem; }
+.destinos .destino i { z-index: 2; right: 18px; top: 18px; bottom: auto; background: rgba(255, 255, 255, .22); backdrop-filter: blur(6px); transition: background .2s, transform .3s; }
+.destinos .destino:hover i { background: var(--acento); color: #2a1c05; transform: translateX(4px); }
+.destinos .destino.todas { background: var(--pino); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 20px; }
+.destinos .destino.todas::after { display: none; }
+.destinos .destino.todas strong { font-size: 1.4rem; }
+.destinos .destino.todas .ico { color: var(--acento); }
+.destinos .destino.todas span { color: #a8bdd6; font-size: .9rem; }
+
+/* tipos de bus */
+.tres-tipos .tipo { background: #fff; border-radius: 20px; padding: 22px; box-shadow: var(--sombra); transition: opacity .7s ease, transform .25s, box-shadow .25s; }
+.tres-tipos .tipo.in:hover { transform: translateY(-5px); box-shadow: 0 16px 36px rgba(27, 63, 104, .14); }
+.tipo-bus { background: linear-gradient(180deg, #eaf0f7, #f6f1e7); border-radius: 14px; padding: 14px 10px 4px; margin-bottom: 14px; overflow: hidden; }
+.tipo-bus svg { width: 100%; height: auto; transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
+.tipo:hover .tipo-bus svg { transform: translateX(10px); }
+
+/* ventajas */
+.ventajas { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+.ventaja { background: #fff; border: 1px solid var(--linea); border-radius: 18px; padding: 24px; }
+.ventaja.in:hover { border-color: var(--acento); transform: translateY(-4px); box-shadow: var(--sombra); }
+.ventaja-ico { width: 46px; height: 46px; border-radius: 13px; background: var(--pino); color: var(--acento); display: grid; place-items: center; margin-bottom: 14px; transition: transform .3s; }
+.ventaja:hover .ventaja-ico { transform: rotate(-8deg) scale(1.08); }
+.ventaja h4 { font-size: 1.05rem; margin-bottom: 4px; }
+.ventaja p { color: var(--suave); font-size: .92rem; margin: 0; }
+
+/* banda con foto */
+.banda { position: relative; background-size: cover; background-position: center; color: #fff; padding: 90px 20px; overflow: hidden; }
+.banda-velo { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(12, 32, 56, .9), rgba(12, 32, 56, .55)); }
+.banda-in { position: relative; max-width: 1120px; margin: 0 auto; }
+.banda h2 { font-size: 2.3rem; max-width: 560px; }
+.banda p { max-width: 520px; color: #d2deec; margin-bottom: 22px; }
+.coop-chip div { display: flex; flex-direction: column; }
+
+/* esqueletos de carga */
+.sk { background: linear-gradient(90deg, #ece6d6 0%, #f7f3e9 50%, #ece6d6 100%); background-size: 200% 100%; border-radius: 10px; animation: shimmer 1.2s infinite linear; }
+.viaje.esqueleto { pointer-events: none; }
+.sk-bus { height: 74px; }
+.sk-col { display: flex; flex-direction: column; gap: 10px; }
+.sk-l1 { height: 24px; width: 60%; }
+.sk-l2 { height: 14px; width: 85%; }
+.sk-l3 { height: 14px; width: 45%; }
+.sk-btn { height: 40px; width: 100%; margin-top: 8px; }
+.lista .viaje:not(.esqueleto) { animation: subirSuave .5s cubic-bezier(.2, .7, .2, 1) both; }
+.lista .viaje:nth-child(2) { animation-delay: .07s; }
+.lista .viaje:nth-child(3) { animation-delay: .14s; }
+.lista .viaje:nth-child(4) { animation-delay: .21s; }
+.modal { animation: subirSuave .25s ease; }
+
+/* asientos */
+.asiento.sel { animation: pop .25s ease; box-shadow: 0 4px 10px rgba(27, 63, 104, .35); }
+.resumen .linea-r { animation: entrar .25s ease; }
+
+/* boleto */
+.boleto.entra { animation: ticketEntra .7s cubic-bezier(.2, .7, .2, 1) both; }
+.exito { animation: entrar .4s ease; }
+.check-anim { animation: pop .5s .15s ease both; }
+.check-anim svg { stroke-dasharray: 26; stroke-dashoffset: 26; animation: trazo .5s .45s ease forwards; }
+.acciones .btn { gap: 8px; }
+
+/* fotos de buses y tours */
+.tipo-foto { border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 10; margin-bottom: 14px; background: #eaf0f7; }
+.tipo-foto img { width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.2, .7, .2, 1); display: block; }
+.tipo:hover .tipo-foto img { transform: scale(1.07); }
+.foto-bus { width: 100%; height: 100px; object-fit: cover; border-radius: 12px; display: block; }
+.modal-bus.foto { height: 220px; object-fit: cover; padding: 0; background: none; border-radius: 14px; }
+.tours { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; }
+.tours-foto { border-radius: 22px; overflow: hidden; box-shadow: var(--sombra); aspect-ratio: 4 / 3; }
+.tours-foto img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .8s cubic-bezier(.2, .7, .2, 1); }
+.tours-foto:hover img { transform: scale(1.05); }
+.etiqueta.oscuro { color: #b8731a; }
+.tours-info h2 { font-size: 2rem; }
+.tours-lista { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.tour-item { display: flex; justify-content: space-between; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--linea); border-radius: 14px; padding: 14px 18px; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.tour-item:hover { border-color: var(--acento); transform: translateX(4px); box-shadow: var(--sombra); }
+.tour-item b { display: block; }
+.tour-item small { display: block; color: var(--suave); }
+.tour-item span { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.15rem; white-space: nowrap; }
+@media (max-width: 860px) { .tours { grid-template-columns: 1fr; } }
+
+/* carga, ventanilla y hoja de ruta con borrador */
+.splash { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 20px; }
+.marca-logo-app.grande { width: 72px; height: 72px; border-radius: 20px; animation: pulso 1.4s ease-in-out infinite; }
+@keyframes pulso { 50% { transform: scale(1.08); opacity: .8; } }
+button.comprobante { border: 0; cursor: pointer; color: var(--pino); transition: background .15s, transform .15s; }
+button.comprobante:hover { background: #ebe4d2; transform: translateY(-2px); }
+button.comprobante small { font-size: .72rem; font-weight: 700; }
+.modal-comprobante { width: min(640px, 100%); max-height: 90vh; overflow: auto; text-align: left; }
+.visor-img { width: 100%; border-radius: 12px; display: block; }
+.visor-pdf { width: 100%; height: 70vh; border: 0; border-radius: 12px; }
+.aviso-hoja { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: #fbebcb; color: #6e4706; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; font-weight: 600; font-size: .9rem; }
+.aviso-hoja.mal { background: #f8dcd6; color: #962b1a; }
+.aviso-hoja span { display: flex; gap: 8px; }
+
+/* notificaciones y correos */
+button.correo { width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--linea); padding: 10px 44px 10px 6px; font: inherit; border-radius: 8px; cursor: pointer; transition: background .15s; }
+button.correo:hover { background: var(--arena); }
+button.correo b { font-size: .85rem; line-height: 1.3; }
+.cajon { width: 340px; }
+.modal-correo { width: min(560px, 100%); max-height: 88vh; overflow: auto; text-align: left; }
+.mail-cab { border-bottom: 1px solid var(--linea); padding-bottom: 12px; margin-bottom: 14px; padding-right: 30px; }
+.mail-cab h3 { font-size: 1.15rem; margin-bottom: 8px; }
+.mail-cab p { margin: 0; font-size: .85rem; }
+.mail-cuerpo p { font-size: .95rem; }
+.mail-tabla { margin: 14px 0; border: 1px solid var(--linea); border-radius: 12px; overflow: hidden; }
+.mail-tabla div { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--linea); font-size: .88rem; }
+.mail-tabla div:last-child { border: 0; background: var(--arena); font-weight: 700; }
+.mail-tabla dt { color: var(--suave); }
+.mail-tabla dd { margin: 0; font-weight: 600; }
+.mail-codigo { display: flex; gap: 8px; justify-content: center; margin: 18px 0; }
+.mail-codigo span { width: 42px; height: 52px; border-radius: 10px; background: var(--arena); border: 1px solid var(--linea); display: grid; place-items: center; font-size: 1.6rem; font-weight: 800; color: var(--pino); }
+.mail-boton { margin-top: 6px; }
+
+/* verificación del correo */
+.verif { align-items: stretch; text-align: center; }
+.verif-ico { width: 58px; height: 58px; border-radius: 18px; background: var(--pino); color: var(--acento); display: grid; place-items: center; margin: 0 auto; animation: pop .45s ease both; }
+.verif h3 { margin: 4px 0 0; font-size: 1.5rem; }
+.verif .muted { margin: 0; }
+.codigo-celdas { display: flex; gap: 9px; justify-content: center; margin: 8px 0 2px; }
+.codigo-celdas input { width: 48px; height: 58px; text-align: center; font-size: 1.6rem; font-weight: 800; border: 1.5px solid var(--linea); border-radius: 12px; background: var(--papel); color: var(--pino); padding: 0; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.codigo-celdas input:focus { outline: none; border-color: var(--pino-2); box-shadow: 0 0 0 3px rgba(39, 90, 142, .18); transform: translateY(-2px); }
+.codigo-celdas input.mal { border-color: var(--rojo); background: #fdf1ee; }
+.err-codigo { color: var(--rojo); font-weight: 600; font-size: .85rem; }
+.vigencia { margin: 0; font-size: .85rem; color: var(--suave); }
+.vigencia.venc { color: var(--rojo); font-weight: 600; }
+.verif-links { display: flex; justify-content: space-between; gap: 10px; }
+.verif-links .btn-link:disabled { color: var(--suave); text-decoration: none; cursor: default; }
+.bandeja-demo { margin-top: 8px; border: 1.5px dashed #c9bd9b; background: #fffaf0; border-radius: 14px; padding: 14px; text-align: left; animation: entrar .4s ease; }
+.bandeja-tit { margin: 0 0 2px; font-weight: 700; font-size: .85rem; display: flex; align-items: center; gap: 6px; color: #8a5a07; }
+.bandeja-demo > small { color: var(--suave); }
+.bandeja-correo { background: #fff; border: 1px solid var(--linea); border-radius: 12px; padding: 14px; margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.bandeja-correo > span { font-size: .78rem; color: var(--suave); margin-bottom: 8px; }
+.bandeja-correo .mail-codigo span { width: 34px; height: 44px; font-size: 1.3rem; }
+
+/* logo de la app */
+.marca-logo-app { width: 42px; height: 42px; border-radius: 12px; flex: none; background: #1d4872 url(/img/logo.jpg) 35% 17% / 150% no-repeat; box-shadow: 0 2px 8px rgba(27, 63, 104, .25); transition: transform .25s; }
+.marca:hover .marca-logo-app { transform: rotate(-6deg) scale(1.06); }
+.marca span:last-child { letter-spacing: -.03em; }
+
+/* carrusel de destinos */
+.carrusel { position: relative; }
+.destinos { display: flex; gap: 18px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; padding: 6px 2px 22px; cursor: grab; -webkit-overflow-scrolling: touch; }
+.destinos::-webkit-scrollbar { display: none; }
+.destinos .destino { flex: 0 0 calc((100% - 36px) / 3); scroll-snap-align: start; height: 320px; }
+.destinos .destino img { user-select: none; -webkit-user-drag: none; }
+.flecha { position: absolute; top: calc(50% - 26px); z-index: 5; width: 50px; height: 50px; border-radius: 50%; border: 0; background: #fff; color: var(--pino); box-shadow: 0 8px 22px rgba(18, 44, 74, .28); display: grid; place-items: center; transition: transform .2s, opacity .2s, background .2s; }
+.flecha:hover:not(:disabled) { background: var(--acento); color: #2a1c05; transform: scale(1.1); }
+.flecha:disabled { opacity: 0; pointer-events: none; }
+.flecha.izq { left: -22px; transform: rotate(180deg); }
+.flecha.izq:hover:not(:disabled) { transform: rotate(180deg) scale(1.1); }
+.flecha.der { right: -22px; }
+@media (max-width: 960px) { .destinos .destino { flex-basis: calc((100% - 18px) / 2); } .flecha.izq { left: 4px; } .flecha.der { right: 4px; } }
+@media (max-width: 560px) { .destinos .destino { flex-basis: 82%; height: 280px; } }
+
+/* logos de cooperativas */
+.coop-logo { display: inline-grid; place-items: center; flex: none; background: #fff; border-radius: 12px; border: 1px solid var(--linea); overflow: hidden; padding: 3px; }
+.coop-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.coop-logo b { width: 100%; height: 100%; border-radius: 9px; background: var(--c); color: #fff; display: grid; place-items: center; }
+.coop-logo.en-foto { position: absolute; left: 8px; top: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); border: 0; }
+.viaje-bus { position: relative; }
+.modal-tit { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.modal-tit h3 { margin: 0; }
+.coops .coop-chip { background: #fff; padding: 10px 20px 10px 10px; }
+.coop-chip .coop-logo { width: 52px; height: 52px; }
+.tour-ciudad { display: inline-block; font-style: normal; font-size: .7rem; font-weight: 700; background: #fbebcb; color: #8a5a07; padding: 1px 8px; border-radius: 99px; margin-left: 8px; vertical-align: 2px; }
+.tabla .coop-logo { width: 34px; height: 34px; margin-right: 10px; vertical-align: middle; border-radius: 9px; }
+
+/* login */
+.auth { display: grid; grid-template-columns: 1.05fr 1fr; min-height: calc(100vh - 62px); }
+.auth-lado { position: relative; background-size: cover; background-position: 62% center; color: #fff; display: flex; align-items: flex-end; padding: 56px; overflow: hidden; }
+.auth-velo { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(12, 32, 56, .95) 5%, rgba(12, 32, 56, .45) 60%, rgba(12, 32, 56, .25)); }
+.auth-lado-in { position: relative; max-width: 480px; animation: subirSuave .8s ease both; }
+.auth-lado h2 { font-size: 2.6rem; line-height: 1.05; }
+.auth-lado p { color: #d2deec; }
+.auth-lista { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.auth-lista li { display: flex; align-items: center; gap: 12px; font-weight: 600; }
+.auth-lista .ico { color: var(--acento); background: rgba(255, 255, 255, .12); padding: 7px; width: 34px; height: 34px; border-radius: 10px; }
+.auth-form { display: grid; place-items: center; padding: 40px 20px; background: var(--arena); }
+.auth-card { width: min(440px, 100%); background: #fff; border-radius: 22px; padding: 30px; box-shadow: 0 20px 50px rgba(27, 63, 104, .12); animation: subirSuave .5s ease both; }
+.auth-card.sacudida { animation: sacudir .45s ease both; }
+.auth-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; background: var(--arena); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+.auth-tabs button { position: relative; z-index: 1; background: none; border: 0; padding: 10px; font-weight: 700; color: var(--suave); border-radius: 9px; transition: color .2s; }
+.auth-tabs button.on { color: var(--pino); }
+.auth-tabs i { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); background: #fff; border-radius: 9px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08); transition: transform .3s cubic-bezier(.2, .7, .2, 1); }
+.auth-aviso { background: #fbebcb; color: #6e4706; padding: 10px 14px; border-radius: 10px; font-size: .88rem; }
+.auth-campos { display: flex; flex-direction: column; gap: 14px; }
+.campo { display: flex; flex-direction: column; gap: 5px; }
+.campo > span { font-size: .8rem; font-weight: 700; color: var(--suave); }
+.campo-caja { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--linea); border-radius: 11px; padding: 0 12px; background: var(--papel); color: var(--suave); transition: border-color .15s, box-shadow .15s; }
+.campo-caja:focus-within { border-color: var(--pino-2); box-shadow: 0 0 0 3px rgba(39, 90, 142, .15); color: var(--pino-2); }
+.campo-caja input { flex: 1; border: 0; background: none; padding: 13px 0; outline: none; color: var(--tinta); min-width: 0; }
+.campo.mal .campo-caja { border-color: var(--rojo); background: #fdf1ee; color: var(--rojo); }
+.campo small { color: var(--rojo); font-weight: 600; font-size: .8rem; animation: entrar .2s ease; }
+.ojo { background: none; border: 0; color: var(--suave); display: grid; place-items: center; padding: 4px; }
+.ancho { width: 100%; margin-top: 4px; }
+.olvido { align-self: flex-end; margin-top: -4px; }
+.auth-nota { font-size: .82rem; color: var(--suave); text-align: center; margin: 4px 0 0; }
+.cuentas { margin-top: 22px; border-top: 1px solid var(--linea); padding-top: 14px; }
+.cuentas-btn { background: none; border: 0; color: var(--suave); font-size: .85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 0; }
+.cuentas-btn .ico { transition: transform .2s; }
+.cuentas-btn .gira { transform: rotate(90deg); }
+.cuentas-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; animation: entrar .25s ease; }
+.cuentas-lista button { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--linea); background: var(--papel); border-radius: 10px; padding: 9px 12px; font-size: .84rem; text-align: left; transition: border-color .15s; }
+.cuentas-lista button:hover { border-color: var(--acento); }
+.cuentas-lista span { color: var(--suave); }
+.cuentas-lista small { color: var(--suave); }
+
+@media (max-width: 860px) {
+  .hero { min-height: 500px; padding: 80px 20px 110px; }
+  .hero-stats { gap: 22px; }
+  .buscador-wrap { margin-top: -56px; }
+  .auth { grid-template-columns: 1fr; }
+  .auth-lado { min-height: 240px; padding: 28px; }
+  .auth-lado h2 { font-size: 1.8rem; }
+  .auth-lista { display: none; }
+  .banda h2 { font-size: 1.7rem; }
+}

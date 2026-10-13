@@ -1,12 +1,6 @@
-import { BrowserRouter } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import AppRoutes from "./routes/AppRoutes";
+
+import ViajaYaRoutes from "./ViajaYaRoutes";
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Navbar />
-      <AppRoutes />
-    </BrowserRouter>
-  );
+  return <ViajaYaRoutes />;
 }
