@@ -83,3 +83,25 @@ export async function actualizarCooperativa(
     },
   });
 }
+
+
+
+export async function cambiarEstadoCooperativa(
+  id: string,
+  activa: boolean
+) {
+  return prisma.cooperativas.update({
+    where: { id },
+    data: {
+      activa,
+      actualizado_en: new Date(),
+    },
+    select: {
+      id: true,
+      nombre_comercial: true,
+      razon_social: true,
+      activa: true,
+      actualizado_en: true,
+    },
+  });
+}
