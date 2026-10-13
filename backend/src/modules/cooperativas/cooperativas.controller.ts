@@ -4,6 +4,7 @@ import {
   listarCooperativas,
   registrarCooperativa,
   actualizarCooperativa,
+  cambiarEstadoCooperativa,
 } from "./cooperativas.service.js";
 
 export async function obtenerCooperativas(
@@ -229,6 +230,74 @@ export async function editarCooperativa(
 
     res.status(500).json({
       error: "No se pudo actualizar la cooperativa",
+    });
+  }
+}
+
+
+
+export async function actualizarEstadoCooperativa(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const id = req.params.id;
+
+  if (
+    typeof id !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    res.status(400).json({
+      error: "El identificador de la cooperativa no es válido",
+    });
+    return;
+  }
+
+  const cuerpo = req.body;
+
+  if (
+    !cuerpo ||
+    typeof cuerpo !== "object" ||
+    Array.isArray(cuerpo) ||
+    Object.keys(cuerpo).length !== 1 ||
+    typeof cuerpo.activa !== "boolean"
+  ) {
+    res.status(400).json({
+      error: "Debes enviar únicamente el campo activa con valor true o false",
+    });
+    return;
+  }
+
+  try {
+    const cooperativa = await cambiarEstadoCooperativa(
+      id,
+      cuerpo.activa
+    );
+
+    res.status(200).json({
+      mensaje: cuerpo.activa
+        ? "Cooperativa activada correctamente"
+        : "Cooperativa desactivada correctamente",
+      datos: cooperativa,
+    });
+  } catch (error) {
+    const codigo =
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error
+        ? error.code
+        : null;
+
+    if (codigo === "P2025") {
+      res.status(404).json({
+        error: "La cooperativa no existe",
+      });
+      return;
+    }
+
+    console.error("Error al cambiar el estado de la cooperativa:", error);
+
+    res.status(500).json({
+      error: "No se pudo cambiar el estado de la cooperativa",
     });
   }
 }
