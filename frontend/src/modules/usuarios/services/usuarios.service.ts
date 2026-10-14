@@ -70,4 +70,28 @@ export const usuariosService = {
   logout() {
     return solicitar<void>("/logout", "POST", {});
   },
+
+  solicitarRecuperacion(correo: string) {
+    return solicitar<{ mensaje: string }>(
+      "/recuperar-contrasena",
+      "POST",
+      { correo }
+    );
+  },
+
+  restablecerContrasena(
+    token: string,
+    nuevaClave: string,
+    confirmarClave: string
+  ) {
+    return solicitar<{ mensaje: string }>(
+      "/restablecer-contrasena",
+      "POST",
+      {
+        token,
+        nuevaClave,
+        confirmarClave,
+      }
+    );
+  },
 };
