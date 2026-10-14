@@ -65,6 +65,8 @@ export default function Login() {
       setClave('')
       avisar(`Bienvenido, ${resultado.sesion.nombre}`)
       nav(rutaInicial(resultado.sesion), { replace: true })
+    } catch {
+      setError('No se pudo iniciar sesión. Inténtalo nuevamente.')
     } finally {
       setEnviando(false)
     }
@@ -101,10 +103,12 @@ export default function Login() {
               <Icon n="shield" />
               Accede con tu cuenta
             </li>
+
             <li>
               <Icon n="qr" />
               Consulta tus boletos
             </li>
+
             <li>
               <Icon n="mail" />
               Mantén tus datos en un solo lugar
@@ -116,7 +120,10 @@ export default function Login() {
       <section className="auth-form">
         <div className="auth-card">
           <h2>Iniciar sesión</h2>
-          <p className="muted">Ingresa con tu correo y contraseña.</p>
+
+          <p className="muted">
+            Ingresa con tu correo y contraseña.
+          </p>
 
           {destinoSeguro && (
             <p className="auth-aviso">
@@ -129,10 +136,11 @@ export default function Login() {
             className="auth-campos"
             aria-busy={enviando}
           >
-            <label className="campo">
+            <label className="campo" htmlFor="login-correo">
               <span>Correo electrónico</span>
 
               <input
+                id="login-correo"
                 type="email"
                 name="correo"
                 autoComplete="username"
@@ -148,10 +156,11 @@ export default function Login() {
               />
             </label>
 
-            <label className="campo">
+            <label className="campo" htmlFor="login-clave">
               <span>Contraseña</span>
 
               <input
+                id="login-clave"
                 type={verClave ? 'text' : 'password'}
                 name="clave"
                 autoComplete="current-password"
@@ -164,16 +173,17 @@ export default function Login() {
                 disabled={enviando}
                 required
               />
-
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setVerClave(!verClave)}
-                aria-pressed={verClave}
-              >
-                {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              </button>
             </label>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setVerClave((actual) => !actual)}
+              aria-pressed={verClave}
+              aria-controls="login-clave"
+            >
+              {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            </button>
 
             {error && (
               <p role="alert" className="auth-aviso">

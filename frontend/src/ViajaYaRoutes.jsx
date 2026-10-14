@@ -1,6 +1,5 @@
-
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -8,6 +7,7 @@ import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
 import Login from "./modules/usuarios/Login";
+import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 import Resultados from "./modules/reservas/Resultados";
 import Compra from "./modules/reservas/Compra";
 import Boleto from "./modules/boletos/Boleto";
@@ -17,8 +17,16 @@ import PanelCoop from "./modules/cooperativas/PanelCoop";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 
 function Protegida({ roles, children }) {
-  const { sesion } = useApp();
+  const { sesion, cargando } = useApp();
   const loc = useLocation();
+
+  if (cargando) {
+    return (
+      <div className="splash" role="status">
+        Comprobando sesión...
+      </div>
+    );
+  }
 
   if (!sesion) {
     return (
@@ -31,7 +39,7 @@ function Protegida({ roles, children }) {
   }
 
   if (!roles.includes(sesion.rol)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/acceso-denegado" replace />;
   }
 
   return children;
@@ -46,15 +54,25 @@ export default function ViajaYaRoutes() {
   }, [loc.pathname]);
 
   if (cargando) {
-    return <div className="splash">Cargando...</div>;
+    return (
+      <div className="splash" role="status">
+        Cargando...
+      </div>
+    );
   }
 
   if (errorRed) {
     return (
       <div className="splash">
         <h2>No pudimos conectar con el servidor</h2>
-        <p>{errorRed}</p>
-        <button className="btn btn-oscuro" onClick={reintentar}>
+
+        <p role="alert">{errorRed}</p>
+
+        <button
+          type="button"
+          className="btn btn-oscuro"
+          onClick={reintentar}
+        >
           Reintentar
         </button>
       </div>
@@ -68,7 +86,14 @@ export default function ViajaYaRoutes() {
       <main key={loc.pathname} className="pagina">
         <Routes>
           <Route path="/" element={<Home />} />
+
           <Route path="/ingresar" element={<Login />} />
+
+          <Route
+            path="/acceso-denegado"
+            element={<AccesoDenegado />}
+          />
+
           <Route path="/buscar" element={<Resultados />} />
 
           <Route
@@ -125,12 +150,20 @@ export default function ViajaYaRoutes() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
         </Routes>
       </main>
 
       {loc.pathname !== "/ingresar" && <Footer />}
-      {aviso && <div className="toast">{aviso}</div>}
+
+      {aviso && (
+        <div className="toast" role="status">
+          {aviso}
+        </div>
+      )}
     </>
   );
 }
