@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import Icon from '../../components/Icon'
 import { RUTA_POR_ROL } from '../../data/usuarios'
@@ -174,6 +174,10 @@ export default function Login() {
                 {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
               </button>
             </label>
+
+            <Link to="/recuperar-contrasena" className="btn-link">
+              ¿Olvidaste tu contraseña?
+            </Link>
 
             {error && (
               <p role="alert" className="auth-aviso">
