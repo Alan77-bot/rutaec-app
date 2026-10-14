@@ -2,7 +2,12 @@ import { Router } from "express";
 import type { ErrorRequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
-import { login, logout, yo } from "./usuarios.controller.js";
+import {
+  login,
+  logout,
+  yo,
+  registro,
+} from "./usuarios.controller.js";
 import { ErrorAutenticacion } from "./usuarios.service.js";
 
 const router = Router();
