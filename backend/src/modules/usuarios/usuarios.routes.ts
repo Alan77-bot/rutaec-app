@@ -45,7 +45,7 @@ const limitarLogin = rateLimit({
 });
 
 router.post("/login", limitarLogin, login);
-router.get("/yo", yo);
+router.get("/yo", ...autenticar, yo);
 router.post("/logout", logout);
 
 const manejarError: ErrorRequestHandler = (error, _req, res, _next) => {
