@@ -1,3 +1,7 @@
+import {
+  verificarCorreo,
+  reenviarCodigo,
+} from "./verificacion.service.js";
 import { registrarUsuario } from "./registro.service.js";
 import type { CookieOptions, Request, Response } from "express";
 import {
@@ -47,4 +51,15 @@ export async function registro(req: Request, res: Response) {
   const resultado = await registrarUsuario(req.body);
 
   res.status(201).json(resultado);
+}
+export async function verificar(req: Request, res: Response) {
+  const resultado = await verificarCorreo(req.body);
+
+  res.status(200).json(resultado);
+}
+
+export async function reenviar(req: Request, res: Response) {
+  const resultado = await reenviarCodigo(req.body);
+
+  res.status(200).json(resultado);
 }
