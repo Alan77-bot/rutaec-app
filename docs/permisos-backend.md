@@ -77,3 +77,26 @@ mantener protección frente a solicitudes de otros orígenes.
 - Middleware de cooperativa implementado.
 - Integración en endpoints de otros módulos pendiente.
 - Pruebas de permisos pendientes.
+## Comprobaciones manuales del frontend
+
+Fecha: 13/10/2026.
+
+Con una cuenta de cliente:
+
+- /admin muestra Acceso denegado.
+- /cooperativa muestra Acceso denegado.
+- /oficinista muestra Acceso denegado.
+- /mis-viajes permite acceder.
+- Sin sesión, /mis-viajes redirige a /ingresar.
+
+Resultados confirmados manualmente.
+
+Estas comprobaciones validan la navegación del frontend.
+No demuestran todavía la autorización de los endpoints del backend.
+
+## Pendientes de integración
+
+- Aplicar autorización por rol a los endpoints privados de cada módulo.
+- Aplicar restricciones y filtros por cooperativa.
+- Comprobar respuestas 401 y 403 en las API correspondientes.
+- Comprobar rechazo de acceso entre cooperativas distintas.
