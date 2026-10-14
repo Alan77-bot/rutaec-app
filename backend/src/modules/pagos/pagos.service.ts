@@ -16,3 +16,10 @@ export async function listarPagos() {
     orderBy: { creado_en: "desc" },
   });
 }
+
+export async function listarPagosPendientes() {
+  return prisma.pagos.findMany({
+    where: { estado: { in: ["PENDIENTE", "EN_REVISION"] } },
+    orderBy: { creado_en: "asc" },
+  });
+}
