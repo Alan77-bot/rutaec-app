@@ -5,3 +5,12 @@ export async function listarCiudades() {
     orderBy: [{ provincia: "asc" }, { nombre: "asc" }],
   });
 }
+
+export async function listarTerminales() {
+  return prisma.terminales.findMany({
+    include: {
+      ciudades: { select: { nombre: true, provincia: true } },
+    },
+    orderBy: { nombre: "asc" },
+  });
+}
