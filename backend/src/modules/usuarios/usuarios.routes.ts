@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { login, logout, yo } from "./usuarios.controller.js";
 import { ErrorAutenticacion } from "./usuarios.service.js";
+import { autenticar } from "../../middlewares/autenticacion.js";
 
 const router = Router();
 

@@ -2,7 +2,6 @@ import type { CookieOptions, Request, Response } from "express";
 import {
   autenticar,
   DURACION_SESION_MS,
-  obtenerSesion,
   revocarSesion,
 } from "./usuarios.service.js";
 
