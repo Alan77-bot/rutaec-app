@@ -3,12 +3,18 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import Icon from '../../components/Icon'
 import { RUTA_POR_ROL } from '../../data/usuarios'
+import RegistroForm from './RegistroForm'
+import VerificarCorreo from './VerificarCorreo'
+import { usuariosService } from './services/usuarios.service'
 
 export default function Login() {
   const { sesion, cargando, iniciarSesion, avisar, config } = useApp()
 
   const nav = useNavigate()
   const loc = useLocation()
+
+  const [modo, setModo] = useState('ingresar')
+  const [pendiente, setPendiente] = useState(null)
 
   const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
@@ -33,6 +39,53 @@ export default function Login() {
     }
 
     return RUTA_POR_ROL[usuario.rol] ?? '/'
+  }
+
+  function volverAlLogin() {
+    setPendiente(null)
+    setClave('')
+    setError('')
+    setModo('ingresar')
+  }
+
+  function abrirRegistro() {
+    setClave('')
+    setError('')
+    setPendiente(null)
+    setModo('registro')
+  }
+
+  function abrirVerificacion() {
+    setPendiente({
+      correo: correo.trim(),
+      clave: '',
+    })
+
+    setClave('')
+    setError('')
+    setModo('verificar')
+  }
+
+  async function registrar(datos) {
+    const respuesta = await usuariosService.registrar(datos)
+
+    setPendiente({
+      correo: respuesta.correo,
+      verificacionId: respuesta.verificacionId,
+      venceEn: respuesta.venceEn,
+      clave: datos.clave,
+    })
+
+    setCorreo(respuesta.correo)
+    setClave('')
+    setError('')
+    setModo('verificar')
+  }
+
+  function completarVerificacion(correoVerificado) {
+    setCorreo(correoVerificado)
+    volverAlLogin()
+    avisar('Correo verificado. Ya puedes iniciar sesión.')
   }
 
   async function entrar(evento) {
@@ -107,7 +160,7 @@ export default function Login() {
             </li>
             <li>
               <Icon n="mail" />
-              Mantén tus datos en un solo lugar
+              Verifica tu correo
             </li>
           </ul>
         </div>
@@ -115,86 +168,115 @@ export default function Login() {
 
       <section className="auth-form">
         <div className="auth-card">
-          <h2>Iniciar sesión</h2>
-          <p className="muted">Ingresa con tu correo y contraseña.</p>
+          {modo === 'registro' ? (
+            <RegistroForm
+              onRegistrar={registrar}
+              onVolver={volverAlLogin}
+            />
+          ) : modo === 'verificar' ? (
+            <VerificarCorreo
+              pendiente={pendiente}
+              onVerificado={completarVerificacion}
+              onVolver={volverAlLogin}
+            />
+          ) : (
+            <>
+              <h2>Iniciar sesión</h2>
 
-          {destinoSeguro && (
-            <p className="auth-aviso">
-              Inicia sesión para continuar.
-            </p>
-          )}
-
-          <form
-            onSubmit={entrar}
-            className="auth-campos"
-            aria-busy={enviando}
-          >
-            <label className="campo">
-              <span>Correo electrónico</span>
-
-              <input
-                type="email"
-                name="correo"
-                autoComplete="username"
-                placeholder="tucorreo@ejemplo.com"
-                value={correo}
-                onChange={(evento) => {
-                  setCorreo(evento.target.value)
-                  setError('')
-                }}
-                maxLength={254}
-                disabled={enviando}
-                required
-              />
-            </label>
-
-            <label className="campo">
-              <span>Contraseña</span>
-
-              <input
-                type={verClave ? 'text' : 'password'}
-                name="clave"
-                autoComplete="current-password"
-                placeholder="Tu contraseña"
-                value={clave}
-                onChange={(evento) => {
-                  setClave(evento.target.value)
-                  setError('')
-                }}
-                disabled={enviando}
-                required
-              />
-
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setVerClave(!verClave)}
-                aria-pressed={verClave}
-              >
-                {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              </button>
-            </label>
-
-            {error && (
-              <p role="alert" className="auth-aviso">
-                {error}
+              <p className="muted">
+                Ingresa con tu correo y contraseña.
               </p>
-            )}
 
-            <button
-              type="submit"
-              className="btn btn-oscuro btn-lg ancho"
-              disabled={enviando}
-            >
-              {enviando ? 'Ingresando...' : 'Ingresar'}
-              <Icon n="arrow" size={18} />
-            </button>
+              {destinoSeguro && (
+                <p className="auth-aviso">
+                  Inicia sesión para continuar.
+                </p>
+              )}
 
-            <p className="auth-nota">
-              El registro de nuevas cuentas se habilitará al integrar
-              el módulo de registro.
-            </p>
-          </form>
+              <form
+                onSubmit={entrar}
+                className="auth-campos"
+                aria-busy={enviando}
+              >
+                <label className="campo">
+                  <span>Correo electrónico</span>
+                  <input
+                    type="email"
+                    name="correo"
+                    autoComplete="username"
+                    placeholder="tucorreo@ejemplo.com"
+                    value={correo}
+                    onChange={(evento) => {
+                      setCorreo(evento.target.value)
+                      setError('')
+                    }}
+                    maxLength={254}
+                    disabled={enviando}
+                    required
+                  />
+                </label>
+
+                <label className="campo">
+                  <span>Contraseña</span>
+                  <input
+                    type={verClave ? 'text' : 'password'}
+                    name="clave"
+                    autoComplete="current-password"
+                    placeholder="Tu contraseña"
+                    value={clave}
+                    onChange={(evento) => {
+                      setClave(evento.target.value)
+                      setError('')
+                    }}
+                    disabled={enviando}
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => setVerClave(!verClave)}
+                    aria-pressed={verClave}
+                  >
+                    {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  </button>
+                </label>
+
+                {error && (
+                  <p role="alert" className="auth-aviso">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="btn btn-oscuro btn-lg ancho"
+                  disabled={enviando}
+                >
+                  {enviando ? 'Ingresando...' : 'Ingresar'}
+                  <Icon n="arrow" size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={abrirRegistro}
+                  disabled={enviando}
+                >
+                  No tengo cuenta. Registrarme
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={abrirVerificacion}
+                  disabled={enviando}
+                >
+                  Verificar mi cuenta o solicitar otro código
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </section>
     </div>
