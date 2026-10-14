@@ -1,3 +1,4 @@
+import { registrarUsuario } from "./registro.service.js";
 import type { CookieOptions, Request, Response } from "express";
 import {
   autenticar,
@@ -41,4 +42,9 @@ export async function logout(req: Request, res: Response) {
 
   res.clearCookie(COOKIE_SESION, opcionesCookie);
   res.status(204).end();
+}
+export async function registro(req: Request, res: Response) {
+  const resultado = await registrarUsuario(req.body);
+
+  res.status(201).json(resultado);
 }
