@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { listarCiudades, listarTerminales } from "./rutas.service.js";
+import { listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
 
 export async function obtenerCiudades(
   _req: Request,
@@ -24,5 +24,18 @@ export async function obtenerTerminales(
   } catch (error) {
     console.error("Error al consultar terminales:", error);
     res.status(500).json({ error: "No se pudieron consultar las terminales" });
+  }
+}
+
+export async function obtenerRutas(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const rutas = await listarRutas();
+    res.status(200).json({ total: rutas.length, datos: rutas });
+  } catch (error) {
+    console.error("Error al consultar rutas:", error);
+    res.status(500).json({ error: "No se pudieron consultar las rutas" });
   }
 }
