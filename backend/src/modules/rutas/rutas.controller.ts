@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
+import { crearRuta, ErrorRutas, listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
 
 export async function obtenerCiudades(
   _req: Request,
@@ -37,5 +37,22 @@ export async function obtenerRutas(
   } catch (error) {
     console.error("Error al consultar rutas:", error);
     res.status(500).json({ error: "No se pudieron consultar las rutas" });
+  }
+}
+
+export async function registrarRuta(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const ruta = await crearRuta(req.body);
+    res.status(201).json({ mensaje: "Ruta registrada correctamente", datos: ruta });
+  } catch (error) {
+    if (error instanceof ErrorRutas) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al registrar ruta:", error);
+    res.status(500).json({ error: "No se pudo registrar la ruta" });
   }
 }

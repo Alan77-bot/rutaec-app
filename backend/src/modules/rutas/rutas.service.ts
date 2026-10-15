@@ -55,3 +55,123 @@ export async function listarRutas(rutaId?: string) {
     };
   });
 }
+
+export class ErrorRutas extends Error {
+  estado: number;
+
+  constructor(estado: number, mensaje: string) {
+    super(mensaje);
+    this.estado = estado;
+  }
+}
+
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface ParadaEntrada {
+  terminal_id: string;
+  minutos_desde_origen: number;
+  permite_subida: boolean;
+  permite_bajada: boolean;
+}
+
+interface RutaEntrada {
+  cooperativa_id: string;
+  nombre: string;
+  paradas: ParadaEntrada[];
+}
+
+function validarEntrada(datos: unknown): RutaEntrada {
+  if (typeof datos !== "object" || datos === null) {
+    throw new ErrorRutas(400, "El cuerpo de la peticion es obligatorio");
+  }
+  const d = datos as Record<string, unknown>;
+
+  const nombre = typeof d.nombre === "string" ? d.nombre.trim() : "";
+  if (!nombre) throw new ErrorRutas(400, "El nombre de la ruta es obligatorio");
+
+  if (typeof d.cooperativa_id !== "string" || !UUID.test(d.cooperativa_id)) {
+    throw new ErrorRutas(400, "cooperativa_id debe ser un UUID valido");
+  }
+
+  if (!Array.isArray(d.paradas) || d.paradas.length < 2) {
+    throw new ErrorRutas(400, "La ruta necesita al menos 2 paradas");
+  }
+
+  const paradas = d.paradas.map((p: unknown, i: number): ParadaEntrada => {
+    if (typeof p !== "object" || p === null) {
+      throw new ErrorRutas(400, `La parada ${i + 1} no es valida`);
+    }
+    const x = p as Record<string, unknown>;
+    if (typeof x.terminal_id !== "string" || !UUID.test(x.terminal_id)) {
+      throw new ErrorRutas(400, `La parada ${i + 1} necesita un terminal_id valido`);
+    }
+    const minutos = x.minutos_desde_origen;
+    if (typeof minutos !== "number" || !Number.isInteger(minutos) || minutos < 0) {
+      throw new ErrorRutas(
+        400,
+        `La parada ${i + 1} necesita minutos_desde_origen entero y mayor o igual a 0`
+      );
+    }
+    return {
+      terminal_id: x.terminal_id,
+      minutos_desde_origen: minutos,
+      permite_subida: x.permite_subida !== false,
+      permite_bajada: x.permite_bajada !== false,
+    };
+  });
+
+  return { cooperativa_id: d.cooperativa_id, nombre, paradas };
+}
+
+export async function crearRuta(datos: unknown) {
+  const entrada = validarEntrada(datos);
+
+  const cooperativa = await prisma.cooperativas.findUnique({
+    where: { id: entrada.cooperativa_id },
+    select: { id: true },
+  });
+  if (!cooperativa) throw new ErrorRutas(404, "La cooperativa no existe");
+
+  const idsTerminales = [...new Set(entrada.paradas.map((p) => p.terminal_id))];
+  const encontradas = await prisma.terminales.count({
+    where: { id: { in: idsTerminales } },
+  });
+  if (encontradas !== idsTerminales.length) {
+    throw new ErrorRutas(400, "Alguna de las terminales no existe");
+  }
+
+  const existente = await prisma.rutas.findFirst({
+    where: {
+      cooperativa_id: entrada.cooperativa_id,
+      nombre: entrada.nombre,
+      version: 1,
+    },
+    select: { id: true },
+  });
+  if (existente) {
+    throw new ErrorRutas(409, "Ya existe una ruta con ese nombre en la cooperativa");
+  }
+
+  // El create anidado guarda la ruta y sus paradas en una sola transaccion.
+  const creada = await prisma.rutas.create({
+    data: {
+      cooperativa_id: entrada.cooperativa_id,
+      nombre: entrada.nombre,
+      version: 1,
+      paradas_ruta: {
+        create: entrada.paradas.map((p, i) => ({
+          orden: i + 1,
+          terminal_id: p.terminal_id,
+          minutos_desde_origen: p.minutos_desde_origen,
+          permite_subida: p.permite_subida,
+          permite_bajada: p.permite_bajada,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  const [ruta] = await listarRutas(creada.id);
+  return ruta;
+}
