@@ -63,14 +63,6 @@ export const usuariosService = {
     });
   },
 
-  yo() {
-    return solicitar<{ sesion: SesionUsuario }>("/yo");
-  },
-
-  logout() {
-    return solicitar<void>("/logout", "POST", {});
-  },
-
   solicitarRecuperacion(correo: string) {
     return solicitar<{ mensaje: string }>(
       "/recuperar-contrasena",
@@ -93,5 +85,13 @@ export const usuariosService = {
         confirmarClave,
       }
     );
+  },
+
+  yo() {
+    return solicitar<{ sesion: SesionUsuario }>("/yo");
+  },
+
+  logout() {
+    return solicitar<void>("/logout", "POST", {});
   },
 };

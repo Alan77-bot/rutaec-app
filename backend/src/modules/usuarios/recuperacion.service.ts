@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma.js";
-import { enviarEnlaceRecuperacion } from "./correo.service.js";
+import { enviarEnlaceRecuperacion } from "./recuperacion.correo.service.js";
 import { ErrorAutenticacion } from "./usuarios.service.js";
 
 const DURACION_TOKEN_MS = 15 * 60 * 1000;

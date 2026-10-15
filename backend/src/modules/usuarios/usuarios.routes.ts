@@ -49,6 +49,10 @@ const limitarLogin = rateLimit({
   },
 });
 
+router.post("/login", limitarLogin, login);
+router.get("/yo", yo);
+router.post("/logout", logout);
+
 const limitarSolicitudRecuperacion = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
@@ -70,10 +74,6 @@ const limitarRestablecimiento = rateLimit({
       "Demasiados intentos de restablecimiento. Inténtalo en 15 minutos.",
   },
 });
-
-router.post("/login", limitarLogin, login);
-router.get("/yo", yo);
-router.post("/logout", logout);
 
 router.post(
   "/recuperar-contrasena",
