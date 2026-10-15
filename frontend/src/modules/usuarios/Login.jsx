@@ -118,6 +118,8 @@ export default function Login() {
       setClave('')
       avisar(`Bienvenido, ${resultado.sesion.nombre}`)
       nav(rutaInicial(resultado.sesion), { replace: true })
+    } catch {
+      setError('No se pudo iniciar sesión. Inténtalo nuevamente.')
     } finally {
       setEnviando(false)
     }
@@ -181,100 +183,105 @@ export default function Login() {
             />
           ) : (
             <>
-              <h2>Iniciar sesión</h2>
+          <h2>Iniciar sesión</h2>
 
-              <p className="muted">
-                Ingresa con tu correo y contraseña.
+          <p className="muted">
+            Ingresa con tu correo y contraseña.
+          </p>
+
+          {destinoSeguro && (
+            <p className="auth-aviso">
+              Inicia sesión para continuar.
+            </p>
+          )}
+
+          <form
+            onSubmit={entrar}
+            className="auth-campos"
+            aria-busy={enviando}
+          >
+            <label className="campo" htmlFor="login-correo">
+              <span>Correo electrónico</span>
+
+              <input
+                id="login-correo"
+                type="email"
+                name="correo"
+                autoComplete="username"
+                placeholder="tucorreo@ejemplo.com"
+                value={correo}
+                onChange={(evento) => {
+                  setCorreo(evento.target.value)
+                  setError('')
+                }}
+                maxLength={254}
+                disabled={enviando}
+                required
+              />
+            </label>
+
+            <label className="campo" htmlFor="login-clave">
+              <span>Contraseña</span>
+
+              <input
+                id="login-clave"
+                type={verClave ? 'text' : 'password'}
+                name="clave"
+                autoComplete="current-password"
+                placeholder="Tu contraseña"
+                value={clave}
+                onChange={(evento) => {
+                  setClave(evento.target.value)
+                  setError('')
+                }}
+                disabled={enviando}
+                required
+              />
+            </label>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setVerClave((actual) => !actual)}
+              aria-pressed={verClave}
+              aria-controls="login-clave"
+            >
+              {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            </button>
+
+            {error && (
+              <p role="alert" className="auth-aviso">
+                {error}
               </p>
+            )}
 
-              {destinoSeguro && (
-                <p className="auth-aviso">
-                  Inicia sesión para continuar.
-                </p>
-              )}
+            <button
+              type="submit"
+              className="btn btn-oscuro btn-lg ancho"
+              disabled={enviando}
+            >
+              {enviando ? 'Ingresando...' : 'Ingresar'}
+              <Icon n="arrow" size={18} />
+            </button>
 
-              <form
-                onSubmit={entrar}
-                className="auth-campos"
-                aria-busy={enviando}
-              >
-                <label className="campo">
-                  <span>Correo electrónico</span>
-                  <input
-                    type="email"
-                    name="correo"
-                    autoComplete="username"
-                    placeholder="tucorreo@ejemplo.com"
-                    value={correo}
-                    onChange={(evento) => {
-                      setCorreo(evento.target.value)
-                      setError('')
-                    }}
-                    maxLength={254}
-                    disabled={enviando}
-                    required
-                  />
-                </label>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={abrirRegistro}
+              disabled={enviando}
+            >
+              No tengo cuenta. Registrarme
+            </button>
 
-                <label className="campo">
-                  <span>Contraseña</span>
-                  <input
-                    type={verClave ? 'text' : 'password'}
-                    name="clave"
-                    autoComplete="current-password"
-                    placeholder="Tu contraseña"
-                    value={clave}
-                    onChange={(evento) => {
-                      setClave(evento.target.value)
-                      setError('')
-                    }}
-                    disabled={enviando}
-                    required
-                  />
-
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => setVerClave(!verClave)}
-                    aria-pressed={verClave}
-                  >
-                    {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  </button>
-                </label>
-
-                {error && (
-                  <p role="alert" className="auth-aviso">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  className="btn btn-oscuro btn-lg ancho"
-                  disabled={enviando}
-                >
-                  {enviando ? 'Ingresando...' : 'Ingresar'}
-                  <Icon n="arrow" size={18} />
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={abrirRegistro}
-                  disabled={enviando}
-                >
-                  No tengo cuenta. Registrarme
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={abrirVerificacion}
-                  disabled={enviando}
-                >
-                  Verificar mi cuenta o solicitar otro código
-                </button>
-              </form>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={abrirVerificacion}
+              disabled={enviando}
+            >
+              Verificar mi cuenta o solicitar otro código
+            </button>
+          </form>
             </>
           )}
         </div>
