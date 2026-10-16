@@ -1,9 +1,22 @@
+import {
+  solicitar,
+  restablecer,
+} from "./recuperacion.controller.js";
+
 import { Router } from "express";
 import type { ErrorRequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
-import { login, logout, yo } from "./usuarios.controller.js";
+import {
+  login,
+  logout,
+  yo,
+  registro,
+  verificar,
+  reenviar,
+} from "./usuarios.controller.js";
 import { ErrorAutenticacion } from "./usuarios.service.js";
+import { autenticar } from "../../middlewares/autenticacion.js";
 
 const router = Router();
 
@@ -44,9 +57,106 @@ const limitarLogin = rateLimit({
   },
 });
 
+const limitarRegistro = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiados intentos de registro. Inténtalo más tarde.",
+  },
+});
+
+const limitarVerificacionPorIp = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiados intentos de verificación. Inténtalo más tarde.",
+  },
+});
+
+const limitarVerificacionPorCodigo = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const id = req.body?.verificacionId;
+
+    if (
+      typeof id === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+      return id.toLowerCase();
+    }
+
+    return "identificador-invalido";
+  },
+  message: {
+    error: "Alcanzaste el límite de intentos para este código. Solicita uno nuevo.",
+  },
+});
+
+const limitarReenvio = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiadas solicitudes de reenvío. Inténtalo más tarde.",
+  },
+});
+
+router.post("/registro", limitarRegistro, registro);
+
+router.post(
+  "/verificar-correo",
+  limitarVerificacionPorIp,
+  limitarVerificacionPorCodigo,
+  verificar
+);
+
+router.post("/reenviar-codigo", limitarReenvio, reenviar);
+
 router.post("/login", limitarLogin, login);
-router.get("/yo", yo);
+router.get("/yo", ...autenticar, yo);
 router.post("/logout", logout);
+
+const limitarSolicitudRecuperacion = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Demasiadas solicitudes de recuperación. Inténtalo en 15 minutos.",
+  },
+});
+
+const limitarRestablecimiento = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Demasiados intentos de restablecimiento. Inténtalo en 15 minutos.",
+  },
+});
+
+router.post(
+  "/recuperar-contrasena",
+  limitarSolicitudRecuperacion,
+  solicitar
+);
+
+router.post(
+  "/restablecer-contrasena",
+  limitarRestablecimiento,
+  restablecer
+);
 
 const manejarError: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ErrorAutenticacion) {
