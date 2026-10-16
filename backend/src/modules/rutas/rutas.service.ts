@@ -222,3 +222,87 @@ export async function crearRuta(datos: unknown) {
   const [ruta] = await listarRutas(creada.id);
   return ruta;
 }
+
+export async function actualizarRuta(rutaId: string, datos: unknown) {
+  if (!UUID.test(rutaId)) {
+    throw new ErrorRutas(400, "El identificador de la ruta no es valido");
+  }
+  const d = (
+    typeof datos === "object" && datos !== null ? datos : {}
+  ) as Record<string, unknown>;
+
+  const actual = await prisma.rutas.findUnique({
+    where: { id: rutaId },
+    select: { id: true, cooperativa_id: true, nombre: true, version: true },
+  });
+  if (!actual) throw new ErrorRutas(404, "La ruta no existe");
+
+  const cambios: { nombre?: string; activa?: boolean } = {};
+
+  if (d.nombre !== undefined) {
+    const nombre = typeof d.nombre === "string" ? d.nombre.trim() : "";
+    if (!nombre) throw new ErrorRutas(400, "El nombre de la ruta no puede estar vacio");
+    if (nombre !== actual.nombre) {
+      const repetida = await prisma.rutas.findFirst({
+        where: {
+          cooperativa_id: actual.cooperativa_id,
+          nombre,
+          version: actual.version,
+          NOT: { id: rutaId },
+        },
+        select: { id: true },
+      });
+      if (repetida) {
+        throw new ErrorRutas(409, "Ya existe una ruta con ese nombre en la cooperativa");
+      }
+    }
+    cambios.nombre = nombre;
+  }
+
+  if (d.activa !== undefined) {
+    if (typeof d.activa !== "boolean") {
+      throw new ErrorRutas(400, "activa debe ser true o false");
+    }
+    cambios.activa = d.activa;
+  }
+
+  let paradas: ParadaEntrada[] | undefined;
+  if (d.paradas !== undefined) {
+    paradas = validarParadas(d.paradas);
+    await validarReglasParadas(paradas);
+
+    const enUso = await prisma.frecuencias.count({ where: { ruta_id: rutaId } });
+    if (enUso > 0) {
+      throw new ErrorRutas(
+        409,
+        "La ruta ya tiene frecuencias; no se pueden cambiar sus paradas"
+      );
+    }
+  }
+
+  if (Object.keys(cambios).length === 0 && !paradas) {
+    throw new ErrorRutas(400, "No hay cambios para guardar");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (paradas) {
+      await tx.paradas_ruta.deleteMany({ where: { ruta_id: rutaId } });
+      await tx.paradas_ruta.createMany({
+        data: paradas.map((p, i) => ({
+          ruta_id: rutaId,
+          orden: i + 1,
+          terminal_id: p.terminal_id,
+          minutos_desde_origen: p.minutos_desde_origen,
+          permite_subida: p.permite_subida,
+          permite_bajada: p.permite_bajada,
+        })),
+      });
+    }
+    if (Object.keys(cambios).length > 0) {
+      await tx.rutas.update({ where: { id: rutaId }, data: cambios });
+    }
+  });
+
+  const [ruta] = await listarRutas(rutaId);
+  return ruta;
+}

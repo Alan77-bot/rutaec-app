@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { crearRuta, ErrorRutas, listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
+import { actualizarRuta, crearRuta, ErrorRutas, listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
 
 export async function obtenerCiudades(
   _req: Request,
@@ -54,5 +54,22 @@ export async function registrarRuta(
     }
     console.error("Error al registrar ruta:", error);
     res.status(500).json({ error: "No se pudo registrar la ruta" });
+  }
+}
+
+export async function editarRuta(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const ruta = await actualizarRuta(String(req.params.id), req.body);
+    res.status(200).json({ mensaje: "Ruta actualizada correctamente", datos: ruta });
+  } catch (error) {
+    if (error instanceof ErrorRutas) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al actualizar ruta:", error);
+    res.status(500).json({ error: "No se pudo actualizar la ruta" });
   }
 }
