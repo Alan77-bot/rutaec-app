@@ -1,3 +1,8 @@
+import {
+  solicitar,
+  restablecer,
+} from "./recuperacion.controller.js";
+
 import { Router } from "express";
 import type { ErrorRequestHandler } from "express";
 import cookieParser from "cookie-parser";
@@ -118,6 +123,40 @@ router.post("/reenviar-codigo", limitarReenvio, reenviar);
 router.post("/login", limitarLogin, login);
 router.get("/yo", ...autenticar, yo);
 router.post("/logout", logout);
+
+const limitarSolicitudRecuperacion = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Demasiadas solicitudes de recuperación. Inténtalo en 15 minutos.",
+  },
+});
+
+const limitarRestablecimiento = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Demasiados intentos de restablecimiento. Inténtalo en 15 minutos.",
+  },
+});
+
+router.post(
+  "/recuperar-contrasena",
+  limitarSolicitudRecuperacion,
+  solicitar
+);
+
+router.post(
+  "/restablecer-contrasena",
+  limitarRestablecimiento,
+  restablecer
+);
 
 const manejarError: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ErrorAutenticacion) {

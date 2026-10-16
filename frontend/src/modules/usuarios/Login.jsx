@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import Icon from '../../components/Icon'
 import { RUTA_POR_ROL } from '../../data/usuarios'
@@ -196,6 +196,10 @@ export default function Login() {
               Inicia sesión para continuar.
             </p>
           )}
+
+          <Link to="/recuperar-contrasena" className="btn-link">
+            ¿Olvidaste tu contraseña?
+          </Link>
 
           <form
             onSubmit={entrar}

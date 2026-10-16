@@ -17,6 +17,9 @@ import PanelCoop from "./modules/cooperativas/PanelCoop";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 
+import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
+import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";
+
 function Protegida({ roles, children }) {
   const { sesion, cargando } = useApp();
   const loc = useLocation();
@@ -72,8 +75,17 @@ export default function ViajaYaRoutes() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
-          <Route path="/buscar" element={<Resultados />} />
 
+          <Route path="/buscar" element={<Resultados />} />
+          <Route
+              path="/recuperar-contrasena"
+              element={<RecuperarContrasena />}
+            />
+
+            <Route
+              path="/restablecer-contrasena"
+              element={<RestablecerContrasena />}
+            />
           <Route
             path="/comprar/:viajeId"
             element={
