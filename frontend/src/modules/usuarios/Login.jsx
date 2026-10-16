@@ -156,10 +156,12 @@ export default function Login() {
               <Icon n="shield" />
               Accede con tu cuenta
             </li>
+
             <li>
               <Icon n="qr" />
               Consulta tus boletos
             </li>
+
             <li>
               <Icon n="mail" />
               Verifica tu correo

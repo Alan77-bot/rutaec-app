@@ -15,10 +15,13 @@ import Historial from "./modules/boletos/Historial";
 import PanelOficinista from "./modules/pagos/PanelOficinista";
 import PanelCoop from "./modules/cooperativas/PanelCoop";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
+import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 
 function Protegida({ roles, children }) {
-  const { sesion } = useApp();
+  const { sesion, cargando } = useApp();
   const loc = useLocation();
+
+  if (cargando) return <div className="splash" role="status">Comprobando sesión...</div>;
 
   if (!sesion) {
     return (
@@ -31,7 +34,7 @@ function Protegida({ roles, children }) {
   }
 
   if (!roles.includes(sesion.rol)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/acceso-denegado" replace />;
   }
 
   return children;
@@ -46,15 +49,15 @@ export default function ViajaYaRoutes() {
   }, [loc.pathname]);
 
   if (cargando) {
-    return <div className="splash">Cargando...</div>;
+    return <div className="splash" role="status">Cargando...</div>;
   }
 
   if (errorRed) {
     return (
       <div className="splash">
         <h2>No pudimos conectar con el servidor</h2>
-        <p>{errorRed}</p>
-        <button className="btn btn-oscuro" onClick={reintentar}>
+        <p role="alert">{errorRed}</p>
+        <button type="button" className="btn btn-oscuro" onClick={reintentar}>
           Reintentar
         </button>
       </div>
@@ -125,12 +128,14 @@ export default function ViajaYaRoutes() {
             }
           />
 
+          <Route path="/acceso-denegado" element={<AccesoDenegado />} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
       {loc.pathname !== "/ingresar" && <Footer />}
-      {aviso && <div className="toast">{aviso}</div>}
+      {aviso && <div className="toast" role="status">{aviso}</div>}
     </>
   );
 }

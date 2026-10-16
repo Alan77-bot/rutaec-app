@@ -11,6 +11,7 @@ import {
   reenviar,
 } from "./usuarios.controller.js";
 import { ErrorAutenticacion } from "./usuarios.service.js";
+import { autenticar } from "../../middlewares/autenticacion.js";
 
 const router = Router();
 
@@ -115,7 +116,7 @@ router.post(
 router.post("/reenviar-codigo", limitarReenvio, reenviar);
 
 router.post("/login", limitarLogin, login);
-router.get("/yo", yo);
+router.get("/yo", ...autenticar, yo);
 router.post("/logout", logout);
 
 const manejarError: ErrorRequestHandler = (error, _req, res, _next) => {

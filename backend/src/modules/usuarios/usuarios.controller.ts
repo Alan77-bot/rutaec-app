@@ -7,7 +7,6 @@ import type { CookieOptions, Request, Response } from "express";
 import {
   autenticar,
   DURACION_SESION_MS,
-  obtenerSesion,
   revocarSesion,
 } from "./usuarios.service.js";
 
@@ -35,10 +34,10 @@ export async function login(req: Request, res: Response) {
   });
 }
 
-export async function yo(req: Request, res: Response) {
-  const sesion = await obtenerSesion(req.cookies?.[COOKIE_SESION]);
-
-  res.status(200).json({ sesion });
+export function yo(_req: Request, res: Response) {
+  res.status(200).json({
+    sesion: res.locals.sesion,
+  });
 }
 
 export async function logout(req: Request, res: Response) {
