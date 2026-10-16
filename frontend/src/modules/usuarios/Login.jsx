@@ -3,12 +3,18 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import Icon from '../../components/Icon'
 import { RUTA_POR_ROL } from '../../data/usuarios'
+import RegistroForm from './RegistroForm'
+import VerificarCorreo from './VerificarCorreo'
+import { usuariosService } from './services/usuarios.service'
 
 export default function Login() {
   const { sesion, cargando, iniciarSesion, avisar, config } = useApp()
 
   const nav = useNavigate()
   const loc = useLocation()
+
+  const [modo, setModo] = useState('ingresar')
+  const [pendiente, setPendiente] = useState(null)
 
   const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
@@ -33,6 +39,53 @@ export default function Login() {
     }
 
     return RUTA_POR_ROL[usuario.rol] ?? '/'
+  }
+
+  function volverAlLogin() {
+    setPendiente(null)
+    setClave('')
+    setError('')
+    setModo('ingresar')
+  }
+
+  function abrirRegistro() {
+    setClave('')
+    setError('')
+    setPendiente(null)
+    setModo('registro')
+  }
+
+  function abrirVerificacion() {
+    setPendiente({
+      correo: correo.trim(),
+      clave: '',
+    })
+
+    setClave('')
+    setError('')
+    setModo('verificar')
+  }
+
+  async function registrar(datos) {
+    const respuesta = await usuariosService.registrar(datos)
+
+    setPendiente({
+      correo: respuesta.correo,
+      verificacionId: respuesta.verificacionId,
+      venceEn: respuesta.venceEn,
+      clave: datos.clave,
+    })
+
+    setCorreo(respuesta.correo)
+    setClave('')
+    setError('')
+    setModo('verificar')
+  }
+
+  function completarVerificacion(correoVerificado) {
+    setCorreo(correoVerificado)
+    volverAlLogin()
+    avisar('Correo verificado. Ya puedes iniciar sesión.')
   }
 
   async function entrar(evento) {
@@ -65,6 +118,8 @@ export default function Login() {
       setClave('')
       avisar(`Bienvenido, ${resultado.sesion.nombre}`)
       nav(rutaInicial(resultado.sesion), { replace: true })
+    } catch {
+      setError('No se pudo iniciar sesión. Inténtalo nuevamente.')
     } finally {
       setEnviando(false)
     }
@@ -107,7 +162,7 @@ export default function Login() {
             </li>
             <li>
               <Icon n="mail" />
-              Mantén tus datos en un solo lugar
+              Verifica tu correo
             </li>
           </ul>
         </div>
@@ -115,8 +170,24 @@ export default function Login() {
 
       <section className="auth-form">
         <div className="auth-card">
+          {modo === 'registro' ? (
+            <RegistroForm
+              onRegistrar={registrar}
+              onVolver={volverAlLogin}
+            />
+          ) : modo === 'verificar' ? (
+            <VerificarCorreo
+              pendiente={pendiente}
+              onVerificado={completarVerificacion}
+              onVolver={volverAlLogin}
+            />
+          ) : (
+            <>
           <h2>Iniciar sesión</h2>
-          <p className="muted">Ingresa con tu correo y contraseña.</p>
+
+          <p className="muted">
+            Ingresa con tu correo y contraseña.
+          </p>
 
           {destinoSeguro && (
             <p className="auth-aviso">
@@ -129,10 +200,11 @@ export default function Login() {
             className="auth-campos"
             aria-busy={enviando}
           >
-            <label className="campo">
+            <label className="campo" htmlFor="login-correo">
               <span>Correo electrónico</span>
 
               <input
+                id="login-correo"
                 type="email"
                 name="correo"
                 autoComplete="username"
@@ -148,10 +220,11 @@ export default function Login() {
               />
             </label>
 
-            <label className="campo">
+            <label className="campo" htmlFor="login-clave">
               <span>Contraseña</span>
 
               <input
+                id="login-clave"
                 type={verClave ? 'text' : 'password'}
                 name="clave"
                 autoComplete="current-password"
@@ -164,16 +237,17 @@ export default function Login() {
                 disabled={enviando}
                 required
               />
-
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setVerClave(!verClave)}
-                aria-pressed={verClave}
-              >
-                {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              </button>
             </label>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setVerClave((actual) => !actual)}
+              aria-pressed={verClave}
+              aria-controls="login-clave"
+            >
+              {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            </button>
 
             {error && (
               <p role="alert" className="auth-aviso">
@@ -190,11 +264,26 @@ export default function Login() {
               <Icon n="arrow" size={18} />
             </button>
 
-            <p className="auth-nota">
-              El registro de nuevas cuentas se habilitará al integrar
-              el módulo de registro.
-            </p>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={abrirRegistro}
+              disabled={enviando}
+            >
+              No tengo cuenta. Registrarme
+            </button>
+
+            <button
+              type="button"
+              className="btn-link"
+              onClick={abrirVerificacion}
+              disabled={enviando}
+            >
+              Verificar mi cuenta o solicitar otro código
+            </button>
           </form>
+            </>
+          )}
         </div>
       </section>
     </div>
