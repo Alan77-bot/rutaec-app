@@ -81,24 +81,12 @@ interface RutaEntrada {
   paradas: ParadaEntrada[];
 }
 
-function validarEntrada(datos: unknown): RutaEntrada {
-  if (typeof datos !== "object" || datos === null) {
-    throw new ErrorRutas(400, "El cuerpo de la peticion es obligatorio");
-  }
-  const d = datos as Record<string, unknown>;
-
-  const nombre = typeof d.nombre === "string" ? d.nombre.trim() : "";
-  if (!nombre) throw new ErrorRutas(400, "El nombre de la ruta es obligatorio");
-
-  if (typeof d.cooperativa_id !== "string" || !UUID.test(d.cooperativa_id)) {
-    throw new ErrorRutas(400, "cooperativa_id debe ser un UUID valido");
-  }
-
-  if (!Array.isArray(d.paradas) || d.paradas.length < 2) {
+function validarParadas(crudas: unknown): ParadaEntrada[] {
+  if (!Array.isArray(crudas) || crudas.length < 2) {
     throw new ErrorRutas(400, "La ruta necesita al menos 2 paradas");
   }
 
-  const paradas = d.paradas.map((p: unknown, i: number): ParadaEntrada => {
+  return crudas.map((p: unknown, i: number): ParadaEntrada => {
     if (typeof p !== "object" || p === null) {
       throw new ErrorRutas(400, `La parada ${i + 1} no es valida`);
     }
@@ -120,8 +108,73 @@ function validarEntrada(datos: unknown): RutaEntrada {
       permite_bajada: x.permite_bajada !== false,
     };
   });
+}
 
-  return { cooperativa_id: d.cooperativa_id, nombre, paradas };
+async function validarReglasParadas(paradas: ParadaEntrada[]): Promise<void> {
+  const primera = paradas[0];
+  const ultima = paradas[paradas.length - 1];
+  if (!primera || !ultima) {
+    throw new ErrorRutas(400, "La ruta necesita al menos 2 paradas");
+  }
+
+  if (primera.minutos_desde_origen !== 0) {
+    throw new ErrorRutas(400, "La primera parada (origen) debe tener 0 minutos");
+  }
+
+  const ids = new Set(paradas.map((p) => p.terminal_id));
+  if (ids.size !== paradas.length) {
+    throw new ErrorRutas(400, "Una terminal no puede repetirse en la misma ruta");
+  }
+
+  for (let i = 1; i < paradas.length; i++) {
+    const actual = paradas[i];
+    const anterior = paradas[i - 1];
+    if (
+      actual &&
+      anterior &&
+      actual.minutos_desde_origen <= anterior.minutos_desde_origen
+    ) {
+      throw new ErrorRutas(
+        400,
+        `Los minutos de la parada ${i + 1} deben ser mayores que los de la parada ${i}`
+      );
+    }
+  }
+
+  const terminales = await prisma.terminales.findMany({
+    where: { id: { in: [...ids] } },
+    select: { id: true, ciudad_id: true },
+  });
+  if (terminales.length !== ids.size) {
+    throw new ErrorRutas(400, "Alguna de las terminales no existe");
+  }
+
+  const ciudadDe = new Map(
+    terminales.map((t): [string, string] => [t.id, t.ciudad_id])
+  );
+  if (ciudadDe.get(primera.terminal_id) === ciudadDe.get(ultima.terminal_id)) {
+    throw new ErrorRutas(400, "El origen y el destino deben ser ciudades distintas");
+  }
+}
+
+function validarEntrada(datos: unknown): RutaEntrada {
+  if (typeof datos !== "object" || datos === null) {
+    throw new ErrorRutas(400, "El cuerpo de la peticion es obligatorio");
+  }
+  const d = datos as Record<string, unknown>;
+
+  const nombre = typeof d.nombre === "string" ? d.nombre.trim() : "";
+  if (!nombre) throw new ErrorRutas(400, "El nombre de la ruta es obligatorio");
+
+  if (typeof d.cooperativa_id !== "string" || !UUID.test(d.cooperativa_id)) {
+    throw new ErrorRutas(400, "cooperativa_id debe ser un UUID valido");
+  }
+
+  return {
+    cooperativa_id: d.cooperativa_id,
+    nombre,
+    paradas: validarParadas(d.paradas),
+  };
 }
 
 export async function crearRuta(datos: unknown) {
@@ -133,13 +186,7 @@ export async function crearRuta(datos: unknown) {
   });
   if (!cooperativa) throw new ErrorRutas(404, "La cooperativa no existe");
 
-  const idsTerminales = [...new Set(entrada.paradas.map((p) => p.terminal_id))];
-  const encontradas = await prisma.terminales.count({
-    where: { id: { in: idsTerminales } },
-  });
-  if (encontradas !== idsTerminales.length) {
-    throw new ErrorRutas(400, "Alguna de las terminales no existe");
-  }
+  await validarReglasParadas(entrada.paradas);
 
   const existente = await prisma.rutas.findFirst({
     where: {
