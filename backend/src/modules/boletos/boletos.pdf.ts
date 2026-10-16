@@ -60,7 +60,8 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
 
   // Ruta
   doc.fillColor("#1a1a1a").font("Helvetica-Bold").fontSize(20);
-  doc.text(`${d.origen}  →  ${d.destino}`, 24, 68, { width: 400 });
+  // La fuente estándar del PDF no incluye "→": se usa un guion largo.
+  doc.text(`${d.origen}  —  ${d.destino}`, 24, 68, { width: 400 });
 
   const fila = (etiqueta: string, valor: string, x: number, y: number) => {
     doc.font("Helvetica").fontSize(8).fillColor("#6b7280").text(etiqueta.toUpperCase(), x, y);
