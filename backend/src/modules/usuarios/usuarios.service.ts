@@ -144,13 +144,45 @@ export async function autenticar(correo: unknown, clave: unknown) {
   const token = randomBytes(32).toString("hex");
   const venceEn = new Date(Date.now() + DURACION_SESION_MS);
 
-  await prisma.tokens_acceso.create({
-    data: {
-      usuario_id: usuario.id,
-      proposito: "REFRESH",
-      token_hash: hashToken(token),
-      vence_en: venceEn,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT id
+      FROM rutaec.usuarios
+      WHERE id = ${usuario.id}::uuid
+      FOR UPDATE
+    `;
+
+    const actual = await tx.usuarios.findUnique({
+      where: {
+        id: usuario.id,
+      },
+      select: {
+        password_hash: true,
+        activo: true,
+        correo_verificado_en: true,
+      },
+    });
+
+    if (
+      !actual ||
+      !actual.activo ||
+      !actual.correo_verificado_en ||
+      actual.password_hash !== usuario.password_hash
+    ) {
+      throw new ErrorAutenticacion(
+        401,
+        "La cuenta cambió durante el acceso. Inicia sesión nuevamente."
+      );
+    }
+
+    await tx.tokens_acceso.create({
+      data: {
+        usuario_id: usuario.id,
+        proposito: "REFRESH",
+        token_hash: hashToken(token),
+        vence_en: venceEn,
+      },
+    });
   });
 
   return { token, sesion };

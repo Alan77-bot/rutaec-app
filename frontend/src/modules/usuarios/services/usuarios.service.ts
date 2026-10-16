@@ -55,6 +55,24 @@ async function solicitar<T>(
   return datos as T;
 }
 
+export interface DatosRegistro {
+  nombres: string;
+  apellidos: string;
+  tipo_documento: string;
+  pais_documento: string;
+  numero_documento: string;
+  telefono: string;
+  correo: string;
+  clave: string;
+}
+
+export interface RespuestaRegistro {
+  mensaje: string;
+  correo: string;
+  verificacionId: string;
+  venceEn: string;
+}
+
 export const usuariosService = {
   login(correo: string, clave: string) {
     return solicitar<{ sesion: SesionUsuario }>("/login", "POST", {
@@ -63,11 +81,58 @@ export const usuariosService = {
     });
   },
 
+  solicitarRecuperacion(correo: string) {
+    return solicitar<{ mensaje: string }>(
+      "/recuperar-contrasena",
+      "POST",
+      { correo }
+    );
+  },
+
+  restablecerContrasena(
+    token: string,
+    nuevaClave: string,
+    confirmarClave: string
+  ) {
+    return solicitar<{ mensaje: string }>(
+      "/restablecer-contrasena",
+      "POST",
+      {
+        token,
+        nuevaClave,
+        confirmarClave,
+      }
+    );
+  },
+
   yo() {
     return solicitar<{ sesion: SesionUsuario }>("/yo");
   },
 
   logout() {
     return solicitar<void>("/logout", "POST", {});
+  },
+
+  registrar(datos: DatosRegistro) {
+    return solicitar<RespuestaRegistro>("/registro", "POST", datos);
+  },
+
+  verificarCorreo(
+    verificacionId: string,
+    codigo: string,
+    clave: string
+  ) {
+    return solicitar<{ mensaje: string }>("/verificar-correo", "POST", {
+      verificacionId,
+      codigo,
+      clave,
+    });
+  },
+
+  reenviarCodigo(correo: string, clave: string) {
+    return solicitar<RespuestaRegistro>("/reenviar-codigo", "POST", {
+      correo,
+      clave,
+    });
   },
 };
