@@ -39,7 +39,8 @@ const ZONA_HORARIA = "America/Guayaquil";
 /**
  * Busca viajes que pasen por la ciudad de origen y luego por la de destino
  * (en ese orden) y cuya salida desde el origen caiga en la fecha indicada.
- * Respeta las paradas donde se permite subir y bajar.
+ * Respeta las paradas donde se permite subir y bajar y solo incluye viajes
+ * publicados con ventas abiertas, igual que exige reservar_compra.
  */
 export async function buscarViajes({
   origen,
@@ -98,7 +99,9 @@ export async function buscarViajes({
       ON pd.viaje_id = v.id AND pd.orden > po.orden AND pd.permite_bajada
     JOIN rutaec.terminales tde ON tde.id = pd.terminal_id
     JOIN rutaec.ciudades cd ON cd.id = tde.ciudad_id
-    WHERE lower(co.nombre) = lower(${origen})
+    WHERE v.estado = 'PUBLICADO'
+      AND v.cierre_ventas > clock_timestamp()
+      AND lower(co.nombre) = lower(${origen})
       AND lower(cd.nombre) = lower(${destino})
       AND (po.salida AT TIME ZONE ${ZONA_HORARIA})::date = ${fecha}::date
     ORDER BY po.salida
