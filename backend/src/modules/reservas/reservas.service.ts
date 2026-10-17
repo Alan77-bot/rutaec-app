@@ -15,6 +15,7 @@ export type ViajeEncontrado = {
   salida: Date;
   llegada: Date;
   cierre_ventas: Date;
+  cupos_disponibles: number;
   cooperativa: {
     id: string;
     nombre: string;
@@ -41,6 +42,10 @@ const ZONA_HORARIA = "America/Guayaquil";
  * (en ese orden) y cuya salida desde el origen caiga en la fecha indicada.
  * Respeta las paradas donde se permite subir y bajar y solo incluye viajes
  * publicados con ventas abiertas, igual que exige reservar_compra.
+ *
+ * cupos_disponibles es la capacidad vendible menos la ocupacion mas alta de los
+ * tramos que recorre el pasajero (un asiento ocupado en cualquiera de ellos no
+ * sirve), contando ventas confirmadas y retenciones vigentes.
  */
 export async function buscarViajes({
   origen,
@@ -57,6 +62,13 @@ export async function buscarViajes({
       po.salida AS salida,
       pd.llegada AS llegada,
       v.cierre_ventas AS cierre_ventas,
+      (
+        SELECT COALESCE(MIN(o.capacidad_vendible - o.vendidos - o.retenidos), 0)::int
+        FROM rutaec.v_ocupacion_tramos o
+        WHERE o.viaje_id = v.id
+          AND o.tramo_inicio >= po.orden
+          AND o.tramo_inicio < pd.orden
+      ) AS cupos_disponibles,
       jsonb_build_object(
         'id', c.id,
         'nombre', c.nombre_comercial,
