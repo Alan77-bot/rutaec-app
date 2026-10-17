@@ -41,7 +41,8 @@ const ZONA_HORARIA = "America/Guayaquil";
  * Busca viajes que pasen por la ciudad de origen y luego por la de destino
  * (en ese orden) y cuya salida desde el origen caiga en la fecha indicada.
  * Respeta las paradas donde se permite subir y bajar y solo incluye viajes
- * publicados con ventas abiertas, igual que exige reservar_compra.
+ * publicados con ventas abiertas, de cooperativas y frecuencias activas, igual
+ * que exige reservar_compra.
  *
  * cupos_disponibles es la capacidad vendible menos la ocupacion mas alta de los
  * tramos que recorre el pasajero (un asiento ocupado en cualquiera de ellos no
@@ -101,7 +102,8 @@ export async function buscarViajes({
           AND (t.vigente_hasta IS NULL OR t.vigente_hasta >= ${fecha}::date)
       ), '[]'::jsonb) AS tarifas
     FROM rutaec.viajes v
-    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id
+    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id AND c.activa
+    JOIN rutaec.frecuencias fr ON fr.id = v.frecuencia_id AND fr.activa
     JOIN rutaec.buses b ON b.id = v.bus_id
     JOIN rutaec.paradas_viaje po
       ON po.viaje_id = v.id AND po.permite_subida
