@@ -1,9 +1,7 @@
 import type { BusquedaViajes } from "./reservas.service.js";
+import type { RespuestaError } from "../../utils/respuestas.js";
 
-export type ErrorValidacion = {
-  error: string;
-  code: "PARAMETROS_INVALIDOS" | "FECHA_INVALIDA" | "FECHA_PASADA";
-};
+export type ErrorValidacion = RespuestaError;
 
 export type ResultadoValidacion =
   | { ok: true; datos: BusquedaViajes }
