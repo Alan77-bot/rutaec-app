@@ -1,31 +1,9 @@
 import { prisma } from "../../lib/prisma.js";
-
-export async function listarPagos() {
-  return prisma.pagos.findMany({
-    select: {
-      id: true,
-      compra_id: true,
-      cooperativa_id: true,
-      metodo: true,
-      estado: true,
-      importe: true,
-      moneda: true,
-      creado_en: true,
-      aprobado_en: true,
-    },
-    orderBy: { creado_en: "desc" },
-  });
-}
-
-export async function listarPagosPendientes() {
-  return prisma.pagos.findMany({
-    where: { estado: { in: ["PENDIENTE", "EN_REVISION"] } },
-    orderBy: { creado_en: "asc" },
-  });
-}
+import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
 
 const METODOS_MANUALES = ["DEPOSITO", "TRANSFERENCIA"];
 const ESTADO_COMPRA_PAGABLE = "RESERVADA";
+const SIN_RESULTADOS = "00000000-0000-0000-0000-000000000000";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,7 +19,50 @@ function uuidValido(valor: unknown): valor is string {
   return typeof valor === "string" && UUID_RE.test(valor);
 }
 
-export async function crearPago(datos: Record<string, unknown>) {
+function filtroPorSesion(sesion: SesionAutenticada) {
+  if (sesion.rol === "admin") return {};
+  if (sesion.rol === "usuario") {
+    return { compras: { comprador_id: sesion.id } };
+  }
+  return { cooperativa_id: sesion.coopId ?? SIN_RESULTADOS };
+}
+
+const CAMPOS_LISTA = {
+  id: true,
+  compra_id: true,
+  cooperativa_id: true,
+  metodo: true,
+  estado: true,
+  importe: true,
+  moneda: true,
+  cuenta_bancaria_id: true,
+  creado_en: true,
+  aprobado_en: true,
+} as const;
+
+export async function listarPagos(sesion: SesionAutenticada) {
+  return prisma.pagos.findMany({
+    where: filtroPorSesion(sesion),
+    select: CAMPOS_LISTA,
+    orderBy: { creado_en: "desc" },
+  });
+}
+
+export async function listarPagosPendientes(sesion: SesionAutenticada) {
+  return prisma.pagos.findMany({
+    where: {
+      ...filtroPorSesion(sesion),
+      estado: { in: ["PENDIENTE", "EN_REVISION"] },
+    },
+    select: CAMPOS_LISTA,
+    orderBy: { creado_en: "asc" },
+  });
+}
+
+export async function crearPago(
+  usuarioId: string,
+  datos: Record<string, unknown>
+) {
   const { compra_id, metodo, cuenta_bancaria_id, clave_idempotencia } = datos;
 
   if (!uuidValido(compra_id)) {
@@ -57,23 +78,24 @@ export async function crearPago(datos: Record<string, unknown>) {
     throw new ErrorPago(400, "clave_idempotencia invalida");
   }
 
-  const existente = await prisma.pagos.findUnique({
-    where: { clave_idempotencia },
-  });
-  if (existente) {
-    if (existente.compra_id !== compra_id) {
-      throw new ErrorPago(409, "La clave de idempotencia ya se uso en otra compra");
-    }
-    return { pago: existente, creado: false };
-  }
-
-  const compra = await prisma.compras.findUnique({
-    where: { id: compra_id },
+  const compra = await prisma.compras.findFirst({
+    where: { id: compra_id, comprador_id: usuarioId },
     select: { id: true, cooperativa_id: true, estado: true, total: true },
   });
   if (!compra) {
     throw new ErrorPago(404, "La compra no existe");
   }
+
+  const existente = await prisma.pagos.findUnique({
+    where: { clave_idempotencia },
+  });
+  if (existente) {
+    if (existente.compra_id !== compra.id) {
+      throw new ErrorPago(409, "La clave de idempotencia ya se uso en otra compra");
+    }
+    return { pago: existente, creado: false };
+  }
+
   if (compra.estado !== ESTADO_COMPRA_PAGABLE) {
     throw new ErrorPago(409, "La compra no esta en estado pagable");
   }

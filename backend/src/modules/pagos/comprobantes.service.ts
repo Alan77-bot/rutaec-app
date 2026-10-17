@@ -1,3 +1,4 @@
+import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "../../lib/prisma.js";
 import { almacenComprobantes } from "./almacenamiento.js";
@@ -148,4 +149,51 @@ export async function subirComprobante(
     await almacenComprobantes.eliminar(clave);
     throw error;
   }
+}
+
+export async function abrirComprobante(
+  sesion: SesionAutenticada,
+  pagoId: string
+) {
+  if (!UUID_RE.test(pagoId)) {
+    throw new ErrorPago(400, "id de pago invalido");
+  }
+
+  const pago = await prisma.pagos.findUnique({
+    where: { id: pagoId },
+    include: { compras: { select: { comprador_id: true } } },
+  });
+
+  const esDueno = pago?.compras.comprador_id === sesion.id;
+  const esPersonal =
+    sesion.rol === "admin" ||
+    ((sesion.rol === "cooperativa" || sesion.rol === "oficinista") &&
+      !!sesion.coopId &&
+      sesion.coopId.toLowerCase() === pago?.cooperativa_id.toLowerCase());
+
+  if (!pago || (!esDueno && !esPersonal)) {
+    throw new ErrorPago(404, "El comprobante no existe");
+  }
+
+  const comprobante = await prisma.comprobantes_pago.findFirst({
+    where: { pago_id: pago.id },
+    orderBy: { recibido_en: "desc" },
+    select: { archivo_id: true },
+  });
+  if (!comprobante) {
+    throw new ErrorPago(404, "El comprobante no existe");
+  }
+
+  const archivo = await prisma.archivos.findUnique({
+    where: { id: comprobante.archivo_id },
+    select: { objeto_clave: true, mime_type: true, estado: true },
+  });
+  if (!archivo || archivo.estado !== "DISPONIBLE") {
+    throw new ErrorPago(404, "El comprobante no existe");
+  }
+
+  return {
+    flujo: almacenComprobantes.abrir(archivo.objeto_clave),
+    tipo: archivo.mime_type,
+  };
 }

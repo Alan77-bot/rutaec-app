@@ -1,7 +1,7 @@
 import type { Request, RequestHandler, Response } from "express";
 import multer from "multer";
 import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
-import { subirComprobante, TAMANO_MAXIMO } from "./comprobantes.service.js";
+import { abrirComprobante, subirComprobante, TAMANO_MAXIMO } from "./comprobantes.service.js";
 import { ErrorPago } from "./pagos.service.js";
 
 const recibir = multer({
@@ -46,5 +46,38 @@ export async function cargarComprobante(
     }
     console.error("Error al subir comprobante:", error);
     res.status(500).json({ error: "No se pudo registrar el comprobante" });
+  }
+}
+
+export async function descargarComprobante(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  try {
+    const { flujo, tipo } = await abrirComprobante(
+      sesion,
+      String(req.params.id)
+    );
+    res.setHeader("Content-Type", tipo);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Disposition", 'inline; filename="comprobante"');
+    flujo.on("error", (error) => {
+      console.error("Error al leer comprobante:", error);
+      if (!res.headersSent) {
+        res.status(404).json({ error: "El archivo no esta disponible" });
+      } else {
+        res.destroy();
+      }
+    });
+    flujo.pipe(res);
+  } catch (error) {
+    if (error instanceof ErrorPago) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al consultar comprobante:", error);
+    res.status(500).json({ error: "No se pudo consultar el comprobante" });
   }
 }
