@@ -39,6 +39,11 @@ export interface ParametrosBusqueda {
   fecha: string;
 }
 
+export interface CiudadDisponible {
+  nombre: string;
+  provincia: string;
+}
+
 export class ErrorReservas extends Error {
   public estado: number;
   public code: string | null;
@@ -92,6 +97,15 @@ export const reservasService = {
     const consulta = new URLSearchParams({ origen, destino, fecha });
     const respuesta = await solicitar<{ data: ViajeApi[] }>(
       `/viajes?${consulta.toString()}`,
+      signal
+    );
+
+    return respuesta.data;
+  },
+
+  async listarCiudades(signal?: AbortSignal): Promise<CiudadDisponible[]> {
+    const respuesta = await solicitar<{ data: CiudadDisponible[] }>(
+      "/ciudades",
       signal
     );
 
