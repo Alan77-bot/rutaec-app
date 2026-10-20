@@ -174,4 +174,20 @@ describe("GET /api/reservas/viajes", () => {
     const normal = data[0]!.tarifas.find((x) => x.categoria === "NORMAL");
     assert.equal(normal?.importe, 5);
   });
+
+  it("lista las ciudades con viajes disponibles ordenadas por nombre", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const r = await fetch(`${base}/api/reservas/ciudades`);
+    assert.equal(r.status, 200);
+
+    const { data } = (await r.json()) as {
+      data: { nombre: string; provincia: string }[];
+    };
+    const nombres = data.map((c) => c.nombre);
+    for (const esperada of ["Ambato", "Quito", "Riobamba"]) {
+      assert.ok(nombres.includes(esperada), `falta ${esperada}`);
+    }
+    assert.deepEqual(nombres, [...nombres].sort((a, b) => a.localeCompare(b, "es")));
+    assert.equal(new Set(nombres).size, nombres.length, "sin ciudades repetidas");
+  });
 });
