@@ -16,6 +16,7 @@ import PanelOficinista from "./modules/pagos/PanelOficinista";
 import PanelCoop from "./modules/cooperativas/PanelCoop";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
+import Rutas from "./modules/rutas/Rutas";
 
 import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
 import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";
@@ -136,6 +137,15 @@ export default function ViajaYaRoutes() {
             element={
               <Protegida roles={["admin"]}>
                 <PanelAdmin />
+              </Protegida>
+            }
+          />
+
+          <Route
+            path="/rutas"
+            element={
+              <Protegida roles={["admin", "cooperativa"]}>
+                <Rutas />
               </Protegida>
             }
           />
