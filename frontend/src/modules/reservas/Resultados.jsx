@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useApp } from '../../context/AppContext'
 import { useBusquedaViajes } from './useBusquedaViajes'
+import { useCiudades } from './useCiudades'
 
 import { TIPOS_BUS, fotoBus } from '../../data/mock'
 import CoopLogo from '../../components/CoopLogo'
@@ -39,7 +39,6 @@ const vigente = (valor, opciones) => (opciones.includes(valor) ? valor : 'todos'
 
 export default function Resultados() {
   const [q, setQ] = useSearchParams()
-  const { ciudades } = useApp()
   const origen = q.get('origen') || 'Ambato'
   const destino = q.get('destino') || 'Quito'
   const fecha = q.get('fecha') || addDays(hoy(), 1)
@@ -53,6 +52,9 @@ export default function Resultados() {
   const [ver, setVer] = useState(null)
 
   const { viajes, cargando, error, reintentar } = useBusquedaViajes({ origen, destino, fecha })
+  const { ciudades } = useCiudades()
+  // La ciudad buscada siempre figura en su selector, aunque la lista aun no haya llegado.
+  const opcionesCon = (actual) => (ciudades.includes(actual) ? ciudades : [actual, ...ciudades])
 
   const cooperativas = useMemo(() => {
     const porId = new Map(viajes.map((v) => [v.coop.id, v.coop]))
@@ -85,11 +87,11 @@ export default function Resultados() {
       <div className="barra-ruta">
         <div className="ruta-sel">
           <select value={origen} onChange={(e) => cambiar('origen', e.target.value)}>
-            {ciudades.map((c) => <option key={c}>{c}</option>)}
+            {opcionesCon(origen).map((c) => <option key={c}>{c}</option>)}
           </select>
           <span>→</span>
           <select value={destino} onChange={(e) => cambiar('destino', e.target.value)}>
-            {ciudades.map((c) => <option key={c}>{c}</option>)}
+            {opcionesCon(destino).map((c) => <option key={c}>{c}</option>)}
           </select>
           <input type="date" value={fecha} min={hoy()} onChange={(e) => cambiar('fecha', e.target.value)} />
         </div>
