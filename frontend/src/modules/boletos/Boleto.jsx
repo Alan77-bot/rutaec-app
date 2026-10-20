@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import QRCode from 'qrcode'
 import Icon from '../../components/Icon'
+import CodigoQr from './CodigoQr'
 import { boletosService } from './services/boletos.service'
 
 const ESTADOS = {
@@ -19,7 +19,6 @@ export default function Boleto() {
   const [q] = useSearchParams()
   const [boleto, setBoleto] = useState(null)
   const [error, setError] = useState('')
-  const [qr, setQr] = useState('')
 
   useEffect(() => {
     let activo = true
@@ -31,11 +30,6 @@ export default function Boleto() {
       activo = false
     }
   }, [id])
-
-  useEffect(() => {
-    if (!boleto?.qr) return
-    QRCode.toDataURL(`RUTAEC:${boleto.qr}`, { margin: 1, width: 220, color: { dark: '#1b3f68' } }).then(setQr)
-  }, [boleto])
 
   if (error) return <div className="contenedor vacio"><b>{error}</b><p><Link to="/mis-viajes">Volver a mis viajes</Link></p></div>
   if (!boleto) return <div className="contenedor vacio"><b>Cargando tu boleto…</b></div>
@@ -79,7 +73,7 @@ export default function Boleto() {
           </div>
         </div>
         <div className="boleto-der">
-          {qr && <img src={qr} alt="Código QR del boleto" className={valido ? '' : 'qr-gris'} />}
+          {boleto.qr && <CodigoQr token={boleto.qr} anulado={!valido} />}
           <b>{boleto.codigo.slice(0, 8).toUpperCase()}</b>
           <small>{valido ? 'Escanea al subir' : 'Boleto anulado'}</small>
         </div>

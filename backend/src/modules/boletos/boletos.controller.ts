@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { generarPdfBoleto } from "./boletos.pdf.js";
+import { qrComoPng } from "./boletos.qr.js";
+import { verificarQr } from "./boletos.verificacion.js";
 import {
   buscarBoletoConPermiso,
   ErrorBoleto,
@@ -53,5 +55,30 @@ export async function pdfBoleto(req: Request, res: Response): Promise<void> {
     res.status(200).send(pdf);
   } catch (error) {
     responderError(res, error, "generar PDF");
+  }
+}
+
+export async function imagenQr(req: Request, res: Response): Promise<void> {
+  try {
+    const fila = await buscarBoletoConPermiso(String(req.params.id), sesionDe(res));
+    const png = await qrComoPng(fila.qr_token);
+
+    res.setHeader("Content-Type", "image/png");
+    res.status(200).send(png);
+  } catch (error) {
+    responderError(res, error, "generar QR");
+  }
+}
+
+export async function verificarBoleto(req: Request, res: Response): Promise<void> {
+  try {
+    const resultado = await verificarQr(
+      req.body?.codigo,
+      sesionDe(res),
+      req.body?.viajeId
+    );
+    res.status(200).json({ datos: resultado });
+  } catch (error) {
+    responderError(res, error, "verificar QR");
   }
 }
