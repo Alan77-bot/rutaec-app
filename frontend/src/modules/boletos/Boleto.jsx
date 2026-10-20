@@ -1,38 +1,43 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import QRCode from 'qrcode'
-import { useApp } from '../../context/AppContext'
-import { DESCUENTOS } from '../../data/viajes'
 import Icon from '../../components/Icon'
+import CodigoQr from './CodigoQr'
+import { boletosService } from './services/boletos.service'
 
 const ESTADOS = {
-  'Por validar': { clase: 'ambar', texto: 'Comprobante en revisiÃ³n. Te avisaremos por correo cuando el oficinista lo apruebe.' },
-  Pagado: { clase: 'verde', texto: 'Pago confirmado. Presenta este cÃ³digo al abordar.' },
-  Cancelado: { clase: 'rojo', texto: 'Este boleto fue cancelado.' },
+  EMITIDO: { clase: 'verde', etiqueta: 'Válido', texto: 'Pago confirmado. Presenta este código al abordar.' },
+  ANULADO: { clase: 'rojo', etiqueta: 'Anulado', texto: 'Este boleto fue anulado y ya no es válido.' },
 }
+
+const ZONA = 'America/Guayaquil'
+const fechaLarga = (v) =>
+  new Date(v).toLocaleDateString('es-EC', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+const hora = (v) => new Date(v).toLocaleTimeString('es-EC', { timeZone: ZONA, hour: '2-digit', minute: '2-digit' })
 
 export default function Boleto() {
   const { id } = useParams()
   const [q] = useSearchParams()
-  const { compras, config, avisar, acciones } = useApp()
-  const c = compras.find((x) => x.id === id)
-  const [qr, setQr] = useState('')
-  const [noExiste, setNoExiste] = useState(false)
-
-  // si el boleto no estÃ¡ en la lista cargada (por ejemplo, un enlace directo), lo pedimos al servidor
-  useEffect(() => {
-    if (!c) acciones.obtenerCompra(id).catch(() => setNoExiste(true))
-  }, [id, c, acciones])
+  const [boleto, setBoleto] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (c) QRCode.toDataURL(`${c.codigo}|${c.viajeId}|${c.asientos.join(',')}`, { margin: 1, width: 220, color: { dark: '#1b3f68' } }).then(setQr)
-  }, [c])
+    let activo = true
+    boletosService
+      .obtener(id)
+      .then((b) => activo && setBoleto(b))
+      .catch((e) => activo && setError(e.message))
+    return () => {
+      activo = false
+    }
+  }, [id])
 
-  if (!c) return <div className="contenedor vacio"><b>{noExiste ? 'No encontramos ese boleto.' : 'Cargando tu boletoâ€¦'}</b></div>
+  if (error) return <div className="contenedor vacio"><b>{error}</b><p><Link to="/mis-viajes">Volver a mis viajes</Link></p></div>
+  if (!boleto) return <div className="contenedor vacio"><b>Cargando tu boleto…</b></div>
 
-  const est = ESTADOS[c.estado]
-  const valido = c.estado === 'Pagado'
-  const fechaTxt = new Date(c.fecha).toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const d = boleto.datos
+  const est = ESTADOS[boleto.estado] ?? ESTADOS.EMITIDO
+  const valido = boleto.estado === 'EMITIDO'
+  const nombre = `${d.pasajero.nombres ?? ''} ${d.pasajero.apellidos ?? ''}`.trim()
 
   return (
     <div className="contenedor boleto-pag">
@@ -40,52 +45,47 @@ export default function Boleto() {
         <div className="exito">
           <span className="check-anim"><Icon n="check" size={22} /></span>
           <div>
-            <b>{c.estado === 'Pagado' ? 'Â¡Compra lista!' : 'Â¡Recibimos tu solicitud!'}</b>
-            <p>Enviamos los detalles a {c.pasajeros[0].correo}.</p>
+            <b>¡Compra lista!</b>
+            <p>También te enviamos los boletos por correo.</p>
           </div>
         </div>
       )}
-      <div className={'estado-franja ' + est.clase}>{c.estado}: {est.texto}</div>
+      <div className={'estado-franja ' + est.clase}>{est.etiqueta}: {est.texto}</div>
 
       <article className={'boleto entra' + (valido ? '' : ' pendiente')}>
         <div className="boleto-izq">
-          <div className="boleto-marca">{config.nombre}</div>
+          <div className="boleto-marca">{d.cooperativa}</div>
           <div className="ruta">
-            <div><small>Origen</small><b>{c.origen}</b></div>
-            <span>â†’</span>
-            <div><small>Destino</small><b>{c.destino}</b></div>
+            <div><small>Origen</small><b>{d.origen}</b></div>
+            <span>→</span>
+            <div><small>Destino</small><b>{d.destino}</b></div>
           </div>
           <dl className="datos">
-            <div><dt>Fecha</dt><dd>{fechaTxt}</dd></div>
-            <div><dt>Salida</dt><dd>{c.hora}</dd></div>
-            <div><dt>Cooperativa</dt><dd>{c.coopNombre}</dd></div>
-            <div><dt>Bus</dt><dd>N.Âº {c.busNumero}</dd></div>
-            <div><dt>MÃ©todo</dt><dd>{c.metodo}</dd></div>
-            <div><dt>Total</dt><dd>${c.total.toFixed(2)}</dd></div>
+            <div><dt>Fecha</dt><dd>{fechaLarga(d.salida)}</dd></div>
+            <div><dt>Salida</dt><dd>{hora(d.salida)}</dd></div>
+            <div><dt>Llegada</dt><dd>{hora(d.llegada)}</dd></div>
+            <div><dt>Bus</dt><dd>{d.unidad ? `N.º ${d.unidad}` : '—'}{d.placa ? ` · ${d.placa}` : ''}</dd></div>
+            <div><dt>Asiento</dt><dd>{d.asiento.numero}{d.asiento.categoria ? ` · ${d.asiento.categoria}` : ''}</dd></div>
+            <div><dt>Total</dt><dd>{d.moneda} {Number(d.importe).toFixed(2)}</dd></div>
           </dl>
           <div className="pas-lista">
-            {c.pasajeros.map((p) => (
-              <div key={p.asiento}>
-                <b>{p.nombre}</b>
-                <span>Asiento {p.asiento}{p.tipoAsiento === 'vip' ? ' Â· VIP' : ''}{p.descuento !== 'ninguno' ? ` Â· ${DESCUENTOS[p.descuento].nombre}` : ''}</span>
-              </div>
-            ))}
+            <div><b>{nombre}</b><span>Asiento {d.asiento.numero}</span></div>
           </div>
         </div>
         <div className="boleto-der">
-          {qr && <img src={qr} alt="CÃ³digo QR del boleto" className={valido ? '' : 'qr-gris'} />}
-          <b>{c.codigo}</b>
-          <small>{valido ? 'Escanea al subir' : 'Se activa al aprobar el pago'}</small>
+          {boleto.qr && <CodigoQr token={boleto.qr} anulado={!valido} />}
+          <b>{boleto.codigo.slice(0, 8).toUpperCase()}</b>
+          <small>{valido ? 'Escanea al subir' : 'Boleto anulado'}</small>
         </div>
       </article>
 
       <div className="acciones centro">
-        <button className="btn btn-oscuro" onClick={() => window.print()}><Icon n="download" size={17} /> Descargar / imprimir</button>
-        <button className="btn btn-claro" disabled={!valido} onClick={() => avisar('Pase enviado a Google Wallet (demo)')}><Icon n="wallet" size={17} /> Google Wallet</button>
-        <button className="btn btn-claro" disabled={!valido} onClick={() => avisar('Pase agregado a Apple Wallet (demo)')}><Icon n="wallet" size={17} /> Apple Wallet</button>
+        <a className="btn btn-oscuro" href={boletosService.urlPdf(boleto.id)} download>
+          <Icon n="download" size={17} /> Descargar PDF
+        </a>
+        <Link to="/mis-viajes" className="btn btn-claro">Mis viajes</Link>
         <Link to="/" className="btn btn-acento">Comprar otro boleto</Link>
       </div>
     </div>
   )
 }
-
