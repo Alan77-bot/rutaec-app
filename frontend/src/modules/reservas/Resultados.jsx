@@ -2,6 +2,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useBusquedaViajes } from './useBusquedaViajes'
 import { useCiudades } from './useCiudades'
+import { OPCIONES_FRANJA, OPCIONES_ORDEN, filtrarPorFranja, ordenarViajes } from './reservas.orden'
 
 import { TIPOS_BUS, fotoBus } from '../../data/mock'
 import CoopLogo from '../../components/CoopLogo'
@@ -49,6 +50,8 @@ export default function Resultados() {
   const [fChasis, setFChasis] = useState('todos')
   const [fCarro, setFCarro] = useState('todos')
   const [fViaje, setFViaje] = useState('todos')
+  const [fFranja, setFFranja] = useState('todos')
+  const [orden, setOrden] = useState('hora')
   const [ver, setVer] = useState(null)
 
   const { viajes, cargando, error, reintentar } = useBusquedaViajes({ origen, destino, fecha })
@@ -67,7 +70,7 @@ export default function Resultados() {
   const chasisActivo = vigente(fChasis, marcasChasis)
   const carroActiva = vigente(fCarro, marcasCarro)
 
-  const lista = viajes.filter(
+  const filtrados = viajes.filter(
     (v) =>
       (coopActiva === 'todos' || v.coop.id === coopActiva) &&
       (chasisActivo === 'todos' || v.bus.chasis === chasisActivo) &&
@@ -75,6 +78,7 @@ export default function Resultados() {
       (fViaje === 'todos' || v.tipoViaje === fViaje) &&
       (fAsiento === 'todos' || v.precioVip !== null)
   )
+  const lista = ordenarViajes(filtrarPorFranja(filtrados, fFranja), orden)
 
   const cambiar = (clave, valor) => {
     const nuevo = new URLSearchParams(q)
@@ -100,7 +104,17 @@ export default function Resultados() {
 
       <div className="res-grid">
         <aside className="filtros">
-          <h4>Filtrar</h4>
+          <h4>Ordenar y filtrar</h4>
+          <label>Ordenar por
+            <select value={orden} onChange={(e) => setOrden(e.target.value)}>
+              {OPCIONES_ORDEN.map((o) => <option key={o.valor} value={o.valor}>{o.nombre}</option>)}
+            </select>
+          </label>
+          <label>Horario de salida
+            <select value={fFranja} onChange={(e) => setFFranja(e.target.value)}>
+              {OPCIONES_FRANJA.map((o) => <option key={o.valor} value={o.valor}>{o.nombre}</option>)}
+            </select>
+          </label>
           <label>Cooperativa
             <select value={coopActiva} onChange={(e) => setFCoop(e.target.value)}>
               <option value="todos">Todas</option>
