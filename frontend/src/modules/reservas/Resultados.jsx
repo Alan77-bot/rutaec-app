@@ -43,7 +43,7 @@ export default function Resultados() {
   const origen = q.get('origen') || 'Ambato'
   const destino = q.get('destino') || 'Quito'
   const fecha = q.get('fecha') || addDays(hoy(), 1)
-  const n = Number(q.get('n') || 1)
+  const n = Math.max(1, Number(q.get('n')) || 1)
 
   const [fCoop, setFCoop] = useState('todos')
   const [fAsiento, setFAsiento] = useState('todos')
@@ -52,7 +52,7 @@ export default function Resultados() {
   const [fViaje, setFViaje] = useState('todos')
   const [ver, setVer] = useState(null)
 
-  const { viajes, cargando, error } = useBusquedaViajes({ origen, destino, fecha })
+  const { viajes, cargando, error, reintentar } = useBusquedaViajes({ origen, destino, fecha })
 
   const cooperativas = useMemo(() => {
     const porId = new Map(viajes.map((v) => [v.coop.id, v.coop]))
@@ -140,7 +140,21 @@ export default function Resultados() {
               <div className="sk-col"><div className="sk sk-l1" /><div className="sk sk-btn" /></div>
             </div>
           ))}
-          {!cargando && error && <div className="vacio"><b>{error.message}</b></div>}
+          {!cargando && error && error.code === 'FECHA_PASADA' && (
+            <div className="vacio">
+              <b>Esa fecha ya pasó.</b>
+              <p>Elige una fecha desde hoy para ver las salidas disponibles.</p>
+              <button className="btn btn-oscuro" onClick={() => cambiar('fecha', hoy())}>Buscar para hoy</button>
+            </div>
+          )}
+          {!cargando && error && error.code !== 'FECHA_PASADA' && (
+            <div className="vacio">
+              <b>{error.message}</b>
+              {(error.estado === 0 || error.estado >= 500) && (
+                <button className="btn btn-oscuro" onClick={reintentar}>Reintentar</button>
+              )}
+            </div>
+          )}
           {!cargando && !error && viajes.length === 0 && (
             <div className="vacio">
               <b>No hay salidas de {origen} a {destino} ese día.</b>
@@ -151,7 +165,11 @@ export default function Resultados() {
             <div className="vacio"><b>No hay salidas ese día con esos filtros.</b><p>Prueba otra fecha o quita algún filtro.</p></div>
           )}
 
-          {lista.map((v) => (
+          {lista.map((v) => {
+            const sinTarifa = v.precio === null
+            const faltanAsientos = v.libres < n
+            const noDisponible = sinTarifa || faltanAsientos
+            return (
             <article key={`${v.id}-${v.origen}-${v.destino}`} className="viaje">
               <div className="viaje-bus">
                 <img src={v.bus.imagen || fotoBus(null, v.bus.tipo)} alt={TIPOS_BUS[v.bus.tipo].nombre} className="foto-bus" loading="lazy" />
@@ -175,11 +193,24 @@ export default function Resultados() {
               </div>
               <div className="viaje-der">
                 <b className="precio">{v.precio !== null ? `$${v.precio.toFixed(2)}` : 'Sin tarifa'}</b>
-                <small>{v.libres} asientos libres</small>
-                <Link className="btn btn-acento" to={`/comprar/${v.id}?origen=${v.origen}&destino=${v.destino}&n=${n}`}>Elegir asientos</Link>
+                <small>
+                  {v.libres === 0
+                    ? 'Sin asientos libres'
+                    : faltanAsientos
+                      ? `Solo quedan ${v.libres} ${v.libres === 1 ? 'asiento' : 'asientos'} (necesitas ${n})`
+                      : `${v.libres} asientos libres`}
+                </small>
+                {noDisponible ? (
+                  <button className="btn btn-acento" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                    {sinTarifa ? 'Sin tarifa' : v.libres === 0 ? 'Agotado' : 'No alcanzan'}
+                  </button>
+                ) : (
+                  <Link className="btn btn-acento" to={`/comprar/${v.id}?origen=${v.origen}&destino=${v.destino}&n=${n}`}>Elegir asientos</Link>
+                )}
               </div>
             </article>
-          ))}
+            )
+          })}
         </section>
       </div>
       {ver && <Modal viaje={ver} onCerrar={() => setVer(null)} />}
