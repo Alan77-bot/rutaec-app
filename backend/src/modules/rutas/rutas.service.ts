@@ -177,7 +177,26 @@ function validarEntrada(datos: unknown): RutaEntrada {
   };
 }
 
-export async function crearRuta(datos: unknown) {
+export interface ActorRutas {
+  rol: string;
+  coopId: string | null;
+}
+
+function mismaCooperativa(a: string | null, b: string): boolean {
+  return a !== null && a.toLowerCase() === b.toLowerCase();
+}
+
+export async function crearRuta(datos: unknown, actor?: ActorRutas) {
+  // Para el rol cooperativa la cooperativa sale de la sesion, nunca del cuerpo.
+  if (actor?.rol === "cooperativa") {
+    if (!actor.coopId) {
+      throw new ErrorRutas(403, "Tu cuenta no esta asociada a ninguna cooperativa");
+    }
+    if (typeof datos === "object" && datos !== null) {
+      datos = { ...datos, cooperativa_id: actor.coopId };
+    }
+  }
+
   const entrada = validarEntrada(datos);
 
   const cooperativa = await prisma.cooperativas.findUnique({
@@ -223,7 +242,11 @@ export async function crearRuta(datos: unknown) {
   return ruta;
 }
 
-export async function actualizarRuta(rutaId: string, datos: unknown) {
+export async function actualizarRuta(
+  rutaId: string,
+  datos: unknown,
+  actor?: ActorRutas
+) {
   if (!UUID.test(rutaId)) {
     throw new ErrorRutas(400, "El identificador de la ruta no es valido");
   }
@@ -236,6 +259,13 @@ export async function actualizarRuta(rutaId: string, datos: unknown) {
     select: { id: true, cooperativa_id: true, nombre: true, version: true },
   });
   if (!actual) throw new ErrorRutas(404, "La ruta no existe");
+
+  if (
+    actor?.rol === "cooperativa" &&
+    !mismaCooperativa(actor.coopId, actual.cooperativa_id)
+  ) {
+    throw new ErrorRutas(403, "No tienes permiso para modificar rutas de otra cooperativa");
+  }
 
   const cambios: { nombre?: string; activa?: boolean } = {};
 

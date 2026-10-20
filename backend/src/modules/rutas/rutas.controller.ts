@@ -1,5 +1,19 @@
 import type { Request, Response } from "express";
-import { actualizarRuta, crearRuta, ErrorRutas, listarCiudades, listarRutas, listarTerminales } from "./rutas.service.js";
+import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
+import {
+  actualizarRuta,
+  crearRuta,
+  ErrorRutas,
+  listarCiudades,
+  listarRutas,
+  listarTerminales,
+  type ActorRutas,
+} from "./rutas.service.js";
+
+function actorDesdeSesion(res: Response): ActorRutas {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  return { rol: sesion.rol, coopId: sesion.coopId ?? null };
+}
 
 export async function obtenerCiudades(
   _req: Request,
@@ -45,7 +59,7 @@ export async function registrarRuta(
   res: Response
 ): Promise<void> {
   try {
-    const ruta = await crearRuta(req.body);
+    const ruta = await crearRuta(req.body, actorDesdeSesion(res));
     res.status(201).json({ mensaje: "Ruta registrada correctamente", datos: ruta });
   } catch (error) {
     if (error instanceof ErrorRutas) {
@@ -62,7 +76,11 @@ export async function editarRuta(
   res: Response
 ): Promise<void> {
   try {
-    const ruta = await actualizarRuta(String(req.params.id), req.body);
+    const ruta = await actualizarRuta(
+      String(req.params.id),
+      req.body,
+      actorDesdeSesion(res)
+    );
     res.status(200).json({ mensaje: "Ruta actualizada correctamente", datos: ruta });
   } catch (error) {
     if (error instanceof ErrorRutas) {
