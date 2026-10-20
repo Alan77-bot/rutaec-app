@@ -132,6 +132,20 @@ export async function subirComprobante(
       if (cambio.count !== 1) {
         throw new ErrorPago(409, "El pago cambio de estado, intenta de nuevo");
       }
+
+      if (pago.estado === "PENDIENTE") {
+        const reserva = await tx.compras.updateMany({
+          where: {
+            id: pago.compra_id,
+            estado: "RESERVADA",
+            vence_en: { gt: new Date() },
+          },
+          data: { estado: "EN_REVISION" },
+        });
+        if (reserva.count !== 1) {
+          throw new ErrorPago(409, "La reserva de la compra ya no esta vigente");
+        }
+      }
       return {
         comprobante_id: comprobante.id,
         pago_id: pago.id,
