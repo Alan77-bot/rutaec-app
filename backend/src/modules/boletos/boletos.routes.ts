@@ -2,7 +2,13 @@ import { Router } from "express";
 import type { RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import { ErrorAutenticacion, obtenerSesion } from "../usuarios/usuarios.service.js";
-import { detalleBoleto, misBoletos, pdfBoleto } from "./boletos.controller.js";
+import {
+  detalleBoleto,
+  imagenQr,
+  misBoletos,
+  pdfBoleto,
+  verificarBoleto,
+} from "./boletos.controller.js";
 
 const router = Router();
 
@@ -26,9 +32,22 @@ const exigirSesion: RequestHandler = async (req, res, next) => {
   }
 };
 
-router.use(cookieParser(), exigirSesion);
+// Las acciones que modifican datos solo se aceptan desde el frontend autorizado (protege la cookie de sesión).
+const origenPermitido = new URL(process.env.FRONTEND_URL ?? "http://localhost:5173").origin;
+
+const exigirOrigen: RequestHandler = (req, res, next) => {
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("origin") !== origenPermitido) {
+    res.status(403).json({ error: "Origen de la solicitud no permitido." });
+    return;
+  }
+  next();
+};
+
+router.use(cookieParser(), exigirOrigen, exigirSesion);
 
 router.get("/mios", misBoletos);
+router.post("/verificar", verificarBoleto);
+router.get("/:id/qr", imagenQr);
 router.get("/:id/pdf", pdfBoleto);
 router.get("/:id", detalleBoleto);
 

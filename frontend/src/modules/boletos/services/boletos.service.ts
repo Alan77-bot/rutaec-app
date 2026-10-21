@@ -34,11 +34,40 @@ export class ErrorBoletos extends Error {
   }
 }
 
-async function solicitar<T>(ruta: string): Promise<T> {
+export type ResultadoVerificacion =
+  | "VALIDO"
+  | "ANULADO"
+  | "YA_ABORDADO"
+  | "VIAJE_INCORRECTO"
+  | "VIAJE_CANCELADO"
+  | "FUERA_DE_HORARIO"
+  | "NO_ENCONTRADO";
+
+export interface RespuestaVerificacion {
+  resultado: ResultadoVerificacion;
+  mensaje: string;
+  boleto?: {
+    id: string;
+    codigo: string;
+    pasajero: string;
+    asiento: string | null;
+    origen: string;
+    destino: string;
+    salida: string;
+    viajeId: string;
+  };
+}
+
+async function solicitar<T>(ruta: string, cuerpo?: unknown): Promise<T> {
   let respuesta: Response;
 
   try {
-    respuesta = await fetch(`/api/boletos${ruta}`, { credentials: "include" });
+    respuesta = await fetch(`/api/boletos${ruta}`, {
+      method: cuerpo === undefined ? "GET" : "POST",
+      credentials: "include",
+      headers: cuerpo === undefined ? undefined : { "Content-Type": "application/json" },
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    });
   } catch {
     throw new ErrorBoletos(
       "No se pudo conectar con la API. Comprueba que el backend esté encendido.",
@@ -66,6 +95,15 @@ export const boletosService = {
 
   async obtener(id: string): Promise<Boleto> {
     const respuesta = await solicitar<{ datos: Boleto }>(`/${encodeURIComponent(id)}`);
+    return respuesta.datos;
+  },
+
+  // Lo usa el personal de la cooperativa al escanear un QR (abordaje).
+  async verificar(codigo: string, viajeId?: string): Promise<RespuestaVerificacion> {
+    const respuesta = await solicitar<{ datos: RespuestaVerificacion }>("/verificar", {
+      codigo,
+      ...(viajeId ? { viajeId } : {}),
+    });
     return respuesta.datos;
   },
 
