@@ -7,6 +7,13 @@ export type BusquedaViajes = {
   fecha: string;
 };
 
+export type ParadaRecorrido = {
+  orden: number;
+  terminal: string;
+  llegada: Date;
+  salida: Date;
+};
+
 export type ViajeEncontrado = {
   viaje_id: string;
   origen_orden: number;
@@ -34,6 +41,7 @@ export type ViajeEncontrado = {
     marca_carroceria: string;
   };
   tarifas: { categoria: string; importe: number; moneda: string }[];
+  paradas: ParadaRecorrido[];
 };
 
 const ZONA_HORARIA = "America/Guayaquil";
@@ -57,6 +65,9 @@ const VIAJE_VENDIBLE = Prisma.sql`
  * cupos_disponibles es la capacidad vendible menos la ocupacion mas alta de los
  * tramos que recorre el pasajero (un asiento ocupado en cualquiera de ellos no
  * sirve), contando ventas confirmadas y retenciones vigentes.
+ *
+ * paradas es el recorrido del pasajero: desde su terminal de origen hasta la de
+ * destino, con las paradas intermedias en orden y sus horas.
  */
 export async function buscarViajes({
   origen,
@@ -110,7 +121,20 @@ export async function buscarViajes({
           AND t.destino_orden = pd.orden
           AND t.vigente_desde <= ${fecha}::date
           AND (t.vigente_hasta IS NULL OR t.vigente_hasta >= ${fecha}::date)
-      ), '[]'::jsonb) AS tarifas
+      ), '[]'::jsonb) AS tarifas,
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'orden', ps.orden,
+            'terminal', ps.nombre_snapshot,
+            'llegada', ps.llegada,
+            'salida', ps.salida
+          ) ORDER BY ps.orden
+        )
+        FROM rutaec.paradas_viaje ps
+        WHERE ps.viaje_id = v.id
+          AND ps.orden BETWEEN po.orden AND pd.orden
+      ) AS paradas
     FROM rutaec.viajes v
     JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id
     JOIN rutaec.frecuencias fr ON fr.id = v.frecuencia_id
