@@ -149,3 +149,60 @@ export async function crearFrecuencia(cuerpo: unknown, cooperativaId: string) {
   const [creada] = await listarFrecuencias(id);
   return creada;
 }
+
+export async function actualizarFrecuencia(frecuenciaId: string, cuerpo: unknown) {
+  const existente = await prisma.frecuencias.findUnique({
+    where: { id: frecuenciaId },
+    select: { cooperativa_id: true },
+  });
+  if (!existente) {
+    throw new ErrorHorarios(404, "La frecuencia no existe");
+  }
+
+  let datos;
+  try {
+    datos = validarFrecuencia(cuerpo);
+  } catch (error) {
+    throw new ErrorHorarios(400, (error as Error).message);
+  }
+  const cooperativaId = existente.cooperativa_id;
+  // Una frecuencia que se desactiva no necesita ruta ni resolucion vigentes.
+  if (datos.activa !== false) {
+    await verificarReferencias(cooperativaId, datos.ruta_id, datos.resolucion_id);
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.frecuencias.update({
+        where: { id: frecuenciaId },
+        data: {
+          codigo: datos.codigo,
+          ruta_id: datos.ruta_id,
+          resolucion_id: datos.resolucion_id,
+          hora_salida: horaADate(datos.hora_salida),
+          ...(datos.activa !== undefined ? { activa: datos.activa } : {}),
+        },
+      });
+      await tx.dias_frecuencia.deleteMany({ where: { frecuencia_id: frecuenciaId } });
+      await tx.dias_frecuencia.createMany({
+        data: datos.dias.map((dia) => ({
+          frecuencia_id: frecuenciaId,
+          dia_iso: dia,
+        })),
+      });
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      throw new ErrorHorarios(409, "Ya existe una frecuencia con ese codigo");
+    }
+    throw error;
+  }
+
+  const [actualizada] = await listarFrecuencias(frecuenciaId);
+  return actualizada;
+}

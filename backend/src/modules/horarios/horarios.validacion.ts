@@ -7,6 +7,7 @@ export interface FrecuenciaValidada {
   resolucion_id: string;
   hora_salida: string;
   dias: number[];
+  activa?: boolean;
 }
 
 export function validarFrecuencia(cuerpo: unknown): FrecuenciaValidada {
@@ -41,7 +42,12 @@ export function validarFrecuencia(cuerpo: unknown): FrecuenciaValidada {
     throw new Error("Los dias no pueden repetirse");
   }
 
+  if (x.activa !== undefined && typeof x.activa !== "boolean") {
+    throw new Error("activa debe ser verdadero o falso");
+  }
+
   return {
+    activa: x.activa as boolean | undefined,
     codigo,
     ruta_id: x.ruta_id,
     resolucion_id: x.resolucion_id,

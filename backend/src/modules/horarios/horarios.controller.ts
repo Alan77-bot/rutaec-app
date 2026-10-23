@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
 import {
+  actualizarFrecuencia,
   crearFrecuencia,
   ErrorHorarios,
   listarFrecuencias,
@@ -75,5 +76,30 @@ export async function registrarFrecuencia(
     }
     console.error("Error al registrar frecuencia:", error);
     res.status(500).json({ error: "No se pudo registrar la frecuencia" });
+  }
+}
+
+export async function editarFrecuencia(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const id = String(req.params.id);
+  if (!UUID.test(id)) {
+    res.status(400).json({ error: "El id de la frecuencia no es valido" });
+    return;
+  }
+
+  try {
+    const frecuencia = await actualizarFrecuencia(id, req.body);
+    res
+      .status(200)
+      .json({ mensaje: "Frecuencia actualizada correctamente", datos: frecuencia });
+  } catch (error) {
+    if (error instanceof ErrorHorarios) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al actualizar frecuencia:", error);
+    res.status(500).json({ error: "No se pudo actualizar la frecuencia" });
   }
 }
