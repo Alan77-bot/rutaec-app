@@ -2,6 +2,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useBusquedaViajes } from './useBusquedaViajes'
 import { useCiudades } from './useCiudades'
+import { urlCompra } from './reservas.enlaces'
 import { OPCIONES_FRANJA, OPCIONES_ORDEN, filtrarPorFranja, ordenarViajes } from './reservas.orden'
 
 import { TIPOS_BUS, fotoBus } from '../../data/mock'
@@ -229,7 +230,7 @@ export default function Resultados() {
                     {sinTarifa ? 'Sin tarifa' : v.libres === 0 ? 'Agotado' : 'No alcanzan'}
                   </button>
                 ) : (
-                  <Link className="btn btn-acento" to={`/comprar/${v.id}?origen=${v.origen}&destino=${v.destino}&n=${n}`}>Elegir asientos</Link>
+                  <Link className="btn btn-acento" to={urlCompra(v.id, { origen, destino, fecha, pasajeros: n })}>Elegir asientos</Link>
                 )}
               </div>
             </article>
