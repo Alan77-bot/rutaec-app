@@ -57,8 +57,14 @@ export async function registrarFrecuencia(
   req: Request,
   res: Response
 ): Promise<void> {
+  const cooperativaId = String(req.body?.cooperativa_id ?? "");
+  if (!UUID.test(cooperativaId)) {
+    res.status(400).json({ error: "cooperativa_id debe ser un UUID valido" });
+    return;
+  }
+
   try {
-    const frecuencia = await crearFrecuencia(req.body);
+    const frecuencia = await crearFrecuencia(req.body, cooperativaId);
     res
       .status(201)
       .json({ mensaje: "Frecuencia registrada correctamente", datos: frecuencia });

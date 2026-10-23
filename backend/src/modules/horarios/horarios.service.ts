@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { validarFrecuencia } from "./horarios.validacion.js";
 
 export class ErrorHorarios extends Error {
   estado: number;
@@ -9,14 +10,6 @@ export class ErrorHorarios extends Error {
   }
 }
 
-export interface DatosFrecuencia {
-  codigo: string;
-  ruta_id: string;
-  resolucion_id: string;
-  hora_salida: string;
-  dias: number[];
-  cooperativa_id: string;
-}
 
 // Prisma devuelve las columnas TIME como una fecha UTC; solo interesa HH:MM.
 function horaTexto(hora: Date): string {
@@ -80,25 +73,78 @@ function horaADate(hora: string): Date {
   return new Date(`1970-01-01T${hora}:00.000Z`);
 }
 
-export async function crearFrecuencia(datos: DatosFrecuencia) {
-  const id = await prisma.$transaction(async (tx) => {
-    const frecuencia = await tx.frecuencias.create({
-      data: {
-        cooperativa_id: datos.cooperativa_id,
-        codigo: datos.codigo,
-        ruta_id: datos.ruta_id,
-        resolucion_id: datos.resolucion_id,
-        hora_salida: horaADate(datos.hora_salida),
-      },
-    });
-    await tx.dias_frecuencia.createMany({
-      data: datos.dias.map((dia) => ({
-        frecuencia_id: frecuencia.id,
-        dia_iso: dia,
-      })),
-    });
-    return frecuencia.id;
+// Comprueba contra la base que la ruta y la resolucion sirvan para la frecuencia.
+async function verificarReferencias(
+  cooperativaId: string,
+  rutaId: string,
+  resolucionId: string
+): Promise<void> {
+  const ruta = await prisma.rutas.findFirst({
+    where: { id: rutaId, cooperativa_id: cooperativaId },
+    select: { activa: true },
   });
+  if (!ruta) {
+    throw new ErrorHorarios(400, "La ruta no existe en esa cooperativa");
+  }
+  if (!ruta.activa) {
+    throw new ErrorHorarios(400, "La ruta esta desactivada");
+  }
+
+  const resolucion = await prisma.resoluciones.findFirst({
+    where: { id: resolucionId, cooperativa_id: cooperativaId },
+  });
+  if (!resolucion) {
+    throw new ErrorHorarios(400, "La resolucion no existe en esa cooperativa");
+  }
+  const hoy = new Date();
+  if (
+    resolucion.vigente_desde > hoy ||
+    (resolucion.vigente_hasta && resolucion.vigente_hasta < hoy)
+  ) {
+    throw new ErrorHorarios(400, "La resolucion no esta vigente");
+  }
+}
+
+export async function crearFrecuencia(cuerpo: unknown, cooperativaId: string) {
+  let datos;
+  try {
+    datos = validarFrecuencia(cuerpo);
+  } catch (error) {
+    throw new ErrorHorarios(400, (error as Error).message);
+  }
+  await verificarReferencias(cooperativaId, datos.ruta_id, datos.resolucion_id);
+
+  let id: string;
+  try {
+    id = await prisma.$transaction(async (tx) => {
+      const frecuencia = await tx.frecuencias.create({
+        data: {
+          cooperativa_id: cooperativaId,
+          codigo: datos.codigo,
+          ruta_id: datos.ruta_id,
+          resolucion_id: datos.resolucion_id,
+          hora_salida: horaADate(datos.hora_salida),
+        },
+      });
+      await tx.dias_frecuencia.createMany({
+        data: datos.dias.map((dia) => ({
+          frecuencia_id: frecuencia.id,
+          dia_iso: dia,
+        })),
+      });
+      return frecuencia.id;
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      throw new ErrorHorarios(409, "Ya existe una frecuencia con ese codigo");
+    }
+    throw error;
+  }
 
   const [creada] = await listarFrecuencias(id);
   return creada;
