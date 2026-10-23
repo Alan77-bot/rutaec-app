@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { enviarError, enviarExito } from "../../utils/respuestas.js";
-import { buscarViajes } from "./reservas.service.js";
+import { buscarViajes, listarCiudadesDisponibles } from "./reservas.service.js";
 import { validarBusqueda } from "./reservas.validaciones.js";
 
 export async function obtenerViajes(req: Request, res: Response): Promise<void> {
@@ -22,6 +22,23 @@ export async function obtenerViajes(req: Request, res: Response): Promise<void> 
       res,
       500,
       "No se pudieron consultar los viajes",
+      "ERROR_INTERNO"
+    );
+  }
+}
+
+export async function obtenerCiudades(_req: Request, res: Response): Promise<void> {
+  try {
+    const ciudades = await listarCiudadesDisponibles();
+
+    enviarExito(res, ciudades);
+  } catch (error) {
+    console.error("Error al listar ciudades:", error);
+
+    enviarError(
+      res,
+      500,
+      "No se pudieron consultar las ciudades",
       "ERROR_INTERNO"
     );
   }

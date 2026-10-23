@@ -1,9 +1,17 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 
 export type BusquedaViajes = {
   origen: string;
   destino: string;
   fecha: string;
+};
+
+export type ParadaRecorrido = {
+  orden: number;
+  terminal: string;
+  llegada: Date;
+  salida: Date;
 };
 
 export type ViajeEncontrado = {
@@ -33,9 +41,19 @@ export type ViajeEncontrado = {
     marca_carroceria: string;
   };
   tarifas: { categoria: string; importe: number; moneda: string }[];
+  paradas: ParadaRecorrido[];
 };
 
 const ZONA_HORARIA = "America/Guayaquil";
+
+// Reglas que debe cumplir un viaje para poder comprarse: son las mismas que
+// valida reservar_compra. Requiere los alias v (viajes), c (cooperativas) y
+// fr (frecuencias), y se comparte para que ninguna consulta se desajuste.
+const VIAJE_VENDIBLE = Prisma.sql`
+  v.estado = 'PUBLICADO'
+  AND v.cierre_ventas > clock_timestamp()
+  AND c.activa
+  AND fr.activa`;
 
 /**
  * Busca viajes que pasen por la ciudad de origen y luego por la de destino
@@ -47,6 +65,9 @@ const ZONA_HORARIA = "America/Guayaquil";
  * cupos_disponibles es la capacidad vendible menos la ocupacion mas alta de los
  * tramos que recorre el pasajero (un asiento ocupado en cualquiera de ellos no
  * sirve), contando ventas confirmadas y retenciones vigentes.
+ *
+ * paradas es el recorrido del pasajero: desde su terminal de origen hasta la de
+ * destino, con las paradas intermedias en orden y sus horas.
  */
 export async function buscarViajes({
   origen,
@@ -100,10 +121,23 @@ export async function buscarViajes({
           AND t.destino_orden = pd.orden
           AND t.vigente_desde <= ${fecha}::date
           AND (t.vigente_hasta IS NULL OR t.vigente_hasta >= ${fecha}::date)
-      ), '[]'::jsonb) AS tarifas
+      ), '[]'::jsonb) AS tarifas,
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'orden', ps.orden,
+            'terminal', ps.nombre_snapshot,
+            'llegada', ps.llegada,
+            'salida', ps.salida
+          ) ORDER BY ps.orden
+        )
+        FROM rutaec.paradas_viaje ps
+        WHERE ps.viaje_id = v.id
+          AND ps.orden BETWEEN po.orden AND pd.orden
+      ) AS paradas
     FROM rutaec.viajes v
-    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id AND c.activa
-    JOIN rutaec.frecuencias fr ON fr.id = v.frecuencia_id AND fr.activa
+    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id
+    JOIN rutaec.frecuencias fr ON fr.id = v.frecuencia_id
     JOIN rutaec.buses b ON b.id = v.bus_id
     JOIN rutaec.paradas_viaje po
       ON po.viaje_id = v.id AND po.permite_subida
@@ -113,11 +147,34 @@ export async function buscarViajes({
       ON pd.viaje_id = v.id AND pd.orden > po.orden AND pd.permite_bajada
     JOIN rutaec.terminales tde ON tde.id = pd.terminal_id
     JOIN rutaec.ciudades cd ON cd.id = tde.ciudad_id
-    WHERE v.estado = 'PUBLICADO'
-      AND v.cierre_ventas > clock_timestamp()
+    WHERE ${VIAJE_VENDIBLE}
       AND lower(co.nombre) = lower(${origen})
       AND lower(cd.nombre) = lower(${destino})
       AND (po.salida AT TIME ZONE ${ZONA_HORARIA})::date = ${fecha}::date
     ORDER BY po.salida
+  `;
+}
+
+export type CiudadDisponible = {
+  nombre: string;
+  provincia: string;
+};
+
+/**
+ * Ciudades por las que pasa al menos un viaje que todavia se puede comprar.
+ * Sirve para llenar los selectores de origen y destino sin ofrecer ciudades
+ * sin servicio.
+ */
+export async function listarCiudadesDisponibles(): Promise<CiudadDisponible[]> {
+  return prisma.$queryRaw<CiudadDisponible[]>`
+    SELECT DISTINCT ci.nombre AS nombre, ci.provincia AS provincia
+    FROM rutaec.viajes v
+    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id
+    JOIN rutaec.frecuencias fr ON fr.id = v.frecuencia_id
+    JOIN rutaec.paradas_viaje pv ON pv.viaje_id = v.id
+    JOIN rutaec.terminales te ON te.id = pv.terminal_id
+    JOIN rutaec.ciudades ci ON ci.id = te.ciudad_id
+    WHERE ${VIAJE_VENDIBLE}
+    ORDER BY ci.nombre
   `;
 }
