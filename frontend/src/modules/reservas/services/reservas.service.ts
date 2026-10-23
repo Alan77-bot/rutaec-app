@@ -4,6 +4,13 @@ export interface TarifaViaje {
   moneda: string;
 }
 
+export interface ParadaApi {
+  orden: number;
+  terminal: string;
+  llegada: string;
+  salida: string;
+}
+
 export interface ViajeApi {
   viaje_id: string;
   origen_orden: number;
@@ -31,6 +38,7 @@ export interface ViajeApi {
     marca_carroceria: string;
   };
   tarifas: TarifaViaje[];
+  paradas: ParadaApi[];
 }
 
 export interface ParametrosBusqueda {

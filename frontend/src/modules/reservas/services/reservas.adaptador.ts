@@ -2,6 +2,12 @@ import type { ViajeApi } from "./reservas.service";
 
 const ZONA_HORARIA = "America/Guayaquil";
 
+export interface ParadaResultado {
+  orden: number;
+  terminal: string;
+  hora: string;
+}
+
 export interface ViajeResultado {
   id: string;
   origen: string;
@@ -18,6 +24,7 @@ export interface ViajeResultado {
   paradasIntermedias: number;
   tipoViaje: "directa" | "compartida";
   cierreVentas: string;
+  paradas: ParadaResultado[];
   coop: { id: string; nombre: string; color: string; logo: string | null };
   bus: {
     tipo: "normal" | "dospisos";
@@ -59,6 +66,15 @@ function importeDe(viaje: ViajeApi, categoria: "NORMAL" | "VIP"): number | null 
   return tarifa ? Number(tarifa.importe) : null;
 }
 
+// En el origen se muestra la hora de salida; en el resto, la de llegada.
+function adaptarParadas(viaje: ViajeApi): ParadaResultado[] {
+  return (viaje.paradas ?? []).map((parada, indice) => ({
+    orden: parada.orden,
+    terminal: parada.terminal,
+    hora: formatearHora(indice === 0 ? parada.salida : parada.llegada),
+  }));
+}
+
 /**
  * Convierte un viaje de la API de RutaEC al formato que consumen las tarjetas
  * de resultados. origen y destino son las ciudades buscadas; el nombre de cada
@@ -88,6 +104,7 @@ export function adaptarViaje(
     paradasIntermedias: Math.max(0, tramos - 1),
     tipoViaje: tramos > 1 ? "compartida" : "directa",
     cierreVentas: viaje.cierre_ventas,
+    paradas: adaptarParadas(viaje),
     coop: {
       id: viaje.cooperativa.id,
       nombre: viaje.cooperativa.nombre,

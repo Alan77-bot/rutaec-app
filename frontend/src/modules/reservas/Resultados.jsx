@@ -25,10 +25,18 @@ function Modal({ viaje, onCerrar }) {
           <div><dt>Salida</dt><dd>{viaje.horaSalida} · {viaje.origenTerminal}</dd></div>
           <div><dt>Llegada</dt><dd>{viaje.horaLlegada} · {viaje.destinoTerminal}</dd></div>
         </dl>
-        {viaje.tipoViaje === 'compartida' && (
-          <p className="paradas-txt">
-            {viaje.paradasIntermedias} {viaje.paradasIntermedias === 1 ? 'parada intermedia' : 'paradas intermedias'} entre {viaje.origen} y {viaje.destino}
-          </p>
+        {viaje.paradas.length > 0 && (
+          <div className="paradas-txt">
+            <b>Recorrido</b>
+            <ol style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'grid', gap: 6 }}>
+              {viaje.paradas.map((p) => (
+                <li key={p.orden} style={{ display: 'flex', gap: 12 }}>
+                  <b style={{ minWidth: 48 }}>{p.hora}</b>
+                  <span>{p.terminal}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
       </div>
     </div>
