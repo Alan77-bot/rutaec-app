@@ -58,10 +58,20 @@ export async function registrarFrecuencia(
   req: Request,
   res: Response
 ): Promise<void> {
-  const cooperativaId = String(req.body?.cooperativa_id ?? "");
-  if (!UUID.test(cooperativaId)) {
-    res.status(400).json({ error: "cooperativa_id debe ser un UUID valido" });
-    return;
+  const sesion = res.locals.sesion as SesionAutenticada;
+  let cooperativaId: string;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return;
+    }
+    cooperativaId = sesion.coopId;
+  } else {
+    cooperativaId = String(req.body?.cooperativa_id ?? "");
+    if (!UUID.test(cooperativaId)) {
+      res.status(400).json({ error: "cooperativa_id debe ser un UUID valido" });
+      return;
+    }
   }
 
   try {
@@ -89,8 +99,18 @@ export async function editarFrecuencia(
     return;
   }
 
+  const sesion = res.locals.sesion as SesionAutenticada;
+  let restringida: string | undefined;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return;
+    }
+    restringida = sesion.coopId;
+  }
+
   try {
-    const frecuencia = await actualizarFrecuencia(id, req.body);
+    const frecuencia = await actualizarFrecuencia(id, req.body, restringida);
     res
       .status(200)
       .json({ mensaje: "Frecuencia actualizada correctamente", datos: frecuencia });

@@ -150,13 +150,24 @@ export async function crearFrecuencia(cuerpo: unknown, cooperativaId: string) {
   return creada;
 }
 
-export async function actualizarFrecuencia(frecuenciaId: string, cuerpo: unknown) {
+// cooperativaPermitida: si viene, la frecuencia debe pertenecer a esa cooperativa.
+export async function actualizarFrecuencia(
+  frecuenciaId: string,
+  cuerpo: unknown,
+  cooperativaPermitida?: string
+) {
   const existente = await prisma.frecuencias.findUnique({
     where: { id: frecuenciaId },
     select: { cooperativa_id: true },
   });
   if (!existente) {
     throw new ErrorHorarios(404, "La frecuencia no existe");
+  }
+  if (cooperativaPermitida && existente.cooperativa_id !== cooperativaPermitida) {
+    throw new ErrorHorarios(
+      403,
+      "No tienes permiso para modificar frecuencias de otra cooperativa"
+    );
   }
 
   let datos;
