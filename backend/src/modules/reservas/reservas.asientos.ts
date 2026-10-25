@@ -16,7 +16,7 @@ export type AsientoDisponible = {
   categoria: CategoriaAsiento;
   accesible: boolean;
   preferencial: boolean;
-  estado: "LIBRE" | "OCUPADO" | "NO_VENDIBLE";
+  estado: "LIBRE" | "OCUPADO" | "RETENIDO" | "NO_VENDIBLE";
 };
 
 // Paradas (por orden dentro del viaje) entre las que viaja el pasajero.
@@ -33,6 +33,10 @@ export type TramoPasajero = {
  * Un asiento esta OCUPADO si tiene una venta confirmada cuyo tramo se cruza con
  * el del pasajero: el mismo asiento puede venderse a quien viaja en un tramo
  * distinto del recorrido.
+ *
+ * Esta RETENIDO si otra persona lo reservo y todavia no se vendio: la reserva
+ * dura 5 minutos, o sigue vigente mientras su pago esta en revision. Son las
+ * mismas condiciones que usa la vista v_ocupacion_tramos.
  */
 export async function listarAsientosViaje(
   viajeId: string,
@@ -59,6 +63,19 @@ export async function listarAsientosViaje(
             AND d.estado = 'CONFIRMADO'
             AND d.tramo && int4range(${tramo.origenOrden}::int, ${tramo.destinoOrden}::int, '[)')
         ) THEN 'OCUPADO'
+        WHEN EXISTS (
+          SELECT 1
+          FROM rutaec.detalle_compra d
+          JOIN rutaec.compras c ON c.id = d.compra_id
+          WHERE d.viaje_id = s.viaje_id
+            AND d.asiento_id = s.id
+            AND d.estado = 'RETENIDO'
+            AND d.tramo && int4range(${tramo.origenOrden}::int, ${tramo.destinoOrden}::int, '[)')
+            AND (
+              c.estado = 'EN_REVISION'
+              OR (c.estado = 'RESERVADA' AND c.vence_en > clock_timestamp())
+            )
+        ) THEN 'RETENIDO'
         ELSE 'LIBRE'
       END AS estado
     FROM rutaec.asientos_viaje s
