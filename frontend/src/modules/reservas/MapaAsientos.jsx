@@ -1,10 +1,12 @@
 ﻿// Plano del bus con los asientos reales del viaje. Agrupa por piso y fila, deja el
 // pasillo entre las columnas 2 y 3 (buses de 4 columnas) y respeta los huecos.
 
-const ESTILO_RETENIDO = { background: '#fff3c4', borderColor: '#e0b43c', color: '#8a6d0b' }
-const ESTILO_NO_VENDIBLE = { opacity: 0.45, textDecoration: 'line-through' }
-const ESTILO_ACCESIBLE = { boxShadow: '0 0 0 2px #1b6fb5' }
-const ESTILO_PREFERENCIAL = { boxShadow: '0 0 0 2px #2e8b57' }
+import {
+  ESTILO_ACCESIBLE,
+  ESTILO_NO_VENDIBLE,
+  ESTILO_PREFERENCIAL,
+  ESTILO_RETENIDO,
+} from './asientos.estilos'
 
 const por = (a, b) => a - b
 

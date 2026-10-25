@@ -4,6 +4,11 @@ import { useApp } from '../../context/AppContext'
 import CoopLogo from '../../components/CoopLogo'
 import MapaAsientos from './MapaAsientos'
 import { useDisponibilidad } from './useDisponibilidad'
+import {
+  ESTILO_ACCESIBLE,
+  ESTILO_PREFERENCIAL,
+  ESTILO_RETENIDO,
+} from './asientos.estilos'
 import { urlResultados } from './reservas.enlaces'
 import { DESCUENTOS, cedulaValida } from '../../data/viajes'
 import { fechaLarga } from '../../data/fechas'
@@ -77,6 +82,10 @@ export default function Compra() {
 
   const { viaje } = disponibilidad
   const coop = viaje.coop
+  const precioNormal = viaje.precio
+  const precioVip = viaje.precioVip
+  const hayAccesibles = asientos.some((a) => a.accesible)
+  const hayPreferenciales = asientos.some((a) => a.preferencial && !a.accesible)
 
   const clickAsiento = (a) => {
     setElegidos((actuales) => {
@@ -172,9 +181,12 @@ export default function Compra() {
             <>
               <h3>Elige {n} asiento{n > 1 ? 's' : ''}</h3>
               <div className="leyenda">
-                <span><i className="asiento normal" />Normal</span>
-                <span><i className="asiento vip" />VIP</span>
+                <span><i className="asiento normal" />Normal{precioNormal !== null && ` · ${dinero(precioNormal)}`}</span>
+                <span><i className="asiento vip" />VIP{precioVip !== null && ` · ${dinero(precioVip)}`}</span>
                 <span><i className="asiento ocupado" />Ocupado</span>
+                <span><i className="asiento ocupado" style={ESTILO_RETENIDO} />Reservado por otra persona</span>
+                {hayAccesibles && <span><i className="asiento" style={ESTILO_ACCESIBLE} />Accesible</span>}
+                {hayPreferenciales && <span><i className="asiento" style={ESTILO_PREFERENCIAL} />Preferencial</span>}
                 <span><i className="asiento sel" />Tuyo</span>
               </div>
               <MapaAsientos
