@@ -1,9 +1,9 @@
-import type { PrismaClient } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
-
-// Acepta el cliente normal o el de una transaccion, para poder probar la
-// consulta dentro de una transaccion que luego se deshace.
-export type ClienteBd = Pick<PrismaClient, "$queryRaw">;
+import {
+  buscarViajePorId,
+  type ClienteBd,
+  type ViajeEncontrado,
+} from "./reservas.service.js";
 
 export type CategoriaAsiento = "NORMAL" | "VIP";
 
@@ -17,6 +17,11 @@ export type AsientoDisponible = {
   accesible: boolean;
   preferencial: boolean;
   estado: "LIBRE" | "OCUPADO" | "RETENIDO" | "NO_VENDIBLE";
+};
+
+export type AsientoConPrecio = AsientoDisponible & {
+  // Importe de la tarifa de su categoria en el tramo; null si no hay tarifa.
+  precio: number | null;
 };
 
 // Paradas (por orden dentro del viaje) entre las que viaja el pasajero.
@@ -82,4 +87,43 @@ export async function listarAsientosViaje(
     WHERE s.viaje_id = ${viajeId}::uuid
     ORDER BY s.piso, s.fila, s.columna
   `;
+}
+
+export type DisponibilidadViaje = {
+  viaje: ViajeEncontrado;
+  asientos: AsientoConPrecio[];
+};
+
+/**
+ * Datos del viaje y de cada asiento para el tramo que quiere recorrer el
+ * pasajero, con su estado y su precio. Devuelve null si el viaje no existe,
+ * ya no se puede comprar o no pasa por esas ciudades en ese orden.
+ */
+export async function obtenerDisponibilidad(
+  viajeId: string,
+  origen: string,
+  destino: string,
+  bd: ClienteBd = prisma
+): Promise<DisponibilidadViaje | null> {
+  const viaje = await buscarViajePorId(viajeId, origen, destino, bd);
+
+  if (!viaje) return null;
+
+  const asientos = await listarAsientosViaje(
+    viajeId,
+    { origenOrden: viaje.origen_orden, destinoOrden: viaje.destino_orden },
+    bd
+  );
+
+  const precioPorCategoria = new Map(
+    viaje.tarifas.map((t) => [t.categoria, Number(t.importe)])
+  );
+
+  return {
+    viaje,
+    asientos: asientos.map((a) => ({
+      ...a,
+      precio: precioPorCategoria.get(a.categoria) ?? null,
+    })),
+  };
 }
