@@ -89,3 +89,66 @@ export function validarBusqueda(query: Record<string, unknown>): ResultadoValida
 
   return { ok: true, datos: { origen, destino, fecha } };
 }
+
+const FORMATO_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type ParametrosDisponibilidad = {
+  viajeId: string;
+  origen: string;
+  destino: string;
+};
+
+export type ResultadoValidacionDisponibilidad =
+  | { ok: true; datos: ParametrosDisponibilidad }
+  | { ok: false; falla: ErrorValidacion };
+
+export function validarDisponibilidad(
+  query: Record<string, unknown>
+): ResultadoValidacionDisponibilidad {
+  const viajeId = texto(query.viajeId);
+  const origen = texto(query.origen);
+  const destino = texto(query.destino);
+
+  if (!viajeId || !origen || !destino) {
+    return {
+      ok: false,
+      falla: {
+        error: "Los parametros viajeId, origen y destino son obligatorios",
+        code: "PARAMETROS_INVALIDOS",
+      },
+    };
+  }
+
+  if (!FORMATO_UUID.test(viajeId)) {
+    return {
+      ok: false,
+      falla: {
+        error: "El identificador del viaje no es valido",
+        code: "PARAMETROS_INVALIDOS",
+      },
+    };
+  }
+
+  if (origen.length > MAX_LONGITUD_CIUDAD || destino.length > MAX_LONGITUD_CIUDAD) {
+    return {
+      ok: false,
+      falla: {
+        error: `Origen y destino admiten hasta ${MAX_LONGITUD_CIUDAD} caracteres`,
+        code: "PARAMETROS_INVALIDOS",
+      },
+    };
+  }
+
+  if (origen.toLowerCase() === destino.toLowerCase()) {
+    return {
+      ok: false,
+      falla: {
+        error: "El origen y el destino deben ser distintos",
+        code: "PARAMETROS_INVALIDOS",
+      },
+    };
+  }
+
+  return { ok: true, datos: { viajeId, origen, destino } };
+}

@@ -41,6 +41,32 @@ export interface ViajeApi {
   paradas: ParadaApi[];
 }
 
+export type EstadoAsiento = "LIBRE" | "OCUPADO" | "RETENIDO" | "NO_VENDIBLE";
+
+export interface AsientoApi {
+  id: string;
+  numero: string;
+  piso: number;
+  fila: number;
+  columna: number;
+  categoria: "NORMAL" | "VIP";
+  accesible: boolean;
+  preferencial: boolean;
+  estado: EstadoAsiento;
+  precio: number | null;
+}
+
+export interface DisponibilidadApi {
+  viaje: ViajeApi;
+  asientos: AsientoApi[];
+}
+
+export interface ParametrosDisponibilidad {
+  viajeId: string;
+  origen: string;
+  destino: string;
+}
+
 export interface ParametrosBusqueda {
   origen: string;
   destino: string;
@@ -114,6 +140,19 @@ export const reservasService = {
   async listarCiudades(signal?: AbortSignal): Promise<CiudadDisponible[]> {
     const respuesta = await solicitar<{ data: CiudadDisponible[] }>(
       "/ciudades",
+      signal
+    );
+
+    return respuesta.data;
+  },
+
+  async obtenerDisponibilidad(
+    { viajeId, origen, destino }: ParametrosDisponibilidad,
+    signal?: AbortSignal
+  ): Promise<DisponibilidadApi> {
+    const consulta = new URLSearchParams({ viajeId, origen, destino });
+    const respuesta = await solicitar<{ data: DisponibilidadApi }>(
+      `/disponibilidad?${consulta.toString()}`,
       signal
     );
 
