@@ -4,7 +4,10 @@ import {
   ErrorReservas,
   reservasService,
   type AsientoApi,
+  type DisponibilidadApi,
+  type ParadaViajeApi,
   type ParametrosDisponibilidad,
+  type ResumenAsientosApi,
 } from "./services/reservas.service";
 
 // Cada cuanto se vuelve a consultar el estado de los asientos mientras la
@@ -14,6 +17,8 @@ const INTERVALO_REFRESCO_MS = 8000;
 
 export interface DisponibilidadViaje {
   viaje: ViajeResultado;
+  recorrido: ParadaViajeApi[];
+  resumen: ResumenAsientosApi;
   asientos: AsientoApi[];
 }
 
@@ -26,6 +31,15 @@ interface ResultadoDisponibilidad {
 interface OpcionesDisponibilidad {
   // Se llama con los datos frescos despues de cada refresco (automatico o manual).
   alActualizar?: (datos: DisponibilidadViaje) => void;
+}
+
+function datosDe(respuesta: DisponibilidadApi, origen: string, destino: string): DisponibilidadViaje {
+  return {
+    viaje: adaptarViaje(respuesta.viaje, { origen, destino }),
+    recorrido: respuesta.recorrido,
+    resumen: respuesta.resumen,
+    asientos: respuesta.asientos,
+  };
 }
 
 function errorDe(error: unknown): ErrorReservas {
@@ -69,10 +83,7 @@ export function useDisponibilidad(
       .then((respuesta) => {
         setResultado({
           clave,
-          datos: {
-            viaje: adaptarViaje(respuesta.viaje, { origen, destino }),
-            asientos: respuesta.asientos,
-          },
+          datos: datosDe(respuesta, origen, destino),
           error: null,
         });
       })
@@ -94,10 +105,7 @@ export function useDisponibilidad(
         { viajeId, origen, destino },
         signal
       );
-      const datos = {
-        viaje: adaptarViaje(respuesta.viaje, { origen, destino }),
-        asientos: respuesta.asientos,
-      };
+      const datos = datosDe(respuesta, origen, destino);
 
       setResultado((anterior) =>
         anterior && anterior.clave === clave ? { clave, datos, error: null } : anterior

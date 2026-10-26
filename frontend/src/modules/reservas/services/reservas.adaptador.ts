@@ -12,6 +12,8 @@ export interface ViajeResultado {
   id: string;
   origen: string;
   destino: string;
+  origenOrden: number;
+  destinoOrden: number;
   origenTerminal: string;
   destinoTerminal: string;
   horaSalida: string;
@@ -92,6 +94,8 @@ export function adaptarViaje(
     id: viaje.viaje_id,
     origen: ciudades.origen,
     destino: ciudades.destino,
+    origenOrden: viaje.origen_orden,
+    destinoOrden: viaje.destino_orden,
     origenTerminal: viaje.origen_terminal,
     destinoTerminal: viaje.destino_terminal,
     horaSalida: formatearHora(viaje.salida),

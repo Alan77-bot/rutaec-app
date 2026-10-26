@@ -30,7 +30,7 @@ function Aviso({ titulo, texto, children }) {
 
 export default function Compra() {
   const { viajeId } = useParams()
-  const [q] = useSearchParams()
+  const [q, setQ] = useSearchParams()
   const { sesion, avisar } = useApp()
 
   const origen = q.get('origen') || ''
@@ -109,8 +109,22 @@ export default function Compra() {
   const coop = viaje.coop
   const precioNormal = viaje.precio
   const precioVip = viaje.precioVip
+  const { recorrido } = disponibilidad
+  const subidas = recorrido.filter((p) => p.permite_subida && p.orden < recorrido.at(-1).orden)
+  const bajadas = recorrido.filter((p) => p.permite_bajada && p.orden > viaje.origenOrden)
   const hayAccesibles = asientos.some((a) => a.accesible)
   const hayPreferenciales = asientos.some((a) => a.preferencial && !a.accesible)
+
+  // Cambia donde sube o baja el pasajero. Los asientos ocupados dependen del
+  // tramo, asi que la seleccion se limpia y se vuelve a consultar.
+  const cambiarTramo = (ordenSube, ordenBaja) => {
+    const sube = disponibilidad.recorrido.find((p) => p.orden === ordenSube)
+    const baja = disponibilidad.recorrido.find((p) => p.orden === ordenBaja)
+    if (!sube || !baja || sube.orden >= baja.orden) return
+
+    setElegidos([])
+    setQ(new URLSearchParams({ origen: sube.ciudad, destino: baja.ciudad, fecha, n: String(n) }), { replace: true })
+  }
 
   const clickAsiento = (a) => {
     setElegidos((actuales) => {
@@ -222,6 +236,29 @@ export default function Compra() {
           {paso === 0 && (
             <>
               <h3>Elige {n} asiento{n > 1 ? 's' : ''}</h3>
+              {(subidas.length > 1 || bajadas.length > 1) && (
+                <div className="ruta-sel" style={{ marginBottom: 14 }}>
+                  <select
+                    aria-label="Dónde subes"
+                    value={viaje.origenOrden}
+                    onChange={(e) => {
+                      const sube = Number(e.target.value)
+                      const baja = sube < viaje.destinoOrden ? viaje.destinoOrden : bajadas.find((p) => p.orden > sube)?.orden
+                      if (baja) cambiarTramo(sube, baja)
+                    }}
+                  >
+                    {subidas.map((p) => <option key={p.orden} value={p.orden}>Subes en {p.ciudad}</option>)}
+                  </select>
+                  <span>→</span>
+                  <select
+                    aria-label="Dónde bajas"
+                    value={viaje.destinoOrden}
+                    onChange={(e) => cambiarTramo(viaje.origenOrden, Number(e.target.value))}
+                  >
+                    {bajadas.map((p) => <option key={p.orden} value={p.orden}>Bajas en {p.ciudad}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="leyenda">
                 <span><i className="asiento normal" />Normal{precioNormal !== null && ` · ${dinero(precioNormal)}`}</span>
                 <span><i className="asiento vip" />VIP{precioVip !== null && ` · ${dinero(precioVip)}`}</span>

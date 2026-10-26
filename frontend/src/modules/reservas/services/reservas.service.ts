@@ -56,8 +56,28 @@ export interface AsientoApi {
   precio: number | null;
 }
 
+export interface ParadaViajeApi {
+  orden: number;
+  terminal: string;
+  ciudad: string;
+  llegada: string;
+  salida: string;
+  permite_subida: boolean;
+  permite_bajada: boolean;
+}
+
+export interface ResumenAsientosApi {
+  total: number;
+  libres: number;
+  ocupados: number;
+  retenidos: number;
+  no_vendibles: number;
+}
+
 export interface DisponibilidadApi {
   viaje: ViajeApi;
+  recorrido: ParadaViajeApi[];
+  resumen: ResumenAsientosApi;
   asientos: AsientoApi[];
 }
 
