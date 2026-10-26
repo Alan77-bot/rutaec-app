@@ -101,13 +101,36 @@ export type ParadaViaje = {
   permite_bajada: boolean;
 };
 
+// Cantidad de asientos del viaje en cada estado, para el tramo del pasajero.
+export type ResumenAsientos = {
+  total: number;
+  libres: number;
+  ocupados: number;
+  retenidos: number;
+  no_vendibles: number;
+};
+
 export type DisponibilidadViaje = {
   viaje: ViajeEncontrado;
   // Todas las paradas del viaje, no solo las del tramo del pasajero: sirven para
   // que pueda cambiar donde sube o baja.
   recorrido: ParadaViaje[];
+  resumen: ResumenAsientos;
   asientos: AsientoConPrecio[];
 };
+
+export function resumirAsientos(asientos: { estado: AsientoDisponible["estado"] }[]): ResumenAsientos {
+  const cuenta = (estado: AsientoDisponible["estado"]) =>
+    asientos.filter((a) => a.estado === estado).length;
+
+  return {
+    total: asientos.length,
+    libres: cuenta("LIBRE"),
+    ocupados: cuenta("OCUPADO"),
+    retenidos: cuenta("RETENIDO"),
+    no_vendibles: cuenta("NO_VENDIBLE"),
+  };
+}
 
 /** Recorrido completo de un viaje, en orden, con la ciudad de cada parada. */
 export async function listarRecorridoViaje(
@@ -162,6 +185,7 @@ export async function obtenerDisponibilidad(
   return {
     viaje,
     recorrido,
+    resumen: resumirAsientos(asientos),
     asientos: asientos.map((a) => ({
       ...a,
       precio: precioPorCategoria.get(a.categoria) ?? null,
