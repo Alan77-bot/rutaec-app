@@ -355,6 +355,18 @@ export default function Compra() {
         <aside className="resumen">
           <h4>Resumen</h4>
           <p className="muted">{viaje.tipoViaje === 'directa' ? 'Viaje directo' : 'Viaje con paradas'} · {viaje.duracion}</p>
+          <ol style={{ listStyle: 'none', padding: 0, margin: '0 0 12px', display: 'grid', gap: 4, fontSize: '.9rem' }}>
+            {viaje.paradas.map((p) => (
+              <li key={p.orden} style={{ display: 'flex', gap: 10 }}>
+                <b style={{ minWidth: 44 }}>{p.hora}</b>
+                <span>{p.terminal}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="muted">
+            {disponibilidad.resumen.libres} de {disponibilidad.resumen.total} asientos libres
+            {disponibilidad.resumen.retenidos > 0 && ` · ${disponibilidad.resumen.retenidos} reservados por otras personas`}
+          </p>
           {lineas.map((p) => (
             <div key={p.asiento} className="linea-r">
               <span>Asiento {p.asiento}{p.descuento !== 'ninguno' ? ` · ${DESCUENTOS[p.descuento].nombre}` : ''}</span>
