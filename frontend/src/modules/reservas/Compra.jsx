@@ -42,6 +42,7 @@ export default function Compra() {
 
   const [paso, setPaso] = useState(0)
   const [elegidos, setElegidos] = useState([])
+  const [comprobando, setComprobando] = useState(false)
 
   // Si otra persona toma un asiento que elegiste mientras decides, se te quita de
   // la seleccion y se te avisa. Solo aplica al paso de asientos.
@@ -63,7 +64,7 @@ export default function Compra() {
     [paso, elegidos, avisar]
   )
 
-  const { disponibilidad, cargando, error, recargar } = useDisponibilidad(
+  const { disponibilidad, cargando, error, recargar, refrescar } = useDisponibilidad(
     { viajeId, origen, destino },
     { alActualizar }
   )
@@ -130,24 +131,41 @@ export default function Compra() {
     )
   }
 
-  const irAPasajeros = () => {
+  // Antes de pasar a los datos de los pasajeros se consulta de nuevo al servidor:
+  // el mapa puede tener unos segundos de retraso y otra persona pudo tomar un asiento.
+  const irAPasajeros = async () => {
     if (elegidos.length !== n) return avisar(`Elige ${n} asiento${n > 1 ? 's' : ''} para continuar.`)
-    setPasajeros(
-      elegidos.map((id, i) => {
-        const a = porId.get(id)
-        return {
-          nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
-          cedula: '',
-          correo: i === 0 ? sesion?.correo || '' : '',
-          descuento: 'ninguno',
-          categoria: a.categoria,
-          asiento: a.numero,
-          asientoId: id,
-          precio: a.precio ?? 0,
-        }
-      })
-    )
-    setPaso(1)
+
+    setComprobando(true)
+    try {
+      const datos = await refrescar()
+      const frescos = new Map(datos.asientos.map((a) => [a.id, a]))
+
+      // Si alguno ya no esta libre, el refresco ya lo quito de la seleccion y aviso.
+      if (!elegidos.every((id) => frescos.get(id)?.estado === 'LIBRE')) return
+
+      setPasajeros(
+        elegidos.map((id, i) => {
+          const a = frescos.get(id)
+          return {
+            nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
+            cedula: '',
+            correo: i === 0 ? sesion?.correo || '' : '',
+            descuento: 'ninguno',
+            categoria: a.categoria,
+            asiento: a.numero,
+            asientoId: id,
+            precio: a.precio ?? 0,
+          }
+        })
+      )
+      setPaso(1)
+    } catch (fallo) {
+      if (fallo?.estado === 404) recargar()
+      else avisar('No pudimos confirmar la disponibilidad de tus asientos. Inténtalo de nuevo.')
+    } finally {
+      setComprobando(false)
+    }
   }
 
   const cambiarPas = (i, campo, valor) =>
@@ -219,7 +237,9 @@ export default function Compra() {
                 onElegir={clickAsiento}
                 onNoDisponible={asientoNoDisponible}
               />
-              <button className="btn btn-acento btn-lg" onClick={irAPasajeros}>Continuar</button>
+              <button className="btn btn-acento btn-lg" onClick={irAPasajeros} disabled={comprobando}>
+                {comprobando ? 'Comprobando disponibilidad…' : 'Continuar'}
+              </button>
             </>
           )}
 
