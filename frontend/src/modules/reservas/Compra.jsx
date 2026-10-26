@@ -240,6 +240,7 @@ export default function Compra() {
                 <div className="ruta-sel" style={{ marginBottom: 14 }}>
                   <select
                     aria-label="Dónde subes"
+                    style={{ flex: '1 1 140px', minWidth: 0 }}
                     value={viaje.origenOrden}
                     onChange={(e) => {
                       const sube = Number(e.target.value)
@@ -249,9 +250,9 @@ export default function Compra() {
                   >
                     {subidas.map((p) => <option key={p.orden} value={p.orden}>Subes en {p.ciudad}</option>)}
                   </select>
-                  <span>→</span>
                   <select
                     aria-label="Dónde bajas"
+                    style={{ flex: '1 1 140px', minWidth: 0 }}
                     value={viaje.destinoOrden}
                     onChange={(e) => cambiarTramo(viaje.origenOrden, Number(e.target.value))}
                   >
