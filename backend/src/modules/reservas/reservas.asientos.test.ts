@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
+import { resumirAsientos } from "./reservas.asientos.js";
 import { validarDisponibilidad } from "./reservas.validaciones.js";
 
 const ZONA_HORARIA = "America/Guayaquil";
@@ -222,5 +223,114 @@ describe("disponibilidad de asientos", () => {
     );
     assert.equal(noExiste.status, 404);
     assert.equal(((await noExiste.json()) as { code: string }).code, "NO_ENCONTRADO");
+  });
+
+  it("incluye el recorrido completo del viaje con la ciudad de cada parada", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const d = await servicios.obtenerDisponibilidad(viajeId, "Ambato", "Quito");
+    assert.ok(d);
+
+    // El pasajero solo recorre dos paradas, pero el viaje tiene tres.
+    assert.equal(d.viaje.paradas.length, 2);
+    assert.deepEqual(
+      d.recorrido.map((p) => p.ciudad),
+      ["Riobamba", "Ambato", "Quito"]
+    );
+    assert.deepEqual(d.recorrido.map((p) => p.orden), [1, 2, 3]);
+    assert.ok(d.recorrido.every((p) => p.permite_subida && p.permite_bajada));
+  });
+
+  it("el resumen cuenta los asientos de cada estado y el endpoint lo devuelve", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const r = await fetch(`${base}/disponibilidad?viajeId=${viajeId}&origen=Ambato&destino=Quito`);
+    const { data } = (await r.json()) as {
+      data: { resumen: Record<string, number>; recorrido: unknown[] };
+    };
+    assert.deepEqual(data.resumen, {
+      total: 40,
+      libres: 40,
+      ocupados: 0,
+      retenidos: 0,
+      no_vendibles: 0,
+    });
+    assert.equal(data.recorrido.length, 3);
+  });
+
+  it("un asiento de una reserva cancelada vuelve a estar libre", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const observado: Record<string, unknown> = {};
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const [{ uid }] = await tx.$queryRaw<{ uid: string }[]>`
+          SELECT id::text AS uid FROM rutaec.usuarios WHERE correo = ${CORREO_DATOS_PRUEBA}`;
+        await tx.$queryRaw`SELECT set_config('app.usuario_id', ${uid}, true)`;
+
+        const antes = await servicios.obtenerDisponibilidad(viajeId, "Ambato", "Quito", tx);
+        const numero = antes!.asientos.find((a) => a.categoria === "NORMAL")!.numero;
+
+        await tx.$queryRaw`
+          INSERT INTO rutaec.pasajeros(comprador_id, nombres, apellidos, fecha_nacimiento,
+                                       tipo_documento, numero_documento)
+          VALUES (${uid}::uuid, 'Ana', 'Prueba', DATE '1990-01-01', 'CEDULA', 'T-DISP-02')`;
+
+        const [{ compra }] = await tx.$queryRaw<{ compra: string }[]>`
+          SELECT rutaec.reservar_compra(${uid}::uuid, ${viajeId}::uuid, (
+            SELECT jsonb_build_array(jsonb_build_object(
+              'pasajero_id', p.id, 'asiento_id', s.id, 'tarifa_id', tf.id))
+            FROM rutaec.pasajeros p, rutaec.asientos_viaje s, rutaec.tarifas_viaje tf
+            WHERE p.numero_documento = 'T-DISP-02' AND p.comprador_id = ${uid}::uuid
+              AND s.viaje_id = ${viajeId}::uuid AND s.numero = ${numero}
+              AND tf.viaje_id = ${viajeId}::uuid AND tf.origen_orden = 2
+              AND tf.destino_orden = 3 AND tf.categoria = 'NORMAL'
+          ))::text AS compra`;
+
+        const reservada = await servicios.obtenerDisponibilidad(viajeId, "Ambato", "Quito", tx);
+        observado.estadoReservado = reservada!.asientos.find((a) => a.numero === numero)!.estado;
+        observado.resumenReservado = reservada!.resumen;
+        observado.cuposReservado = reservada!.viaje.cupos_disponibles;
+
+        await tx.$queryRaw`SELECT rutaec.cancelar_reserva(${compra}::uuid, 'Prueba automatica')`;
+
+        const cancelada = await servicios.obtenerDisponibilidad(viajeId, "Ambato", "Quito", tx);
+        observado.estadoCancelado = cancelada!.asientos.find((a) => a.numero === numero)!.estado;
+        observado.resumenCancelado = cancelada!.resumen;
+
+        throw new Deshacer();
+      });
+    } catch (error) {
+      if (!(error instanceof Deshacer)) throw error;
+    }
+
+    assert.deepEqual(observado, {
+      estadoReservado: "RETENIDO",
+      resumenReservado: { total: 40, libres: 39, ocupados: 0, retenidos: 1, no_vendibles: 0 },
+      cuposReservado: 39,
+      estadoCancelado: "LIBRE",
+      resumenCancelado: { total: 40, libres: 40, ocupados: 0, retenidos: 0, no_vendibles: 0 },
+    });
+  });
+});
+
+describe("resumirAsientos", () => {
+  it("cuenta cada estado y el total", () => {
+    const estados = ["LIBRE", "LIBRE", "OCUPADO", "RETENIDO", "NO_VENDIBLE", "LIBRE"] as const;
+    assert.deepEqual(resumirAsientos(estados.map((estado) => ({ estado }))), {
+      total: 6,
+      libres: 3,
+      ocupados: 1,
+      retenidos: 1,
+      no_vendibles: 1,
+    });
+  });
+
+  it("devuelve ceros si no hay asientos", () => {
+    assert.deepEqual(resumirAsientos([]), {
+      total: 0,
+      libres: 0,
+      ocupados: 0,
+      retenidos: 0,
+      no_vendibles: 0,
+    });
   });
 });

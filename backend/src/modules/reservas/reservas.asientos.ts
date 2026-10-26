@@ -89,10 +89,70 @@ export async function listarAsientosViaje(
   `;
 }
 
+// Una parada del recorrido completo del viaje, con la ciudad a la que pertenece
+// y si en ella se puede subir o bajar.
+export type ParadaViaje = {
+  orden: number;
+  terminal: string;
+  ciudad: string;
+  llegada: Date;
+  salida: Date;
+  permite_subida: boolean;
+  permite_bajada: boolean;
+};
+
+// Cantidad de asientos del viaje en cada estado, para el tramo del pasajero.
+export type ResumenAsientos = {
+  total: number;
+  libres: number;
+  ocupados: number;
+  retenidos: number;
+  no_vendibles: number;
+};
+
 export type DisponibilidadViaje = {
   viaje: ViajeEncontrado;
+  // Todas las paradas del viaje, no solo las del tramo del pasajero: sirven para
+  // que pueda cambiar donde sube o baja.
+  recorrido: ParadaViaje[];
+  resumen: ResumenAsientos;
   asientos: AsientoConPrecio[];
 };
+
+export function resumirAsientos(asientos: { estado: AsientoDisponible["estado"] }[]): ResumenAsientos {
+  const cuenta = (estado: AsientoDisponible["estado"]) =>
+    asientos.filter((a) => a.estado === estado).length;
+
+  return {
+    total: asientos.length,
+    libres: cuenta("LIBRE"),
+    ocupados: cuenta("OCUPADO"),
+    retenidos: cuenta("RETENIDO"),
+    no_vendibles: cuenta("NO_VENDIBLE"),
+  };
+}
+
+/** Recorrido completo de un viaje, en orden, con la ciudad de cada parada. */
+export async function listarRecorridoViaje(
+  viajeId: string,
+  bd: ClienteBd = prisma
+): Promise<ParadaViaje[]> {
+  return bd.$queryRaw<ParadaViaje[]>`
+    SELECT
+      p.orden::int AS orden,
+      p.nombre_snapshot AS terminal,
+      c.nombre AS ciudad,
+      p.llegada AS llegada,
+      p.salida AS salida,
+      p.permite_subida AS permite_subida,
+      p.permite_bajada AS permite_bajada
+    FROM rutaec.paradas_viaje p
+    JOIN rutaec.terminales t ON t.id = p.terminal_id
+    JOIN rutaec.ciudades c ON c.id = t.ciudad_id
+    WHERE p.viaje_id = ${viajeId}::uuid
+    ORDER BY p.orden
+  `;
+}
 
 /**
  * Datos del viaje y de cada asiento para el tramo que quiere recorrer el
@@ -109,11 +169,14 @@ export async function obtenerDisponibilidad(
 
   if (!viaje) return null;
 
-  const asientos = await listarAsientosViaje(
-    viajeId,
-    { origenOrden: viaje.origen_orden, destinoOrden: viaje.destino_orden },
-    bd
-  );
+  const [recorrido, asientos] = await Promise.all([
+    listarRecorridoViaje(viajeId, bd),
+    listarAsientosViaje(
+      viajeId,
+      { origenOrden: viaje.origen_orden, destinoOrden: viaje.destino_orden },
+      bd
+    ),
+  ]);
 
   const precioPorCategoria = new Map(
     viaje.tarifas.map((t) => [t.categoria, Number(t.importe)])
@@ -121,6 +184,8 @@ export async function obtenerDisponibilidad(
 
   return {
     viaje,
+    recorrido,
+    resumen: resumirAsientos(asientos),
     asientos: asientos.map((a) => ({
       ...a,
       precio: precioPorCategoria.get(a.categoria) ?? null,
