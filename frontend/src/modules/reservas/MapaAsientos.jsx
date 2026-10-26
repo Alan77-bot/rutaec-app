@@ -1,47 +1,95 @@
-﻿import { layoutAsientos } from '../../data/viajes'
+﻿// Plano del bus con los asientos reales del viaje. Agrupa por piso y fila, deja el
+// pasillo entre las columnas 2 y 3 (buses de 4 columnas) y respeta los huecos.
 
-export default function MapaAsientos({ tipo, ocupados, elegidos, onClick, onDoble }) {
-  const todos = layoutAsientos(tipo)
-  const pisos = [...new Set(todos.map((a) => a.piso))]
+import {
+  ESTILO_ACCESIBLE,
+  ESTILO_NO_VENDIBLE,
+  ESTILO_PREFERENCIAL,
+  ESTILO_RETENIDO,
+} from './asientos.estilos'
+
+const por = (a, b) => a - b
+
+function descripcion(a, columnaMax) {
+  const partes = [`Asiento ${a.numero}`, a.categoria === 'VIP' ? 'VIP' : 'Normal']
+  if (a.precio !== null) partes.push(`$${a.precio.toFixed(2)}`)
+  partes.push(a.columna === 1 || a.columna === columnaMax ? 'ventana' : 'pasillo')
+  if (a.accesible) partes.push('accesible')
+  if (a.preferencial) partes.push('preferencial')
+  if (a.estado === 'OCUPADO') partes.push('ocupado')
+  if (a.estado === 'RETENIDO') partes.push('reservado por otra persona')
+  if (a.estado === 'NO_VENDIBLE') partes.push('no disponible')
+  return partes.join(' · ')
+}
+
+function estiloDe(a) {
+  return {
+    ...(a.estado === 'RETENIDO' ? ESTILO_RETENIDO : {}),
+    ...(a.estado === 'NO_VENDIBLE' ? ESTILO_NO_VENDIBLE : {}),
+    ...(a.accesible ? ESTILO_ACCESIBLE : {}),
+    ...(!a.accesible && a.preferencial ? ESTILO_PREFERENCIAL : {}),
+  }
+}
+
+export default function MapaAsientos({ asientos, elegidos, onElegir, onNoDisponible }) {
+  const pisos = [...new Set(asientos.map((a) => a.piso))].sort(por)
+  const columnaMax = Math.max(0, ...asientos.map((a) => a.columna))
 
   return (
     <div className="mapa">
-      {pisos.map((p) => {
-        const filas = [...new Set(todos.filter((a) => a.piso === p).map((a) => a.fila))]
+      {pisos.map((piso) => {
+        const delPiso = asientos.filter((a) => a.piso === piso)
+        const filas = [...new Set(delPiso.map((a) => a.fila))].sort(por)
+
         return (
-          <div key={p} className="piso">
-            {pisos.length > 1 && <h5>Piso {p}</h5>}
-            <div className="cabina">
-              <span className="volante">â—Ž</span>
-            </div>
-            {filas.map((f) => (
-              <div key={f} className={'fila' + (tipo === 'chiva' ? ' chiva' : '')}>
-                {todos
-                  .filter((a) => a.piso === p && a.fila === f)
-                  .map((a, i) => {
-                    const ocup = ocupados.has(a.id)
-                    const sel = elegidos.includes(a.id)
+          <div key={piso} className="piso">
+            {pisos.length > 1 && <h5>Piso {piso}</h5>}
+            {piso === pisos[0] && (
+              <div className="cabina">
+                <span className="volante" aria-hidden="true">◎</span>
+              </div>
+            )}
+            {filas.map((fila) => {
+              const delaFila = delPiso.filter((a) => a.fila === fila)
+
+              return (
+                <div key={fila} className="fila">
+                  {Array.from({ length: columnaMax }, (_, i) => i + 1).map((columna) => {
+                    const a = delaFila.find((x) => x.columna === columna)
+                    const pasillo = columnaMax >= 4 && columna === 3
+
                     return (
-                      <span key={a.id} className="celda">
-                        {tipo !== 'chiva' && i === 2 && <i className="pasillo" />}
-                        <button
-                          type="button"
-                          className={'asiento ' + a.tipo + (ocup ? ' ocupado' : '') + (sel ? ' sel' : '')}
-                          onClick={() => !ocup && onClick(a)}
-                          onDoubleClick={() => onDoble(a)}
-                          title={`${a.label} Â· ${a.tipo === 'vip' ? 'VIP' : 'Normal'}${a.letra === 'A' || a.letra === 'D' ? ' Â· ventana' : ' Â· pasillo'}`}
-                        >
-                          {a.label}
-                        </button>
+                      <span key={columna} className="celda">
+                        {pasillo && <i className="pasillo" />}
+                        {a ? (
+                          <button
+                            type="button"
+                            className={
+                              'asiento ' +
+                              (a.categoria === 'VIP' ? 'vip' : 'normal') +
+                              (a.estado !== 'LIBRE' ? ' ocupado' : '') +
+                              (elegidos.includes(a.id) ? ' sel' : '')
+                            }
+                            style={estiloDe(a)}
+                            aria-pressed={elegidos.includes(a.id)}
+                            aria-disabled={a.estado !== 'LIBRE'}
+                            title={descripcion(a, columnaMax)}
+                            onClick={() => (a.estado === 'LIBRE' ? onElegir(a) : onNoDisponible?.(a))}
+                          >
+                            {a.numero}
+                          </button>
+                        ) : (
+                          <i style={{ display: 'inline-block', width: 40, height: 40 }} aria-hidden="true" />
+                        )}
                       </span>
                     )
                   })}
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
         )
       })}
     </div>
   )
 }
-

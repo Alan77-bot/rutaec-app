@@ -174,4 +174,62 @@ describe("GET /api/reservas/viajes", () => {
     const normal = data[0]!.tarifas.find((x) => x.categoria === "NORMAL");
     assert.equal(normal?.importe, 5);
   });
+
+  it("lista las ciudades con viajes disponibles ordenadas por nombre", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const r = await fetch(`${base}/api/reservas/ciudades`);
+    assert.equal(r.status, 200);
+
+    const { data } = (await r.json()) as {
+      data: { nombre: string; provincia: string }[];
+    };
+    const nombres = data.map((c) => c.nombre);
+    for (const esperada of ["Ambato", "Quito", "Riobamba"]) {
+      assert.ok(nombres.includes(esperada), `falta ${esperada}`);
+    }
+    assert.deepEqual(nombres, [...nombres].sort((a, b) => a.localeCompare(b, "es")));
+    assert.equal(new Set(nombres).size, nombres.length, "sin ciudades repetidas");
+  });
+
+  it("devuelve el recorrido completo con las paradas intermedias en orden", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const r = await buscar("Riobamba", "Quito", fechaEcuador(1));
+    const { data } = (await r.json()) as {
+      data: { paradas: { orden: number; terminal: string; llegada: string; salida: string }[] }[];
+    };
+    assert.equal(data.length, 1);
+
+    const { paradas } = data[0]!;
+    assert.deepEqual(
+      paradas.map((p) => p.terminal),
+      [
+        "Terminal Terrestre de Riobamba",
+        "Terminal Terrestre de Ambato",
+        "Terminal Terrestre de Quito",
+      ]
+    );
+    assert.deepEqual(paradas.map((p) => p.orden), [1, 2, 3]);
+
+    const llegadas = paradas.map((p) => Date.parse(p.llegada));
+    assert.deepEqual(llegadas, [...llegadas].sort((a, b) => a - b));
+  });
+
+  it("solo incluye las paradas entre el origen y el destino buscados", async (t) => {
+    if (motivoOmision) return t.skip(motivoOmision);
+    const r = await buscar("Ambato", "Quito", fechaEcuador(1));
+    const { data } = (await r.json()) as {
+      data: { origen_orden: number; destino_orden: number; paradas: { orden: number }[] }[];
+    };
+    assert.ok(data.length >= 2);
+
+    for (const viaje of data) {
+      assert.equal(viaje.paradas[0]?.orden, viaje.origen_orden);
+      assert.equal(viaje.paradas.at(-1)?.orden, viaje.destino_orden);
+      assert.equal(
+        viaje.paradas.length,
+        viaje.destino_orden - viaje.origen_orden + 1,
+        "sin paradas de tramos que el pasajero no recorre"
+      );
+    }
+  });
 });
