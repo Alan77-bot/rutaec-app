@@ -275,6 +275,9 @@ export default function Compra() {
                 onElegir={clickAsiento}
                 onNoDisponible={asientoNoDisponible}
               />
+              <p className="muted" role="status" aria-live="polite" style={{ marginBottom: 10 }}>
+                Elegiste {elegidos.length} de {n} asiento{n > 1 ? 's' : ''}.
+              </p>
               <button className="btn btn-acento btn-lg" onClick={irAPasajeros} disabled={comprobando}>
                 {comprobando ? 'Comprobando disponibilidad…' : 'Continuar'}
               </button>
