@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { adaptarViaje, type ViajeResultado } from "./services/reservas.adaptador";
 import {
   ErrorReservas,
@@ -23,6 +23,11 @@ interface ResultadoDisponibilidad {
   error: ErrorReservas | null;
 }
 
+interface OpcionesDisponibilidad {
+  // Se llama con los datos frescos despues de cada refresco (automatico o manual).
+  alActualizar?: (datos: DisponibilidadViaje) => void;
+}
+
 function errorDe(error: unknown): ErrorReservas {
   return error instanceof ErrorReservas
     ? error
@@ -40,9 +45,19 @@ function errorDe(error: unknown): ErrorReservas {
  * no muestran "cargando" ni borran los asientos si una consulta falla. Solo si
  * el viaje deja de estar a la venta (404) la pantalla pasa a mostrar el error.
  */
-export function useDisponibilidad({ viajeId, origen, destino }: ParametrosDisponibilidad) {
+export function useDisponibilidad(
+  { viajeId, origen, destino }: ParametrosDisponibilidad,
+  { alActualizar }: OpcionesDisponibilidad = {}
+) {
   const [intento, setIntento] = useState(0);
   const [resultado, setResultado] = useState<ResultadoDisponibilidad | null>(null);
+
+  // Siempre se llama la version mas reciente de alActualizar, sin reiniciar el
+  // temporizador cada vez que la pantalla cambia.
+  const alActualizarRef = useRef(alActualizar);
+  useEffect(() => {
+    alActualizarRef.current = alActualizar;
+  });
 
   const clave = `${viajeId}|${origen}|${destino}|${intento}`;
 
@@ -87,6 +102,7 @@ export function useDisponibilidad({ viajeId, origen, destino }: ParametrosDispon
       setResultado((anterior) =>
         anterior && anterior.clave === clave ? { clave, datos, error: null } : anterior
       );
+      alActualizarRef.current?.(datos);
 
       return datos;
     },

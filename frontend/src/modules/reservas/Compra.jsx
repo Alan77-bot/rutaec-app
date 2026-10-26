@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import CoopLogo from '../../components/CoopLogo'
@@ -40,10 +40,34 @@ export default function Compra() {
   const ventanilla = sesion?.rol === 'oficinista'
   const volver = urlResultados({ origen, destino, fecha, pasajeros: n })
 
-  const { disponibilidad, cargando, error, recargar } = useDisponibilidad({ viajeId, origen, destino })
-
   const [paso, setPaso] = useState(0)
   const [elegidos, setElegidos] = useState([])
+
+  // Si otra persona toma un asiento que elegiste mientras decides, se te quita de
+  // la seleccion y se te avisa. Solo aplica al paso de asientos.
+  const alActualizar = useCallback(
+    (datos) => {
+      if (paso !== 0) return
+      const libres = new Set(datos.asientos.filter((a) => a.estado === 'LIBRE').map((a) => a.id))
+      const perdidos = elegidos.filter((id) => !libres.has(id))
+      if (perdidos.length === 0) return
+
+      const numeros = perdidos.map((id) => datos.asientos.find((a) => a.id === id)?.numero).filter(Boolean)
+      setElegidos(elegidos.filter((id) => libres.has(id)))
+      avisar(
+        numeros.length === 1
+          ? `El asiento ${numeros[0]} ya no está disponible: lo tomó otra persona. Elige otro.`
+          : `Los asientos ${numeros.join(', ')} ya no están disponibles: los tomó otra persona. Elige otros.`
+      )
+    },
+    [paso, elegidos, avisar]
+  )
+
+  const { disponibilidad, cargando, error, recargar } = useDisponibilidad(
+    { viajeId, origen, destino },
+    { alActualizar }
+  )
+
   const [pasajeros, setPasajeros] = useState([])
   const [metodo, setMetodo] = useState(ventanilla ? 'Efectivo' : 'Depósito')
   const [comprobante, setComprobante] = useState(null)
