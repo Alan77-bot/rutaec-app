@@ -76,8 +76,9 @@ export interface ResumenAsientosApi {
 
 export interface DisponibilidadApi {
   viaje: ViajeApi;
-  recorrido: ParadaViajeApi[];
-  resumen: ResumenAsientosApi;
+  // Pueden faltar si el backend es una version anterior a estos campos.
+  recorrido?: ParadaViajeApi[];
+  resumen?: ResumenAsientosApi;
   asientos: AsientoApi[];
 }
 

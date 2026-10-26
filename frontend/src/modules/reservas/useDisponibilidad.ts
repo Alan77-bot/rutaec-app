@@ -33,11 +33,27 @@ interface OpcionesDisponibilidad {
   alActualizar?: (datos: DisponibilidadViaje) => void;
 }
 
+// Cuenta los asientos de cada estado cuando la API no envia el resumen.
+function resumirAsientos(asientos: AsientoApi[]): ResumenAsientosApi {
+  const cuenta = (estado: AsientoApi["estado"]) =>
+    asientos.filter((a) => a.estado === estado).length;
+
+  return {
+    total: asientos.length,
+    libres: cuenta("LIBRE"),
+    ocupados: cuenta("OCUPADO"),
+    retenidos: cuenta("RETENIDO"),
+    no_vendibles: cuenta("NO_VENDIBLE"),
+  };
+}
+
+// La pantalla no debe romperse si la API trae menos datos (por ejemplo, un
+// backend que todavia no se actualizo): recorrido y resumen tienen respaldo.
 function datosDe(respuesta: DisponibilidadApi, origen: string, destino: string): DisponibilidadViaje {
   return {
     viaje: adaptarViaje(respuesta.viaje, { origen, destino }),
-    recorrido: respuesta.recorrido,
-    resumen: respuesta.resumen,
+    recorrido: respuesta.recorrido ?? [],
+    resumen: respuesta.resumen ?? resumirAsientos(respuesta.asientos),
     asientos: respuesta.asientos,
   };
 }
