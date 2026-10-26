@@ -1,10 +1,10 @@
-# API de reservas: búsqueda de viajes
+# API de reservas: búsqueda de viajes y disponibilidad de asientos
 
 Módulo `reservas` (Integrante 4). Esta página documenta los endpoints de
-**búsqueda** que ya están implementados (Issue #15). Los de asientos y reservas
-se agregarán en las Issues #16 y #17.
+**búsqueda** (Issue #15) y de **disponibilidad de asientos** (Issue #16) que ya
+están implementados. El de reservas se agregará en la Issue #17.
 
-Base: `/api/reservas`. Los dos endpoints son públicos (no piden sesión).
+Base: `/api/reservas`. Los tres endpoints son públicos (no piden sesión).
 
 ## Formato de las respuestas
 
@@ -25,6 +25,7 @@ Con error:
 | `PARAMETROS_INVALIDOS` | 400 | Falta `origen`, `destino` o `fecha`; hay más de 80 caracteres; el origen es igual al destino; o un parámetro viene repetido. |
 | `FECHA_INVALIDA` | 400 | La fecha no tiene el formato `AAAA-MM-DD` o no existe (por ejemplo 31 de febrero). |
 | `FECHA_PASADA` | 400 | La fecha es anterior a hoy (hora de Ecuador). La fecha de hoy sí se acepta. |
+| `NO_ENCONTRADO` | 404 | Solo en la disponibilidad: el viaje no existe, ya no está a la venta o no pasa por esas ciudades en ese orden. |
 | `ERROR_INTERNO` | 500 | Falló la consulta a la base de datos. |
 
 ## GET /api/reservas/viajes
@@ -150,6 +151,106 @@ GET /api/reservas/ciudades
 
 Vienen ordenadas por nombre y sin repetir.
 
+## GET /api/reservas/disponibilidad
+
+Estado de cada asiento de un viaje **para el tramo que va a recorrer el
+pasajero**. Es lo que dibuja el mapa de asientos de la compra.
+
+| Parámetro | Ejemplo | Descripción |
+| --- | --- | --- |
+| `viajeId` | `b5a24a1e-fe28-...` | Identificador del viaje (`viaje_id` de la búsqueda). |
+| `origen` | `Ambato` | Ciudad donde sube el pasajero. |
+| `destino` | `Quito` | Ciudad donde baja. |
+
+```
+GET /api/reservas/disponibilidad?viajeId=b5a24a1e-fe28-427f-b26c-92cc27577256&origen=Ambato&destino=Quito
+```
+
+Respuesta (acortada: `viaje` trae los mismos campos que un resultado de la
+búsqueda, y de los 40 asientos se muestran tres):
+
+```json
+{
+  "data": {
+    "viaje": {
+      "viaje_id": "b5a24a1e-fe28-427f-b26c-92cc27577256",
+      "origen_orden": 2,
+      "destino_orden": 3,
+      "salida": "2026-10-27T13:05:00.000Z",
+      "llegada": "2026-10-27T15:30:00.000Z",
+      "cupos_disponibles": 40,
+      "cooperativa": { "nombre": "Andes Express (prueba)" },
+      "bus": { "placa": "TST-0001", "pisos": 1, "capacidad": 40 },
+      "tarifas": [
+        { "categoria": "NORMAL", "importe": 3.5, "moneda": "USD" },
+        { "categoria": "VIP", "importe": 4.5, "moneda": "USD" }
+      ],
+      "paradas": [ "... solo las paradas entre el origen y el destino ..." ]
+    },
+    "recorrido": [
+      {
+        "orden": 1,
+        "terminal": "Terminal Terrestre de Riobamba",
+        "ciudad": "Riobamba",
+        "llegada": "2026-10-27T12:00:00.000Z",
+        "salida": "2026-10-27T12:00:00.000Z",
+        "permite_subida": true,
+        "permite_bajada": true
+      },
+      { "orden": 2, "ciudad": "Ambato", "...": "..." },
+      { "orden": 3, "ciudad": "Quito", "...": "..." }
+    ],
+    "resumen": {
+      "total": 40,
+      "libres": 40,
+      "ocupados": 0,
+      "retenidos": 0,
+      "no_vendibles": 0
+    },
+    "asientos": [
+      {
+        "id": "7b7501bb-d7f0-40f4-a7fe-000558979119",
+        "numero": "1A",
+        "piso": 1,
+        "fila": 1,
+        "columna": 1,
+        "categoria": "VIP",
+        "accesible": false,
+        "preferencial": false,
+        "estado": "LIBRE",
+        "precio": 4.5
+      }
+    ]
+  },
+  "message": "Operacion correcta"
+}
+```
+
+### Campos
+
+- `recorrido`: **todas** las paradas del viaje (no solo las del tramo del
+  pasajero), con su ciudad y si en ella se puede subir o bajar. Permite cambiar
+  dónde sube o baja sin volver a buscar.
+- `resumen`: cuántos asientos hay en cada estado para ese tramo.
+- `asientos`: ordenados por piso, fila y columna. `precio` es el importe de la
+  tarifa de su categoría en el tramo, o `null` si no hay tarifa.
+
+### Estados de un asiento
+
+| Estado | Significado |
+| --- | --- |
+| `LIBRE` | Se puede elegir. |
+| `OCUPADO` | Tiene una venta confirmada que se cruza con el tramo del pasajero. |
+| `RETENIDO` | Otra persona lo reservó y todavía no se pagó: la reserva dura 5 minutos, o sigue vigente mientras su pago está en revisión. Si la reserva vence o se cancela, vuelve a `LIBRE`. |
+| `NO_VENDIBLE` | La cooperativa lo dejó fuera de venta. |
+
+El estado depende del **tramo**: un asiento vendido de Ambato a Quito sigue
+`LIBRE` para quien viaja de Riobamba a Ambato, y `OCUPADO` para quien viaja de
+Riobamba a Quito (porque pasa por el tramo vendido).
+
+Solo se consideran los viajes que se pueden comprar, con las mismas reglas de la
+búsqueda. Si el viaje deja de estar a la venta, responde `404 NO_ENCONTRADO`.
+
 ## Cómo probarlo en local
 
 1. Levantar el proyecto: `docker compose up -d --build`.
@@ -167,6 +268,7 @@ Vienen ordenadas por nombre y sin repetir.
    ```powershell
    curl.exe "http://localhost:3000/api/reservas/viajes?origen=Ambato&destino=Quito&fecha=2026-10-23"
    curl.exe "http://localhost:3000/api/reservas/ciudades"
+   curl.exe "http://localhost:3000/api/reservas/disponibilidad?viajeId=<viaje_id>&origen=Ambato&destino=Quito"
    ```
 
 4. Pruebas automáticas: `npm test` dentro de `backend`. Las pruebas que usan la
