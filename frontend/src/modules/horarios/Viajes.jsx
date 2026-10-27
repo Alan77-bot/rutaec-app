@@ -11,6 +11,9 @@ const ESTADOS = {
 }
 
 const fila = { display: 'flex', gap: 8, alignItems: 'flex-end' }
+// En una fila, cada campo ocupa su parte sin salirse del panel.
+const campo = { flex: 1, minWidth: 0 }
+const entrada = { width: '100%', boxSizing: 'border-box' }
 
 function fechaEcuador(diasDesdeHoy) {
   const ms = Date.now() + diasDesdeHoy * 24 * 60 * 60 * 1000
@@ -171,13 +174,13 @@ export default function Viajes() {
       <div className="dos-col">
         <div>
           <div className="panel" style={fila}>
-            <label>
+            <label style={campo}>
               Desde
-              <input type="date" value={filtro.desde} onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })} />
+              <input type="date" style={entrada} value={filtro.desde} onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })} />
             </label>
-            <label>
+            <label style={campo}>
               Hasta
-              <input type="date" value={filtro.hasta} onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })} />
+              <input type="date" style={entrada} value={filtro.hasta} onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })} />
             </label>
           </div>
 
@@ -233,6 +236,7 @@ export default function Viajes() {
                         {cancelando?.id === v.id && (
                           <div>
                             <input
+                              style={{ ...entrada, minWidth: 140 }}
                               aria-label="Motivo de la cancelación"
                               placeholder="Motivo"
                               value={cancelando.motivo}
@@ -301,13 +305,13 @@ export default function Viajes() {
           </label>
 
           <div style={fila}>
-            <label>
+            <label style={campo}>
               Desde
-              <input type="date" value={form.desde} min={fechaEcuador(0)} onChange={(e) => setForm({ ...form, desde: e.target.value })} required />
+              <input type="date" style={entrada} value={form.desde} min={fechaEcuador(0)} onChange={(e) => setForm({ ...form, desde: e.target.value })} required />
             </label>
-            <label>
+            <label style={campo}>
               Hasta
-              <input type="date" value={form.hasta} min={form.desde} onChange={(e) => setForm({ ...form, hasta: e.target.value })} required />
+              <input type="date" style={entrada} value={form.hasta} min={form.desde} onChange={(e) => setForm({ ...form, hasta: e.target.value })} required />
             </label>
           </div>
 
@@ -334,14 +338,14 @@ export default function Viajes() {
                 const valor = form.tarifas[clave] ?? {}
                 return (
                   <div key={clave} style={fila}>
-                    <label style={{ flex: 2 }}>
+                    <label style={{ ...campo, flex: 2 }}>
                       {t.texto}
-                      <input type="number" min="0.01" step="0.01" placeholder="Normal" value={valor.normal ?? ''} onChange={(e) => cambiarTarifa(clave, 'normal', e.target.value)} required />
+                      <input type="number" style={entrada} min="0.01" step="0.01" placeholder="Normal" value={valor.normal ?? ''} onChange={(e) => cambiarTarifa(clave, 'normal', e.target.value)} required />
                     </label>
                     {pideVip && (
-                      <label style={{ flex: 1 }}>
+                      <label style={campo}>
                         VIP
-                        <input type="number" min="0.01" step="0.01" placeholder="VIP" value={valor.vip ?? ''} onChange={(e) => cambiarTarifa(clave, 'vip', e.target.value)} required />
+                        <input type="number" style={entrada} min="0.01" step="0.01" placeholder="VIP" value={valor.vip ?? ''} onChange={(e) => cambiarTarifa(clave, 'vip', e.target.value)} required />
                       </label>
                     )}
                   </div>
