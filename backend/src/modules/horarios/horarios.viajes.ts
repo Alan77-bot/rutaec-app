@@ -447,3 +447,93 @@ export async function listarViajes(
     reservados: v.reservados,
   }));
 }
+
+interface ViajeBloqueado {
+  id: string;
+  cooperativa_id: string;
+  estado: string;
+  agenda_id: string;
+  inicio: Date;
+}
+
+async function bloquearViaje(
+  tx: Prisma.TransactionClient,
+  viajeId: string,
+  cooperativaPermitida?: string
+): Promise<ViajeBloqueado> {
+  const [viaje] = await tx.$queryRaw<ViajeBloqueado[]>`
+    SELECT v.id, v.cooperativa_id, v.estado, v.agenda_id, a.inicio
+    FROM rutaec.viajes v
+    JOIN rutaec.agenda_bus a ON a.id = v.agenda_id
+    WHERE v.id = ${viajeId}::uuid
+    FOR UPDATE OF v`;
+  if (!viaje) throw new ErrorHorarios(404, "El viaje no existe");
+  if (cooperativaPermitida && viaje.cooperativa_id !== cooperativaPermitida) {
+    throw new ErrorHorarios(403, "No tienes permiso para modificar viajes de otra cooperativa");
+  }
+  return viaje;
+}
+
+/**
+ * Cancela un viaje que todavia no tiene asientos vendidos ni reservados y
+ * libera la agenda del bus para que pueda usarse en otro viaje.
+ */
+export async function cancelarViaje(
+  viajeId: string,
+  motivo: unknown,
+  cooperativaPermitida?: string
+) {
+  const texto = typeof motivo === "string" ? motivo.trim() : "";
+  if (texto.length < 5 || texto.length > 300) {
+    throw new ErrorHorarios(400, "Indica el motivo de la cancelacion (5 a 300 caracteres)");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const viaje = await bloquearViaje(tx, viajeId, cooperativaPermitida);
+    if (viaje.estado === "CANCELADO") throw new ErrorHorarios(409, "El viaje ya esta cancelado");
+    if (viaje.estado === "CERRADO") throw new ErrorHorarios(409, "El viaje ya esta cerrado");
+
+    const [{ ocupados }] = await tx.$queryRaw<{ ocupados: number }[]>`
+      SELECT count(*)::int AS ocupados FROM rutaec.detalle_compra
+      WHERE viaje_id = ${viaje.id}::uuid AND estado IN ('CONFIRMADO', 'RETENIDO')`;
+    if (ocupados > 0) {
+      throw new ErrorHorarios(
+        409,
+        `El viaje tiene ${ocupados} asientos vendidos o reservados y no se puede cancelar`
+      );
+    }
+
+    await tx.viajes.update({
+      where: { id: viaje.id },
+      data: { estado: "CANCELADO", motivo_cancelacion: texto },
+    });
+    await tx.$executeRaw`UPDATE rutaec.agenda_bus SET activa = false WHERE id = ${viaje.agenda_id}::uuid`;
+
+    return { id: viaje.id, estado: "CANCELADO", motivo_cancelacion: texto };
+  });
+}
+
+// Cambia cuantos minutos antes de la salida se cierra la venta de un viaje publicado.
+export async function ajustarCierreVentas(
+  viajeId: string,
+  minutos: unknown,
+  cooperativaPermitida?: string
+) {
+  if (typeof minutos !== "number" || !Number.isInteger(minutos) || minutos < 0 || minutos > 1440) {
+    throw new ErrorHorarios(400, "minutos_cierre debe ser un entero entre 0 y 1440");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const viaje = await bloquearViaje(tx, viajeId, cooperativaPermitida);
+    if (viaje.estado !== "PUBLICADO") {
+      throw new ErrorHorarios(409, "Solo se puede cambiar el cierre de un viaje publicado");
+    }
+    const cierre = new Date(viaje.inicio.getTime() - minutos * 60000);
+    if (cierre <= new Date()) {
+      throw new ErrorHorarios(400, "Con ese cierre la venta ya estaria terminada");
+    }
+
+    await tx.viajes.update({ where: { id: viaje.id }, data: { cierre_ventas: cierre } });
+    return { id: viaje.id, estado: viaje.estado, cierre_ventas: cierre.toISOString() };
+  });
+}

@@ -9,6 +9,8 @@ import {
 } from "./horarios.service.js";
 import { hoyEn } from "./horarios.programacion.js";
 import {
+  ajustarCierreVentas,
+  cancelarViaje,
   listarBuses,
   listarViajes,
   programarViajes,
@@ -233,4 +235,61 @@ export async function obtenerViajes(req: Request, res: Response): Promise<void> 
     console.error("Error al consultar viajes:", error);
     res.status(500).json({ error: "No se pudieron consultar los viajes" });
   }
+}
+
+// Para el rol cooperativa devuelve su cooperativa; undefined para el admin.
+// Devuelve null si ya se respondio con un error.
+function cooperativaPermitida(res: Response): { id: string | undefined } | null {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  if (sesion.rol !== "cooperativa") return { id: undefined };
+  if (!sesion.coopId) {
+    res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+    return null;
+  }
+  return { id: sesion.coopId };
+}
+
+async function responderCambioViaje(
+  req: Request,
+  res: Response,
+  accion: (id: string, permitida?: string) => Promise<unknown>,
+  mensaje: string
+): Promise<void> {
+  const id = String(req.params.id);
+  if (!UUID.test(id)) {
+    res.status(400).json({ error: "El id del viaje no es valido" });
+    return;
+  }
+  const permitida = cooperativaPermitida(res);
+  if (!permitida) return;
+
+  try {
+    const datos = await accion(id, permitida.id);
+    res.status(200).json({ mensaje, datos });
+  } catch (error) {
+    if (error instanceof ErrorHorarios) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al modificar el viaje:", error);
+    res.status(500).json({ error: "No se pudo modificar el viaje" });
+  }
+}
+
+export async function cancelarViajeProgramado(req: Request, res: Response): Promise<void> {
+  await responderCambioViaje(
+    req,
+    res,
+    (id, permitida) => cancelarViaje(id, req.body?.motivo, permitida),
+    "Viaje cancelado"
+  );
+}
+
+export async function cambiarCierreVentas(req: Request, res: Response): Promise<void> {
+  await responderCambioViaje(
+    req,
+    res,
+    (id, permitida) => ajustarCierreVentas(id, req.body?.minutos_cierre, permitida),
+    "Cierre de ventas actualizado"
+  );
 }
