@@ -262,18 +262,18 @@ export default function Frecuencias() {
           </label>
 
           <p><b>Días de operación</b></p>
-          <p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
             {DIAS.map((d) => (
-              <label key={d.n}>
+              <label key={d.n} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, margin: 0 }}>
                 <input
                   type="checkbox"
                   checked={form.dias.includes(d.n)}
                   onChange={() => alternarDia(d.n)}
                 />{' '}
-                {d.corto}{' '}
+                {d.corto}
               </label>
             ))}
-          </p>
+          </div>
 
           <button className="btn btn-oscuro" disabled={form.dias.length === 0}>
             Registrar frecuencia
