@@ -7,7 +7,7 @@ import {
   listarFrecuencias,
   listarResoluciones,
 } from "./horarios.service.js";
-import { listarBuses } from "./horarios.viajes.js";
+import { listarBuses, programarViajes } from "./horarios.viajes.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -159,5 +159,39 @@ export async function obtenerBuses(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error("Error al consultar buses:", error);
     res.status(500).json({ error: "No se pudieron consultar los buses" });
+  }
+}
+
+export async function programarViajesFrecuencia(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  let restringida: string | undefined;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return;
+    }
+    restringida = sesion.coopId;
+  }
+
+  try {
+    const resultado = await programarViajes(req.body, sesion.id, restringida);
+    const creados = resultado.creados.length;
+    res.status(creados > 0 ? 201 : 200).json({
+      mensaje:
+        creados > 0
+          ? `Se programaron ${creados} viajes`
+          : "No se programo ningun viaje",
+      datos: resultado,
+    });
+  } catch (error) {
+    if (error instanceof ErrorHorarios) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al programar viajes:", error);
+    res.status(500).json({ error: "No se pudieron programar los viajes" });
   }
 }
