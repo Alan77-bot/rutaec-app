@@ -225,6 +225,24 @@ export async function programarViajes(
             throw new DiaOmitido("Ya existe un viaje de esta frecuencia ese dia");
           }
 
+          // El bus no puede tener otro viaje, descanso o mantenimiento que se cruce.
+          const cruce = await tx.$queryRaw<{ tipo: string; inicio: Date; fin: Date }[]>`
+            SELECT tipo, inicio, fin FROM rutaec.agenda_bus
+            WHERE bus_id = ${bus.id}::uuid
+              AND activa
+              AND inicio < ${fin}::timestamptz
+              AND fin > ${inicio}::timestamptz
+            ORDER BY inicio
+            LIMIT 1`;
+          if (cruce.length > 0) {
+            const [ocupado] = cruce;
+            const que =
+              ocupado.tipo === "VIAJE" ? "otro viaje" : ocupado.tipo.toLowerCase();
+            throw new DiaOmitido(
+              `El bus ${bus.numero_unidad} ya tiene ${que} de ${horaLocal(ocupado.inicio, zona)} a ${horaLocal(ocupado.fin, zona)}`
+            );
+          }
+
           let hoja = await tx.hojas_ruta.findUnique({
             where: { grupo_id_fecha: { grupo_id: bus.grupo_id, fecha: dia } },
           });
