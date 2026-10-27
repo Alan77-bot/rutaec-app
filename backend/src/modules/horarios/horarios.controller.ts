@@ -7,6 +7,7 @@ import {
   listarFrecuencias,
   listarResoluciones,
 } from "./horarios.service.js";
+import { listarBuses } from "./horarios.viajes.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -121,5 +122,42 @@ export async function editarFrecuencia(
     }
     console.error("Error al actualizar frecuencia:", error);
     res.status(500).json({ error: "No se pudo actualizar la frecuencia" });
+  }
+}
+
+// Cooperativa sobre la que trabaja la sesion: la propia para el rol
+// cooperativa; para el administrador, la indicada (o todas si no indica).
+// Devuelve null si ya se respondio con un error.
+function cooperativaConsultada(
+  req: Request,
+  res: Response
+): { cooperativaId: string | undefined } | null {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return null;
+    }
+    return { cooperativaId: sesion.coopId };
+  }
+  if (req.query.cooperativa_id === undefined) return { cooperativaId: undefined };
+  const indicada = String(req.query.cooperativa_id);
+  if (!UUID.test(indicada)) {
+    res.status(400).json({ error: "cooperativa_id debe ser un UUID valido" });
+    return null;
+  }
+  return { cooperativaId: indicada };
+}
+
+export async function obtenerBuses(req: Request, res: Response): Promise<void> {
+  const alcance = cooperativaConsultada(req, res);
+  if (!alcance) return;
+
+  try {
+    const buses = await listarBuses(alcance.cooperativaId);
+    res.status(200).json({ total: buses.length, datos: buses });
+  } catch (error) {
+    console.error("Error al consultar buses:", error);
+    res.status(500).json({ error: "No se pudieron consultar los buses" });
   }
 }

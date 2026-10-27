@@ -3,6 +3,7 @@ import { autenticar } from "../../middlewares/autenticacion.js";
 import { autorizarRoles } from "../../middlewares/autorizacion.js";
 import {
   editarFrecuencia,
+  obtenerBuses,
   obtenerFrecuencias,
   obtenerResoluciones,
   registrarFrecuencia,
@@ -16,5 +17,6 @@ router.get("/frecuencias", obtenerFrecuencias);
 router.post("/frecuencias", ...soloGestion, registrarFrecuencia);
 router.put("/frecuencias/:id", ...soloGestion, editarFrecuencia);
 router.get("/resoluciones", ...soloGestion, obtenerResoluciones);
+router.get("/buses", ...soloGestion, obtenerBuses);
 
 export default router;
