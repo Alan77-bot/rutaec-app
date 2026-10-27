@@ -7,7 +7,13 @@ import {
   listarFrecuencias,
   listarResoluciones,
 } from "./horarios.service.js";
-import { listarBuses, programarViajes } from "./horarios.viajes.js";
+import { hoyEn } from "./horarios.programacion.js";
+import {
+  listarBuses,
+  listarViajes,
+  programarViajes,
+  ZONA_PROGRAMACION,
+} from "./horarios.viajes.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -193,5 +199,38 @@ export async function programarViajesFrecuencia(
     }
     console.error("Error al programar viajes:", error);
     res.status(500).json({ error: "No se pudieron programar los viajes" });
+  }
+}
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+function sumarDias(fecha: string, dias: number): string {
+  const d = new Date(`${fecha}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function obtenerViajes(req: Request, res: Response): Promise<void> {
+  const alcance = cooperativaConsultada(req, res);
+  if (!alcance) return;
+
+  const hoy = hoyEn(ZONA_PROGRAMACION);
+  const desde = req.query.desde === undefined ? hoy : String(req.query.desde);
+  const hasta = req.query.hasta === undefined ? sumarDias(desde, 14) : String(req.query.hasta);
+  if (!FECHA.test(desde) || !FECHA.test(hasta) || Number.isNaN(Date.parse(desde)) || Number.isNaN(Date.parse(hasta))) {
+    res.status(400).json({ error: "desde y hasta deben ser fechas validas (YYYY-MM-DD)" });
+    return;
+  }
+  if (hasta < desde || hasta > sumarDias(desde, 62)) {
+    res.status(400).json({ error: "El rango de fechas debe ser de 1 a 63 dias" });
+    return;
+  }
+
+  try {
+    const viajes = await listarViajes(desde, hasta, alcance.cooperativaId);
+    res.status(200).json({ total: viajes.length, desde, hasta, datos: viajes });
+  } catch (error) {
+    console.error("Error al consultar viajes:", error);
+    res.status(500).json({ error: "No se pudieron consultar los viajes" });
   }
 }

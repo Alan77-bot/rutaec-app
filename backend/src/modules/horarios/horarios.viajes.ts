@@ -1,3 +1,4 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import {
   fechaUtc,
@@ -345,4 +346,104 @@ export async function programarViajes(
   }
 
   return resultado;
+}
+
+export const ZONA_PROGRAMACION = "America/Guayaquil";
+
+export interface ViajeProgramado {
+  id: string;
+  cooperativa_id: string;
+  cooperativa: string;
+  ruta: string;
+  frecuencia: string;
+  bus: { numero_unidad: string; placa: string };
+  fecha: string;
+  salida: string;
+  llegada: string;
+  estado: string;
+  cierre_ventas: string;
+  motivo_cancelacion: string | null;
+  asientos: number;
+  vendidos: number;
+  reservados: number;
+}
+
+interface FilaViaje {
+  id: string;
+  cooperativa_id: string;
+  cooperativa: string;
+  ruta: string;
+  frecuencia: string;
+  numero_unidad: string;
+  placa: string;
+  inicio: Date;
+  fin: Date;
+  estado: string;
+  cierre_ventas: Date;
+  motivo_cancelacion: string | null;
+  asientos: number;
+  vendidos: number;
+  reservados: number;
+}
+
+function fechaLocal(instante: Date, zona: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(instante);
+}
+
+/**
+ * Viajes cuya salida cae entre desde y hasta (fechas en hora de Ecuador), con
+ * su bus, su ocupacion (asientos vendidos y reservados) y su estado.
+ */
+export async function listarViajes(
+  desde: string,
+  hasta: string,
+  cooperativaId?: string
+): Promise<ViajeProgramado[]> {
+  const inicioRango = instanteEnZona(desde, "00:00", ZONA_PROGRAMACION);
+  const finRango = new Date(
+    instanteEnZona(hasta, "00:00", ZONA_PROGRAMACION).getTime() + 24 * 60 * 60000
+  );
+  const filtroCoop = cooperativaId
+    ? Prisma.sql`AND v.cooperativa_id = ${cooperativaId}::uuid`
+    : Prisma.empty;
+
+  const filas = await prisma.$queryRaw<FilaViaje[]>`
+    SELECT
+      v.id, v.cooperativa_id, c.nombre_comercial AS cooperativa,
+      r.nombre AS ruta, f.codigo AS frecuencia,
+      b.numero_unidad, b.placa,
+      a.inicio, a.fin, v.estado, v.cierre_ventas, v.motivo_cancelacion,
+      (SELECT count(*)::int FROM rutaec.asientos_viaje s WHERE s.viaje_id = v.id) AS asientos,
+      (SELECT count(DISTINCT d.asiento_id)::int FROM rutaec.detalle_compra d
+        WHERE d.viaje_id = v.id AND d.estado = 'CONFIRMADO') AS vendidos,
+      (SELECT count(DISTINCT d.asiento_id)::int FROM rutaec.detalle_compra d
+        WHERE d.viaje_id = v.id AND d.estado = 'RETENIDO') AS reservados
+    FROM rutaec.viajes v
+    JOIN rutaec.cooperativas c ON c.id = v.cooperativa_id
+    JOIN rutaec.rutas r ON r.id = v.ruta_id
+    JOIN rutaec.frecuencias f ON f.id = v.frecuencia_id
+    JOIN rutaec.buses b ON b.id = v.bus_id
+    JOIN rutaec.agenda_bus a ON a.id = v.agenda_id
+    WHERE a.inicio >= ${inicioRango}::timestamptz
+      AND a.inicio < ${finRango}::timestamptz
+      ${filtroCoop}
+    ORDER BY a.inicio, r.nombre`;
+
+  return filas.map((v) => ({
+    id: v.id,
+    cooperativa_id: v.cooperativa_id,
+    cooperativa: v.cooperativa,
+    ruta: v.ruta,
+    frecuencia: v.frecuencia,
+    bus: { numero_unidad: v.numero_unidad, placa: v.placa },
+    fecha: fechaLocal(v.inicio, ZONA_PROGRAMACION),
+    salida: horaLocal(v.inicio, ZONA_PROGRAMACION),
+    llegada: horaLocal(v.fin, ZONA_PROGRAMACION),
+    estado: v.estado,
+    cierre_ventas: v.cierre_ventas.toISOString(),
+    motivo_cancelacion: v.motivo_cancelacion,
+    asientos: v.asientos,
+    vendidos: v.vendidos,
+    reservados: v.reservados,
+  }));
 }

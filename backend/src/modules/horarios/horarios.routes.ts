@@ -6,6 +6,7 @@ import {
   obtenerBuses,
   obtenerFrecuencias,
   obtenerResoluciones,
+  obtenerViajes,
   programarViajesFrecuencia,
   registrarFrecuencia,
 } from "./horarios.controller.js";
@@ -19,6 +20,7 @@ router.post("/frecuencias", ...soloGestion, registrarFrecuencia);
 router.put("/frecuencias/:id", ...soloGestion, editarFrecuencia);
 router.get("/resoluciones", ...soloGestion, obtenerResoluciones);
 router.get("/buses", ...soloGestion, obtenerBuses);
+router.get("/viajes", ...soloGestion, obtenerViajes);
 router.post("/viajes/programar", ...soloGestion, programarViajesFrecuencia);
 
 export default router;
