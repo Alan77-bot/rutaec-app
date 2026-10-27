@@ -1,12 +1,16 @@
 import type { Request, RequestHandler, Response } from "express";
 import multer from "multer";
 import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
-import { abrirComprobante, subirComprobante, TAMANO_MAXIMO } from "./comprobantes.service.js";
+import {
+  abrirComprobante,
+  registrarPagoConComprobante,
+  TAMANO_MAXIMO,
+} from "./comprobantes.service.js";
 import { ErrorPago } from "./pagos.service.js";
 
 const recibir = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: TAMANO_MAXIMO, files: 1, fields: 5 },
+  limits: { fileSize: TAMANO_MAXIMO, files: 1, fields: 10 },
 }).single("archivo");
 
 export const recibirArchivo: RequestHandler = (req, res, next) => {
@@ -32,19 +36,18 @@ export async function cargarComprobante(
 ): Promise<void> {
   const sesion = res.locals.sesion as SesionAutenticada;
   try {
-    const datos = await subirComprobante(
+    const datos = await registrarPagoConComprobante(
       sesion.id,
-      String(req.params.id),
       req.file,
       req.body ?? {}
     );
-    res.status(201).json({ datos });
+    res.status(datos.creado ? 201 : 200).json({ datos });
   } catch (error) {
     if (error instanceof ErrorPago) {
       res.status(error.estado).json({ error: error.message });
       return;
     }
-    console.error("Error al subir comprobante:", error);
+    console.error("Error al registrar el pago con comprobante:", error);
     res.status(500).json({ error: "No se pudo registrar el comprobante" });
   }
 }

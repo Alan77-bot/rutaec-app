@@ -7,11 +7,7 @@ import {
   recibirArchivo,
 } from "./comprobantes.controller.js";
 import { exigirOrigen } from "./origen.js";
-import {
-  obtenerPagos,
-  obtenerPagosPendientes,
-  registrarPago,
-} from "./pagos.controller.js";
+import { obtenerPagos, obtenerPagosPendientes } from "./pagos.controller.js";
 
 const router = Router();
 
@@ -24,13 +20,6 @@ router.get(
 );
 router.post(
   "/",
-  exigirOrigen,
-  ...autenticar,
-  autorizarRoles("usuario"),
-  registrarPago
-);
-router.post(
-  "/:id/comprobante",
   exigirOrigen,
   ...autenticar,
   autorizarRoles("usuario"),
