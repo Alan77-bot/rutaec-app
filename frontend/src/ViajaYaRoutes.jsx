@@ -98,6 +98,8 @@ export default function ViajaYaRoutes() {
             }
           />
 
+          <Route path="/pagar/:compraId" element={<Protegida roles={["usuario", "oficinista"]}><PresentarPago /></Protegida>} />
+
           <Route
             path="/boleto/:id"
             element={
@@ -160,8 +162,6 @@ export default function ViajaYaRoutes() {
               </Protegida>
             }
           />
-
-          <Route path="/pagar/:compraId" element={<Protegida roles={["usuario", "oficinista"]}><PresentarPago /></Protegida>} />
 
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
