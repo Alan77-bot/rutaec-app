@@ -1,3 +1,4 @@
+import CrearReserva from './CrearReserva'
 ﻿import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
@@ -217,12 +218,7 @@ export default function Compra() {
                     <input value={p.correo} onChange={(e) => cambiarPas(i, 'correo', e.target.value)} />
                     {errores[`m${i}`] && <small>{errores[`m${i}`]}</small>}
                   </label>
-                  <label>Descuento
-                    <select value={p.descuento} onChange={(e) => cambiarPas(i, 'descuento', e.target.value)}>
-                      {Object.entries(DESCUENTOS).map(([k, d]) => <option key={k} value={k}>{d.nombre}{d.pct ? ' (50%)' : ''}</option>)}
-                    </select>
-                    {p.descuento !== 'ninguno' && <small className="ayuda">Se valida con la cédula al abordar.</small>}
-                  </label>
+                  <p className="ayuda">Solo se aplican descuentos con validación documental aprobada. El importe final lo calcula el servidor.</p>
                 </fieldset>
               ))}
               <div className="acciones">
@@ -232,43 +228,7 @@ export default function Compra() {
             </>
           )}
 
-          {paso === 2 && (
-            <>
-              <h3>Método de pago</h3>
-              <div className="metodos">
-                {ventanilla && (
-                  <label className={metodo === 'Efectivo' ? 'on' : ''}>
-                    <input type="radio" checked={metodo === 'Efectivo'} onChange={() => setMetodo('Efectivo')} />
-                    <b>Efectivo</b><small>Cobro en ventanilla</small>
-                  </label>
-                )}
-                <label className={metodo === 'Depósito' ? 'on' : ''}>
-                  <input type="radio" checked={metodo === 'Depósito'} onChange={() => setMetodo('Depósito')} />
-                  <b>Depósito</b><small>Sube la foto del comprobante</small>
-                </label>
-                <label className={metodo === 'Transferencia' ? 'on' : ''}>
-                  <input type="radio" checked={metodo === 'Transferencia'} onChange={() => setMetodo('Transferencia')} />
-                  <b>Transferencia</b><small>Desde tu banca en línea</small>
-                </label>
-              </div>
-              {metodo !== 'Efectivo' && (
-                <div className="banco">
-                  <p>Los datos bancarios de <b>{coop.nombre}</b> se muestran al confirmar la reserva.</p>
-                  <label className="subir">
-                    <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files[0])} />
-                    {comprobante ? `✓ ${comprobante.name}` : 'Subir comprobante (imagen o PDF)'}
-                  </label>
-                  <small className="ayuda">El oficinista lo revisará y recibirás un correo con la respuesta.</small>
-                </div>
-              )}
-              <div className="acciones">
-                <button className="btn btn-claro" onClick={() => setPaso(1)}>Atrás</button>
-                <button className="btn btn-acento btn-lg" onClick={confirmar}>
-                  {metodo === 'Efectivo' ? 'Cobrar y emitir boleto' : 'Enviar comprobante'}
-                </button>
-              </div>
-            </>
-          )}
+          {paso === 2 && <CrearReserva pasajeros={pasajeros} viajeId={viajeId} origen={origen} destino={destino} />}
         </section>
 
         <aside className="resumen">

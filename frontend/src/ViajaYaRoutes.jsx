@@ -1,3 +1,5 @@
+import MisReservas from "./modules/reservas/MisReservas";
+import DetalleReserva from "./modules/reservas/DetalleReserva";
 
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
@@ -79,6 +81,8 @@ export default function ViajaYaRoutes() {
           <Route path="/ingresar" element={<Login />} />
 
           <Route path="/buscar" element={<Resultados />} />
+          <Route path="/mis-reservas" element={<Protegida roles={["usuario", "oficinista"]}><MisReservas /></Protegida>} />
+          <Route path="/reserva/:id" element={<Protegida roles={["usuario", "oficinista"]}><DetalleReserva /></Protegida>} />
           <Route
               path="/recuperar-contrasena"
               element={<RecuperarContrasena />}
