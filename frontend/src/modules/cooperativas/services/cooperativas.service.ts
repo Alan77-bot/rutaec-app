@@ -22,3 +22,33 @@ export async function obtenerCooperativas(): Promise<Cooperativa[]> {
 
   return resultado.datos;
 }
+
+export interface DatosRegistroCooperativa {
+  ruc: string;
+  razon_social: string;
+  nombre_comercial: string;
+  correo: string;
+  telefono: string;
+  direccion: string;
+}
+
+export async function registrarCooperativa(
+  datos: DatosRegistroCooperativa
+): Promise<void> {
+  const respuesta = await fetch("/api/cooperativas", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(datos),
+  });
+
+  if (!respuesta.ok) {
+    const resultado = await respuesta.json().catch(() => null);
+
+    throw new Error(
+      resultado?.error || "No se pudo registrar la cooperativa"
+    );
+  }
+}

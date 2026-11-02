@@ -128,7 +128,7 @@ function Cooperativas() {
         onCancelar={() => setCooperativaEditar(null)}
       />
     ) : (
-      <CooperativaRegistroForm />
+      <CooperativaRegistroForm onRegistrada={cargarCooperativas} />
     )}
     </div>
   )

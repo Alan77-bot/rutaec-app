@@ -1,5 +1,6 @@
-
+﻿
 import { useState } from 'react'
+import { registrarCooperativa } from './services/cooperativas.service'
 
 const FORMULARIO_INICIAL = {
   ruc: '',
@@ -10,8 +11,40 @@ const FORMULARIO_INICIAL = {
   direccion: '',
 }
 
-export default function CooperativaRegistroForm() {
+export default function CooperativaRegistroForm({ onRegistrada }) {
   const [form, setForm] = useState(FORMULARIO_INICIAL)
+
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState('')
+
+  async function guardar(e) {
+    e.preventDefault()
+    setGuardando(true)
+    setError('')
+    setMensaje('')
+
+    try {
+      await registrarCooperativa(form)
+
+      setMensaje('Cooperativa registrada correctamente')
+      setForm({ ...FORMULARIO_INICIAL })
+
+      try {
+        await onRegistrada?.()
+      } catch {
+        setError('La cooperativa se registró, pero no se pudo actualizar el listado.')
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Error al registrar la cooperativa'
+      )
+    } finally {
+      setGuardando(false)
+    }
+  }
 
   function cambiar(campo, valor) {
     setForm((actual) => ({
@@ -21,7 +54,7 @@ export default function CooperativaRegistroForm() {
   }
 
   return (
-    <form className="panel">
+    <form className="panel" onSubmit={guardar}>
       <h4>Nueva cooperativa</h4>
 
       <label>
@@ -85,17 +118,15 @@ export default function CooperativaRegistroForm() {
       </label>
 
       <button
-        type="button"
+        type="submit"
         className="btn btn-oscuro"
-        disabled
+        disabled={guardando}
       >
-        Registrar cooperativa
+        {guardando ? 'Registrando...' : 'Registrar cooperativa'}
       </button>
 
-      <p className="muted">
-        El registro estará disponible cuando se integren
-        los permisos de administrador.
-      </p>
+      {error && <p role="alert" className="muted">{error}</p>}
+      {mensaje && <p role="status">{mensaje}</p>}
     </form>
   )
 }
