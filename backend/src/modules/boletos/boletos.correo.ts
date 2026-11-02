@@ -1,3 +1,5 @@
+import { generarReciboCompra } from './recibos.pdf.js';
+import { obtenerTransporte } from "../usuarios/correo.transporte.js";
 import { prisma } from "../../lib/prisma.js";
 import { generarPdfBoleto } from "./boletos.pdf.js";
 import type { DatosEmision } from "./boletos.service.js";
@@ -45,7 +47,7 @@ function fecha(valor: string): string {
 
 function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
   const primero = boletos[0].datos_emision;
-  const asunto = `Tus boletos ${primero.origen} → ${primero.destino} · ${primero.cooperativa}`;
+  const asunto = `${primero.modo_demo ? 'DEMOSTRACION SIN COBRO - ' : ''}Tus boletos ${primero.origen} → ${primero.destino} · ${primero.cooperativa}`;
 
   const filas = boletos
     .map((b) => {
@@ -60,7 +62,7 @@ function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
     .join("");
 
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#111">
-    <h2 style="color:#1b3f68">¡Tu pago fue confirmado!</h2>
+    ${primero.modo_demo ? '<p><b>DEMOSTRACION: SIN COBRO REAL. Estos documentos no acreditan una compra real.</b></p>' : ''}<h2 style="color:#1b3f68">¡Tu pago fue confirmado!</h2>
     <p>Estos son tus boletos de <b>${escapar(primero.cooperativa)}</b> para el viaje
     <b>${escapar(primero.origen)} → ${escapar(primero.destino)}</b>.</p>
     <p>Salida: <b>${escapar(fecha(primero.salida))}</b><br/>
@@ -73,50 +75,11 @@ function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
   return { asunto, html };
 }
 
-// "local" no envía nada: solo deja constancia en la consola (para pruebas sin SMTP real).
-async function enviar(opciones: {
-  para: string;
-  asunto: string;
-  html: string;
-  adjuntos: { nombre: string; contenido: Buffer }[];
-}): Promise<string> {
-  const proveedor = (process.env.EMAIL_PROVIDER ?? "local").toLowerCase();
-
-  if (proveedor === "local") {
-    console.log(
-      `[correo:local] Para ${opciones.para} · "${opciones.asunto}" · ${opciones.adjuntos.length} PDF`
-    );
-    return `local-${Date.now()}`;
-  }
-
-  if (proveedor !== "resend") {
-    throw new Error(`Proveedor de correo no soportado: ${proveedor}`);
-  }
-
-  const clave = process.env.RESEND_API_KEY;
-  if (!clave) throw new Error("Falta RESEND_API_KEY");
-
-  const respuesta = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM ?? "RutaEC <onboarding@resend.dev>",
-      to: [opciones.para],
-      subject: opciones.asunto,
-      html: opciones.html,
-      attachments: opciones.adjuntos.map((a) => ({
-        filename: a.nombre,
-        content: a.contenido.toString("base64"),
-      })),
-    }),
-  });
-
-  if (!respuesta.ok) {
-    throw new Error(`El proveedor respondió ${respuesta.status}`);
-  }
-
-  const cuerpo = (await respuesta.json()) as { id?: string };
-  return cuerpo.id ?? "sin-id";
+async function enviar(opciones: { para: string; asunto: string; html: string; adjuntos: { nombre: string; contenido: Buffer }[] }): Promise<string> {
+  const { transporte, usuario } = obtenerTransporte();
+  const resultado = await transporte.sendMail({ from: { name: "RutaEC", address: usuario }, to: opciones.para, subject: opciones.asunto, html: opciones.html, attachments: opciones.adjuntos.map(a => ({ filename:a.nombre,content:a.contenido })) });
+  if (!resultado.accepted.length) throw new Error("Correo no aceptado");
+  return resultado.messageId;
 }
 
 // Toma un evento pendiente de forma segura aunque haya varios procesos.
@@ -177,6 +140,7 @@ async function procesarEvento(evento: EventoPendiente): Promise<void> {
           contenido: await generarPdfBoleto(b),
         }))
       );
+      adjuntos.push({nombre:`recibo-${evento.entidad_id.slice(0,8)}.pdf`,contenido:await generarReciboCompra(evento.entidad_id)});
       const { asunto, html } = cuerpoHtml(boletos);
       const proveedorId = await enviar({ para: destino, asunto, html, adjuntos });
 
