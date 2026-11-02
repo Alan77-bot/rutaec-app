@@ -112,7 +112,7 @@ export default function Compra() {
         const a = porId.get(id)
         return {
           nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
-          cedula: '', tipoDocumento:'CEDULA', paisDocumento:'EC',
+          cedula: '',
           correo: i === 0 ? sesion?.correo || '' : '',
           descuento: 'ninguno',
           categoria: a.categoria,
