@@ -48,7 +48,7 @@ router.get("/:id/archivos/:archivoId", async (req, res) => {
   res.sendFile(destino, e => { if (e && !res.headersSent) res.status(404).json({error:'Archivo no disponible.'}); });
 });
 router.post("/:id/tomar", async (req, res) => {
-  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobaci�n de pagos no est� concedida al gerente."); const r = await revision(s, String(req.params.id));
+  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobación de pagos no está concedida al gerente."); const r = await revision(s, String(req.params.id));
   // La función SQL exige miembro activo y bloquea la fila: solo uno obtiene la revisión.
   await prisma.$transaction(async tx => { await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`; await tx.$queryRaw`SELECT rutaec.tomar_revision(${r.id}::uuid)`; });
   res.json({ mensaje: "Revisión asignada." });
@@ -71,13 +71,23 @@ router.post("/:id/reasignar", async (req, res) => {
   res.json({ mensaje: "Revisión reasignada." });
 });
 router.post("/:id/resolver", async (req, res) => {
-  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobaci�n de pagos no est� concedida al gerente."); const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
+  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobación de pagos no está concedida al gerente."); const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
   const decision = req.body?.decision; if (!["APROBAR","CORREGIR","RECHAZAR"].includes(decision)) throw new ErrorRevision(400,"Decisión inválida.");
   if (r.asignado_a !== s.id || r.estado !== "EN_REVISION") throw new ErrorRevision(409,"Debes tomar la revisión antes de resolverla.");
   if (r.tipo === 'PAGO' && decision === 'APROBAR' && (!/^\d+(\.\d{1,2})?$/.test(String(req.body?.importeVerificado)) || Number(req.body.importeVerificado) <= 0 || !req.body?.referencia)) throw new ErrorRevision(400,"Comprueba importe y referencia contra la cuenta bancaria.");
   const resultado = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`;
     if (r.tipo === "DESCUENTO") { await tx.$queryRaw`SELECT rutaec.resolver_revision_descuento(${r.id}::uuid, ${decision}, ${razon})`; return "Decisión de descuento registrada"; }
+    if (decision === 'APROBAR' && r.pago_id) {
+      const pago=await tx.pagos.findUniqueOrThrow({where:{id:r.pago_id}});
+      const referencia=String(req.body.referencia).trim();
+      if(referencia.length<3||referencia.length>40||!pago.cuenta_bancaria_id)throw new ErrorRevision(400,'Referencia bancaria o cuenta inválidas.');
+      const proveedor=`BANCO:${pago.cooperativa_id}:${pago.cuenta_bancaria_id}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${proveedor}:${referencia}`},0))`;
+      const repetido=await tx.pagos.findFirst({where:{id:{not:pago.id},OR:[{proveedor,referencia_proveedor:referencia},{cuenta_bancaria_id:pago.cuenta_bancaria_id,estado:{in:['APROBADO','RECIBIDO_INCIDENCIA']},comprobantes_pago:{some:{numero_referencia:referencia}}}]}});
+      if(repetido)throw new ErrorRevision(409,'La referencia bancaria ya está registrada en otro pago. Revisa la conciliación.');
+      await tx.pagos.update({where:{id:pago.id},data:{proveedor,referencia_proveedor:referencia}});
+    }
     const [salida] = await tx.$queryRaw<{ resultado: string }[]>`SELECT rutaec.resolver_revision_pago(${r.id}::uuid, ${decision}, ${razon}, ${decision === 'APROBAR' ? String(req.body.importeVerificado) : null}::numeric, ${req.body?.referencia ?? null}::text) AS resultado`;
     if (salida.resultado === 'CONFIRMADA' && r.pago_id) {
       const pago = await tx.pagos.findUniqueOrThrow({ where: { id: r.pago_id }, select: { compra_id: true } });
