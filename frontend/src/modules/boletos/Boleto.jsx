@@ -52,6 +52,8 @@ export default function Boleto() {
       )}
       <div className={'estado-franja ' + est.clase}>{est.etiqueta}: {est.texto}</div>
 
+      {d.modo_demo && <p className="auth-aviso" role="status">BOLETO DE DEMOSTRACION - SIN COBRO REAL</p>}
+      <a className="btn btn-claro" href={`/api/boletos/recibos/${boleto.compraId}`} download>Descargar comprobante de pago</a>
       <article className={'boleto entra' + (valido ? '' : ' pendiente')}>
         <div className="boleto-izq">
           <div className="boleto-marca">{d.cooperativa}</div>
