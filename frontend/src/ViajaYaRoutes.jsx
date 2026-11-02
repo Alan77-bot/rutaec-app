@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import CancelacionViajes from "./modules/horarios/CancelacionViajes";
 import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
@@ -18,7 +19,6 @@ import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 import Rutas from "./modules/rutas/Rutas";
 import Frecuencias from "./modules/horarios/Frecuencias";
-import CancelacionViajes from "./modules/horarios/CancelacionViajes";
 
 import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
 import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";

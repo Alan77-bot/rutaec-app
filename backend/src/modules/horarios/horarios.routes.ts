@@ -14,9 +14,9 @@ const router = Router();
 const soloGestion = [...autenticar, autorizarRoles("admin", "cooperativa")];
 
 router.get("/frecuencias", obtenerFrecuencias);
+router.use(cancelacionRoutes);
 router.post("/frecuencias", ...soloGestion, registrarFrecuencia);
 router.put("/frecuencias/:id", ...soloGestion, editarFrecuencia);
 router.get("/resoluciones", ...soloGestion, obtenerResoluciones);
-router.use(cancelacionRoutes);
 
 export default router;
