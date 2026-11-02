@@ -8,6 +8,7 @@ import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
 import Login from "./modules/usuarios/Login";
+import Perfil from "./modules/usuarios/Perfil";
 import Resultados from "./modules/reservas/Resultados";
 import Compra from "./modules/reservas/Compra";
 import Boleto from "./modules/boletos/Boleto";
@@ -77,6 +78,7 @@ export default function ViajaYaRoutes() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
+          <Route path="/perfil" element={<Protegida roles={["admin", "cooperativa", "oficinista", "usuario"]}><Perfil /></Protegida>} />
 
           <Route path="/buscar" element={<Resultados />} />
           <Route
