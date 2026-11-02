@@ -228,7 +228,7 @@ export default function Compra() {
             </>
           )}
 
-          {paso === 2 && <CrearReserva pasajeros={pasajeros} viajeId={viajeId} origen={origen} destino={destino} />}
+          {paso === 2 && <CrearReserva pasajeros={pasajeros} viajeId={viajeId} origen={origen} destino={destino} cooperativaId={coop.id} />}
         </section>
 
         <aside className="resumen">

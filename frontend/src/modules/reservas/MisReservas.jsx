@@ -12,7 +12,7 @@ export default function MisReservas() {
     }).then(setLista).catch(e => { if (e.name !== 'AbortError') setError(e.message) })
     return () => control.abort()
   }, [version])
-  return <div className="contenedor"><h1>Mis reservas</h1>
+  return <div className="contenedor"><h1>Mis reservas</h1><Link to="/descuentos">Solicitar descuento antes de reservar</Link>
     {error && <p role="alert">{error}</p>}
     <button className="btn btn-claro" onClick={() => { setError(''); setVersion(v => v + 1) }}>Actualizar</button>
     {!lista && !error && <p role="status">Cargando…</p>}

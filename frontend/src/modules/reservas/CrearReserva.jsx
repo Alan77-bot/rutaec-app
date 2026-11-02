@@ -1,10 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export default function CrearReserva({ pasajeros, viajeId, origen, destino }) {
+export default function CrearReserva({ pasajeros, viajeId, origen, destino, cooperativaId }) {
   const nav = useNavigate()
   const clave = useRef(crypto.randomUUID())
   const [datos, setDatos] = useState(() => pasajeros.map(p => ({ asientoId: p.asientoId, nombres: p.nombre, apellidos: '', documento: p.cedula, fechaNacimiento: '', validacionId: '' })))
+  const [validaciones, setValidaciones] = useState([])
+  useEffect(() => {
+    const c = new AbortController()
+    fetch('/api/reservas/descuentos/mios', { credentials:'include',signal:c.signal }).then(r=>r.ok?r.json():{datos:[]}).then(b=>setValidaciones(b.datos??[])).catch(()=>{})
+    return ()=>c.abort()
+  }, [])
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
   const [compradorId, setCompradorId] = useState(() => sessionStorage.getItem('rutaec:comprador-ventanilla') ?? '')
@@ -29,7 +35,7 @@ export default function CrearReserva({ pasajeros, viajeId, origen, destino }) {
       <label>Apellidos<input required maxLength={100} value={p.apellidos} onChange={e => cambiar(i, 'apellidos', e.target.value)} /></label>
       <label>Cédula<input required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={p.documento} onChange={e => cambiar(i, 'documento', e.target.value)} /></label>
       <label>Fecha de nacimiento<input type="date" required value={p.fechaNacimiento} onChange={e => cambiar(i, 'fechaNacimiento', e.target.value)} /></label>
-      <label>Validación de descuento aprobada (opcional)<input placeholder="Identificador de tu validación" value={p.validacionId} onChange={e => cambiar(i, 'validacionId', e.target.value)} /></label>
+      <label>Descuento aprobado<select value={p.validacionId} onChange={e => cambiar(i, "validacionId", e.target.value)}><option value="">Tarifa normal (sin descuento)</option>{validaciones.filter(v=>v.estado==="APROBADA"&&v.cooperativa_id===cooperativaId&&v.pasajeros.numero_documento===p.documento).map(v=><option key={v.id} value={v.id}>{v.politicas_descuento.descripcion}</option>)}</select></label>
     </fieldset>)}
     <button className="btn btn-acento btn-lg" disabled={ocupado}>{ocupado ? 'Reservando…' : 'Reservar por cinco minutos'}</button>
   </form>
