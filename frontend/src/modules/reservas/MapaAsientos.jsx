@@ -36,13 +36,13 @@ export default function MapaAsientos({ asientos, elegidos, onElegir, onNoDisponi
   const columnaMax = Math.max(0, ...asientos.map((a) => a.columna))
 
   return (
-    <div className="mapa">
+    <div className="mapa" role="group" aria-label="Plano de asientos del bus">
       {pisos.map((piso) => {
         const delPiso = asientos.filter((a) => a.piso === piso)
         const filas = [...new Set(delPiso.map((a) => a.fila))].sort(por)
 
         return (
-          <div key={piso} className="piso">
+          <div key={piso} className="piso" role="group" aria-label={`Piso ${piso}`}>
             {pisos.length > 1 && <h5>Piso {piso}</h5>}
             {piso === pisos[0] && (
               <div className="cabina">
@@ -73,6 +73,7 @@ export default function MapaAsientos({ asientos, elegidos, onElegir, onNoDisponi
                             style={estiloDe(a)}
                             aria-pressed={elegidos.includes(a.id)}
                             aria-disabled={a.estado !== 'LIBRE'}
+                            aria-label={descripcion(a, columnaMax) + (elegidos.includes(a.id) ? ' · seleccionado' : '')}
                             title={descripcion(a, columnaMax)}
                             onClick={() => (a.estado === 'LIBRE' ? onElegir(a) : onNoDisponible?.(a))}
                           >
