@@ -3,8 +3,10 @@ import { rateLimit } from "express-rate-limit";
 import { autenticar } from "../../middlewares/autenticacion.js";
 import { autorizarRoles } from "../../middlewares/autorizacion.js";
 import { prisma } from "../../lib/prisma.js";
+import comprobanteVentanilla from './comprobante-ventanilla.js';
 const router = Router();
 router.use(...autenticar, autorizarRoles('oficinista'));
+router.use(comprobanteVentanilla);
 router.get('/resumen', async (_req,res) => {
   const coop=res.locals.sesion.coopId;
   if(!coop){res.status(403).json({error:'No tienes cooperativa asignada.'});return;}
