@@ -1,3 +1,4 @@
+import TarjetaDemo from './TarjetaDemo'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -41,6 +42,7 @@ export default function PresentarPago() {
   return <div className="contenedor"><h1>{correccion ? 'Corregir comprobante' : 'Presentar pago'}</h1><Link to={`/reserva/${compraId}`}>Volver a la reserva</Link>
     {error && <p role="alert" className="auth-aviso">{error}</p>}
     {!info ? <p role="status">Cargando…</p> : <section className="panel"><p>Total de la compra: {info.compra.moneda} {info.compra.total}</p>
+      {admite && !correccion && info.tarjeta.habilitada && <TarjetaDemo compraId={compraId} />}
       {correccion && <p role="status">Corrección solicitada: {correccion.motivo}. El archivo anterior se conservará.</p>}
       {!admite ? <p>Esta compra ya no admite un comprobante en su estado actual. Actualiza su detalle.</p> : <form className="auth-campos" onSubmit={enviar}>
         <label>Método<select value={metodo} onChange={e => setMetodo(e.target.value)} disabled={ocupado || !!correccion}><option value="DEPOSITO">Depósito</option><option value="TRANSFERENCIA">Transferencia</option></select></label>

@@ -13,7 +13,7 @@ router.get("/cuentas/:compraId", ...autenticar, async (req, res) => {
   const cuentas = await prisma.cuentas_bancarias.findMany({ where: { cooperativa_id: compra.cooperativa_id, activa: true }, select: { id: true, banco: true, numero: true, titular: true, tipo: true } });
   const pagos = await prisma.pagos.findMany({ where: { compra_id: id }, orderBy: { creado_en: "desc" }, select: { id: true, estado: true, motivo: true } });
   res.setHeader("Cache-Control", "no-store");
-  res.json({ datos: { compra, cuentas, pagos, tarjeta: { habilitada: false, mensaje: "Pendiente de definir y configurar la pasarela de tarjeta. No se realizan cobros de tarjeta." } } });
+  res.json({ datos: { compra, cuentas, pagos, tarjeta: { habilitada: process.env.NODE_ENV !== "production" && process.env.TARJETA_MODO_DEMO === "true", mensaje: "Solo demostraciÛn local; nunca se realiza un cobro real." } } });
 });
 router.use((_e: unknown, _req: import("express").Request, res: import("express").Response, _next: import("express").NextFunction) => { res.status(500).json({ error: "No se pudo consultar la informaci√≥n de pago." }); });
 export default router;
