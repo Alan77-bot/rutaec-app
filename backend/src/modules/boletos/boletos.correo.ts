@@ -1,3 +1,4 @@
+import { obtenerTransporte } from "../usuarios/correo.transporte.js";
 import { prisma } from "../../lib/prisma.js";
 import { generarPdfBoleto } from "./boletos.pdf.js";
 import type { DatosEmision } from "./boletos.service.js";
@@ -73,50 +74,11 @@ function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
   return { asunto, html };
 }
 
-// "local" no envía nada: solo deja constancia en la consola (para pruebas sin SMTP real).
-async function enviar(opciones: {
-  para: string;
-  asunto: string;
-  html: string;
-  adjuntos: { nombre: string; contenido: Buffer }[];
-}): Promise<string> {
-  const proveedor = (process.env.EMAIL_PROVIDER ?? "local").toLowerCase();
-
-  if (proveedor === "local") {
-    console.log(
-      `[correo:local] Para ${opciones.para} · "${opciones.asunto}" · ${opciones.adjuntos.length} PDF`
-    );
-    return `local-${Date.now()}`;
-  }
-
-  if (proveedor !== "resend") {
-    throw new Error(`Proveedor de correo no soportado: ${proveedor}`);
-  }
-
-  const clave = process.env.RESEND_API_KEY;
-  if (!clave) throw new Error("Falta RESEND_API_KEY");
-
-  const respuesta = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM ?? "RutaEC <onboarding@resend.dev>",
-      to: [opciones.para],
-      subject: opciones.asunto,
-      html: opciones.html,
-      attachments: opciones.adjuntos.map((a) => ({
-        filename: a.nombre,
-        content: a.contenido.toString("base64"),
-      })),
-    }),
-  });
-
-  if (!respuesta.ok) {
-    throw new Error(`El proveedor respondió ${respuesta.status}`);
-  }
-
-  const cuerpo = (await respuesta.json()) as { id?: string };
-  return cuerpo.id ?? "sin-id";
+async function enviar(opciones: { para: string; asunto: string; html: string; adjuntos: { nombre: string; contenido: Buffer }[] }): Promise<string> {
+  const { transporte, usuario } = obtenerTransporte();
+  const resultado = await transporte.sendMail({ from: { name: "RutaEC", address: usuario }, to: opciones.para, subject: opciones.asunto, html: opciones.html, attachments: opciones.adjuntos.map(a => ({ filename:a.nombre,content:a.contenido })) });
+  if (!resultado.accepted.length) throw new Error("Correo no aceptado");
+  return resultado.messageId;
 }
 
 // Toma un evento pendiente de forma segura aunque haya varios procesos.
