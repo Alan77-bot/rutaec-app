@@ -1,3 +1,4 @@
+import { documentoPasajero } from './documento.js';
 import { Router, raw } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
@@ -32,8 +33,10 @@ router.post('/solicitar', raw({type:'multipart/form-data',limit:'6mb'}), async (
   const text=(key:string,max=100) => { const v=f.get(key); if(typeof v!=='string'||!v.trim()||v.trim().length>max) throw new ErrorDescuento(400,`Revisa ${key}.`); return v.trim(); };
   const cooperativaId=text('cooperativaId'),politicaId=text('politicaId');
   if(!UUID.test(cooperativaId)||!UUID.test(politicaId)) throw new ErrorDescuento(400,'Cooperativa o política inválida.');
-  const nombres=text('nombres'),apellidos=text('apellidos'),documento=text('documento',10),nacimiento=text('fechaNacimiento',10);
-  if(!/^\d{10}$/.test(documento)||!/^\d{4}-\d{2}-\d{2}$/.test(nacimiento)||!Number.isFinite(new Date(nacimiento).getTime())||new Date(nacimiento).toISOString().slice(0,10)!==nacimiento||new Date(nacimiento)>new Date()) throw new ErrorDescuento(400,'Cédula o fecha de nacimiento inválida.');
+  const nombres=text('nombres'),apellidos=text('apellidos'),nacimiento=text('fechaNacimiento',10);
+  let identidad;try{identidad=documentoPasajero({documento:f.get('documento'),tipoDocumento:f.get('tipoDocumento')??'CEDULA',paisDocumento:f.get('paisDocumento')??'EC'});}catch(e){throw new ErrorDescuento(400,e instanceof Error?e.message:'Documento invalido.');}
+  const {documento,tipoDocumento,paisDocumento}=identidad;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nacimiento)||!Number.isFinite(new Date(nacimiento).getTime())||new Date(nacimiento).toISOString().slice(0,10)!==nacimiento||new Date(nacimiento)>new Date()) throw new ErrorDescuento(400,'Cédula o fecha de nacimiento inválida.');
   const file=f.get('archivo');
   if(!file||typeof file==='string'||file.size<1||file.size>5*1024*1024) throw new ErrorDescuento(400,'Adjunta JPG, PNG o PDF de hasta 5 MB.');
   const bytes=Buffer.from(await file.arrayBuffer());
@@ -47,11 +50,11 @@ router.post('/solicitar', raw({type:'multipart/form-data',limit:'6mb'}), async (
   try{
     const id=await prisma.$transaction(async tx=>{
       await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`;
-      const pasajero=await tx.pasajeros.upsert({where:{comprador_id_pais_documento_tipo_documento_numero_documento:{comprador_id:s.id,pais_documento:'EC',tipo_documento:'CEDULA',numero_documento:documento}},update:{nombres,apellidos,fecha_nacimiento:new Date(nacimiento)},create:{comprador_id:s.id,nombres,apellidos,fecha_nacimiento:new Date(nacimiento),tipo_documento:'CEDULA',pais_documento:'EC',numero_documento:documento}});
+      const pasajero=await tx.pasajeros.upsert({where:{comprador_id_pais_documento_tipo_documento_numero_documento:{comprador_id:s.id,pais_documento:paisDocumento,tipo_documento:tipoDocumento,numero_documento:documento}},update:{nombres,apellidos,fecha_nacimiento:new Date(nacimiento)},create:{comprador_id:s.id,nombres,apellidos,fecha_nacimiento:new Date(nacimiento),tipo_documento:tipoDocumento,pais_documento:paisDocumento,numero_documento:documento}});
       const pendiente=await tx.validaciones_descuento.findFirst({where:{pasajero_id:pasajero.id,cooperativa_id:cooperativaId,politica_id:politicaId,estado:'PENDIENTE'}});
       if(pendiente) throw new ErrorDescuento(409,'Ya hay una solicitud pendiente para este pasajero.');
       const archivo=await tx.archivos.create({data:{propietario_id:s.id,cooperativa_id:cooperativaId,finalidad:'IDENTIDAD',objeto_clave:clave,nombre_original:file.name.slice(0,200),mime_type:tipo,tamano_bytes:BigInt(bytes.length),sha256:createHash('sha256').update(bytes).digest('hex'),estado:'DISPONIBLE',privado:true}});
-      const doc=await tx.documentos_pasajero.create({data:{pasajero_id:pasajero.id,archivo_id:archivo.id,tipo:'CEDULA'}});
+      const doc=await tx.documentos_pasajero.create({data:{pasajero_id:pasajero.id,archivo_id:archivo.id,tipo:tipoDocumento}});
       // La vigencia documental la declara el usuario y el oficinista debe comprobarla.
       const hasta=text('validoHasta',10);
       if(!/^\d{4}-\d{2}-\d{2}$/.test(hasta)||!Number.isFinite(new Date(hasta).getTime())||new Date(hasta)<new Date(new Date().toISOString().slice(0,10))|| (politica.vigente_hasta && new Date(hasta)>politica.vigente_hasta)) throw new ErrorDescuento(400,'Revisa la vigencia; no puede exceder la política.');

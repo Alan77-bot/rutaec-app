@@ -112,7 +112,7 @@ export default function Compra() {
         const a = porId.get(id)
         return {
           nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
-          cedula: '',
+          cedula: '', tipoDocumento:'CEDULA', paisDocumento:'EC',
           correo: i === 0 ? sesion?.correo || '' : '',
           descuento: 'ninguno',
           categoria: a.categoria,
@@ -132,7 +132,7 @@ export default function Compra() {
     const err = {}
     pasajeros.forEach((p, i) => {
       if (p.nombre.trim().length < 3) err[`n${i}`] = 'Escribe el nombre completo'
-      if (!cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
+      if (p.tipoDocumento === 'PASAPORTE' ? !/^[A-Z0-9]{4,20}$/i.test(p.cedula) : !cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
       if (!/^\S+@\S+\.\S+$/.test(p.correo)) err[`m${i}`] = 'Correo no válido'
     })
     setErrores(err)
@@ -202,8 +202,9 @@ export default function Compra() {
                     <input value={p.nombre} onChange={(e) => cambiarPas(i, 'nombre', e.target.value)} />
                     {errores[`n${i}`] && <small>{errores[`n${i}`]}</small>}
                   </label>
-                  <label className={errores[`c${i}`] ? 'err' : ''}>Cédula
-                    <input value={p.cedula} inputMode="numeric" maxLength={10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
+                  <label>Tipo de documento<select value={p.tipoDocumento??'CEDULA'} onChange={e=>cambiarPas(i,'tipoDocumento',e.target.value)}><option value="CEDULA">Cédula ecuatoriana</option><option value="PASAPORTE">Pasaporte</option></select></label>
+                  <label className={errores[`c${i}`] ? 'err' : ''}>Número de documento
+                    <input value={p.cedula} inputMode={p.tipoDocumento === "PASAPORTE" ? "text" : "numeric"} maxLength={p.tipoDocumento === "PASAPORTE" ? 20 : 10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
                     {errores[`c${i}`] && <small>{errores[`c${i}`]}</small>}
                   </label>
                   <label className={errores[`m${i}`] ? 'err' : ''}>Correo

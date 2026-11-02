@@ -1,3 +1,4 @@
+import { documentoPasajero } from './documento.js';
 import { createHash } from "node:crypto";
 import { prisma } from "../../lib/prisma.js";
 import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
@@ -46,12 +47,12 @@ export async function crearReserva(s: SesionAutenticada, entrada: Record<string,
     if (!p || typeof p !== "object" || !uuid(p.asientoId)) throw new ErrorReserva(400, "Asiento inválido.");
     const nacimiento = texto(p.fechaNacimiento, "fecha de nacimiento", 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nacimiento) || !Number.isFinite(new Date(nacimiento).getTime()) || new Date(nacimiento).toISOString().slice(0,10) !== nacimiento || new Date(nacimiento) > new Date()) throw new ErrorReserva(400, "Fecha de nacimiento inválida.");
-    const documento = texto(p.documento, "cédula", 10);
-    if (!/^\d{10}$/.test(documento)) throw new ErrorReserva(400, "La cédula debe tener diez dígitos.");
+    let identidad;
+    try{identidad=documentoPasajero(p);}catch(e){throw new ErrorReserva(400,e instanceof Error?e.message:'Documento inválido.');}
     if (p.validacionId && !uuid(p.validacionId)) throw new ErrorReserva(400, "Validación inválida.");
-    return { asientoId: p.asientoId, nombres: texto(p.nombres, "nombres"), apellidos: texto(p.apellidos, "apellidos"), documento, nacimiento, validacionId: p.validacionId || null };
+    return { asientoId: p.asientoId, nombres: texto(p.nombres, "nombres"), apellidos: texto(p.apellidos, "apellidos"), ...identidad, nacimiento, validacionId: p.validacionId || null };
   });
-  if (new Set(pasajeros.map(p => p.asientoId)).size !== pasajeros.length || new Set(pasajeros.map(p => p.documento)).size !== pasajeros.length) throw new ErrorReserva(400, "No repitas asientos ni pasajeros en la reserva.");
+  if (new Set(pasajeros.map(p => p.asientoId)).size !== pasajeros.length || new Set(pasajeros.map(p => `${p.paisDocumento}:${p.tipoDocumento}:${p.documento}`)).size !== pasajeros.length) throw new ErrorReserva(400, "No repitas asientos ni pasajeros en la reserva.");
   const huella = createHash("sha256").update(JSON.stringify({ comprador, viaje: entrada.viajeId, origen, destino, pasajeros })).digest("hex");
   const clave = `reserva-solicitud:${s.id}:${entrada.claveIdempotencia}`;
   const id = await prisma.$transaction(async tx => {
@@ -69,9 +70,9 @@ export async function crearReserva(s: SesionAutenticada, entrada: Record<string,
     const items = [];
     for (const p of pasajeros) {
       const pasajero = await tx.pasajeros.upsert({
-        where: { comprador_id_pais_documento_tipo_documento_numero_documento: { comprador_id: comprador, pais_documento: "EC", tipo_documento: "CEDULA", numero_documento: p.documento } },
+        where: { comprador_id_pais_documento_tipo_documento_numero_documento: { comprador_id: comprador, pais_documento: p.paisDocumento, tipo_documento: p.tipoDocumento, numero_documento: p.documento } },
         update: { nombres: p.nombres, apellidos: p.apellidos, fecha_nacimiento: new Date(p.nacimiento) },
-        create: { comprador_id: comprador, nombres: p.nombres, apellidos: p.apellidos, fecha_nacimiento: new Date(p.nacimiento), tipo_documento: "CEDULA", pais_documento: "EC", numero_documento: p.documento },
+        create: { comprador_id: comprador, nombres: p.nombres, apellidos: p.apellidos, fecha_nacimiento: new Date(p.nacimiento), tipo_documento: p.tipoDocumento, pais_documento: p.paisDocumento, numero_documento: p.documento },
       });
       const asiento = await tx.asientos_viaje.findUnique({ where: { viaje_id_id: { viaje_id: viaje.viaje_id, id: p.asientoId } } });
       if (!asiento?.vendible) throw new ErrorReserva(409, "Uno de los asientos no está habilitado.");

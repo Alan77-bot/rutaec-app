@@ -7,7 +7,7 @@ export default function CrearReserva({ pasajeros, viajeId, origen, destino, coop
   const { sesion } = useApp()
   const [compradorId, setCompradorId] = useState(() => sesion?.rol === 'oficinista' ? sessionStorage.getItem('rutaec:comprador-ventanilla') ?? '' : '')
   const clave = useRef(crypto.randomUUID())
-  const [datos, setDatos] = useState(() => pasajeros.map(p => ({ asientoId: p.asientoId, nombres: p.nombre, apellidos: '', documento: p.cedula, fechaNacimiento: '', validacionId: '' })))
+  const [datos, setDatos] = useState(() => pasajeros.map(p => ({ asientoId: p.asientoId, nombres: p.nombre, apellidos: '', documento: p.cedula.toUpperCase(), tipoDocumento:p.tipoDocumento??'CEDULA', paisDocumento:p.paisDocumento??'EC', fechaNacimiento: '', validacionId: '' })))
   const [validaciones, setValidaciones] = useState([])
   useEffect(() => {
     const c = new AbortController()
@@ -35,9 +35,11 @@ export default function CrearReserva({ pasajeros, viajeId, origen, destino, coop
       <legend>Pasajero {i + 1}</legend>
       <label>Nombres<input required maxLength={100} value={p.nombres} onChange={e => cambiar(i, 'nombres', e.target.value)} /></label>
       <label>Apellidos<input required maxLength={100} value={p.apellidos} onChange={e => cambiar(i, 'apellidos', e.target.value)} /></label>
-      <label>Cédula<input required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={p.documento} onChange={e => cambiar(i, 'documento', e.target.value)} /></label>
+      <label>Tipo de documento<select value={p.tipoDocumento} onChange={e=>cambiar(i,'tipoDocumento',e.target.value)}><option value="CEDULA">Cédula ecuatoriana</option><option value="PASAPORTE">Pasaporte</option></select></label>
+      {p.tipoDocumento==='PASAPORTE'&&<label>País emisor (código de dos letras)<input required pattern="[A-Z]{2}" maxLength={2} value={p.paisDocumento} onChange={e=>cambiar(i,'paisDocumento',e.target.value.toUpperCase())}/></label>}
+      <label>Número de documento<input required inputMode={p.tipoDocumento==='CEDULA'?'numeric':'text'} pattern={p.tipoDocumento==='CEDULA'?'[0-9]{10}':'[A-Za-z0-9]{4,20}'} maxLength={p.tipoDocumento==='CEDULA'?10:20} value={p.documento} onChange={e => cambiar(i, 'documento', e.target.value)} /></label>
       <label>Fecha de nacimiento<input type="date" required value={p.fechaNacimiento} onChange={e => cambiar(i, 'fechaNacimiento', e.target.value)} /></label>
-      <label>Descuento aprobado<select value={p.validacionId} onChange={e => cambiar(i, "validacionId", e.target.value)}><option value="">Tarifa normal (sin descuento)</option>{validaciones.filter(v=>v.estado==="APROBADA"&&v.cooperativa_id===cooperativaId&&v.pasajeros.numero_documento===p.documento).map(v=><option key={v.id} value={v.id}>{v.politicas_descuento.descripcion}</option>)}</select></label>
+      <label>Descuento aprobado<select value={p.validacionId} onChange={e => cambiar(i, "validacionId", e.target.value)}><option value="">Tarifa normal (sin descuento)</option>{validaciones.filter(v=>v.estado==="APROBADA"&&v.cooperativa_id===cooperativaId&&v.pasajeros.numero_documento===p.documento.toUpperCase()&&v.pasajeros.tipo_documento===p.tipoDocumento&&v.pasajeros.pais_documento===p.paisDocumento).map(v=><option key={v.id} value={v.id}>{v.politicas_descuento.descripcion}</option>)}</select></label>
     </fieldset>)}
     {datos.some(p => !p.validacionId) && <label><input type="checkbox" required /> Acepto la tarifa normal para los pasajeros sin descuento aprobado. Puedo solicitar la validación documental antes de reservar.</label>}
     <button className="btn btn-acento btn-lg" disabled={ocupado}>{ocupado ? 'Reservando…' : 'Reservar por cinco minutos'}</button>
