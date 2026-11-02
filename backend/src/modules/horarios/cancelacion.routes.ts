@@ -62,7 +62,7 @@ router.post('/cancelaciones/viajes/:id',async(req,res)=>{
         if(!anterior)await tx.incidencias.create({data:{compra_id:c.id,cooperativa_id:v.cooperativa_id,pago_id:c.pagos[0].id,tipo:'CANCELACION',descripcion:`Viaje cancelado: ${motivo}. Evaluar devolución o alternativa con aceptación del cliente.`,creado_por:s.id}});
       }
       await tx.compras.update({where:{id:c.id},data:{estado:'CANCELADA',motivo:`Viaje cancelado: ${motivo}`,finalizada_en:new Date()}});
-      await tx.boletos.updateMany({where:{compra_id:c.id,estado:'EMITIDO'},data:{estado:'ANULADO'}});
+      await tx.boletos.updateMany({where:{compra_id:c.id,estado:'EMITIDO'},data:{estado:'ANULADO',anulado_en:new Date(),motivo_anulacion:motivo}});
       await tx.$queryRaw`SELECT rutaec.encolar_evento('VIAJE_CANCELADO',${c.id}::uuid,${v.cooperativa_id}::uuid,${`viaje-cancelado:${id}:${c.id}`},${JSON.stringify({compra_id:c.id,motivo})}::jsonb)`;
     }
     await tx.agenda_bus.update({where:{id:v.agenda_id},data:{activa:false}});
