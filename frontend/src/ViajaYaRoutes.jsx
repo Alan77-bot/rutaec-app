@@ -18,6 +18,7 @@ import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 import Rutas from "./modules/rutas/Rutas";
 import Frecuencias from "./modules/horarios/Frecuencias";
+import Viajes from "./modules/horarios/Viajes";
 
 import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
 import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";
@@ -156,6 +157,15 @@ export default function ViajaYaRoutes() {
             element={
               <Protegida roles={["admin", "cooperativa"]}>
                 <Frecuencias />
+              </Protegida>
+            }
+          />
+
+          <Route
+            path="/programacion"
+            element={
+              <Protegida roles={["admin", "cooperativa"]}>
+                <Viajes />
               </Protegida>
             }
           />
