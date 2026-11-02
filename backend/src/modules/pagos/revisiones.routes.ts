@@ -16,7 +16,7 @@ router.use((req, res, next) => {
 });
 function personal(s: { rol: string; coopId: string | null }) {
   if (s.rol === "admin") return {};
-  if (s.rol === "oficinista" && s.coopId) return { cooperativa_id: s.coopId };
+  if (["oficinista", "cooperativa"].includes(s.rol) && s.coopId) return { cooperativa_id: s.coopId };
   throw new ErrorRevision(403, "La revisión corresponde al oficinista autorizado.");
 }
 function motivo(x: unknown) { if (typeof x !== "string" || !x.trim() || x.trim().length > 500) throw new ErrorRevision(400,"Indica un motivo de hasta 500 caracteres."); return x.trim(); }
@@ -31,12 +31,24 @@ router.get("/", async (req, res) => {
   const estado = String(req.query.estado ?? "");
   if (estado && !['PENDIENTE','EN_REVISION','CORRECCION','APROBADA','RECHAZADA'].includes(estado)) throw new ErrorRevision(400,"Estado inválido.");
   const datos = await prisma.revisiones.findMany({ where: { ...personal(s), ...(estado ? { estado } : {}) }, orderBy: { creado_en: "asc" }, take: 200,
-    include: { pagos: { include: { comprobantes_pago: { orderBy: { creado_en: "desc" }, select: { id: true, numero_referencia: true, fecha_operacion: true, importe_declarado: true, archivo_id: true, creado_en: true } } } }, validaciones_descuento: { include: { pasajeros: true, politicas_descuento: true } }, historial_revisiones: { orderBy: { fecha: "desc" }, select: { actor_id: true, accion: true, motivo: true, fecha: true } } } });
+    include: { pagos: { include: { comprobantes_pago: { orderBy: { recibido_en: "desc" }, select: { id: true, numero_referencia: true, fecha_operacion: true, importe_declarado: true, archivo_id: true, recibido_en: true } } } }, validaciones_descuento: { include: { pasajeros: true, politicas_descuento: true } }, historial_revisiones: { orderBy: { fecha: "desc" }, select: { actor_id: true, accion: true, motivo: true, fecha: true } } } });
   // BigInt solo aparece en ids de historial que no se seleccionan.
   res.json({ datos });
 });
+router.get("/:id/archivos/:archivoId", async (req, res) => {
+  const r = await revision(res.locals.sesion, String(req.params.id));
+  const archivoId = String(req.params.archivoId);
+  if (!UUID.test(archivoId) || !r.pago_id) throw new ErrorRevision(404,"Archivo no encontrado.");
+  const c = await prisma.comprobantes_pago.findFirst({ where: { pago_id: r.pago_id, archivo_id: archivoId }, include: { archivos: true } });
+  if (!c || c.archivos.estado !== 'DISPONIBLE') throw new ErrorRevision(404,"Archivo no encontrado.");
+  const base = path.resolve(process.env.COMPROBANTES_DIR ?? path.join(process.cwd(),'storage','comprobantes'));
+  const destino = path.resolve(base,c.archivos.objeto_clave);
+  if (!destino.startsWith(base+path.sep)) throw new ErrorRevision(404,"Archivo no disponible.");
+  res.setHeader('X-Content-Type-Options','nosniff'); res.type(c.archivos.mime_type);
+  res.sendFile(destino, e => { if (e && !res.headersSent) res.status(404).json({error:'Archivo no disponible.'}); });
+});
 router.post("/:id/tomar", async (req, res) => {
-  const s = res.locals.sesion; const r = await revision(s, String(req.params.id));
+  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobaci�n de pagos no est� concedida al gerente."); const r = await revision(s, String(req.params.id));
   // La función SQL exige miembro activo y bloquea la fila: solo uno obtiene la revisión.
   await prisma.$transaction(async tx => { await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`; await tx.$queryRaw`SELECT rutaec.tomar_revision(${r.id}::uuid)`; });
   res.json({ mensaje: "Revisión asignada." });
@@ -59,7 +71,7 @@ router.post("/:id/reasignar", async (req, res) => {
   res.json({ mensaje: "Revisión reasignada." });
 });
 router.post("/:id/resolver", async (req, res) => {
-  const s = res.locals.sesion; const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
+  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobaci�n de pagos no est� concedida al gerente."); const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
   const decision = req.body?.decision; if (!["APROBAR","CORREGIR","RECHAZAR"].includes(decision)) throw new ErrorRevision(400,"Decisión inválida.");
   if (r.asignado_a !== s.id || r.estado !== "EN_REVISION") throw new ErrorRevision(409,"Debes tomar la revisión antes de resolverla.");
   if (r.tipo === 'PAGO' && decision === 'APROBAR' && (!/^\d+(\.\d{1,2})?$/.test(String(req.body?.importeVerificado)) || Number(req.body.importeVerificado) <= 0 || !req.body?.referencia)) throw new ErrorRevision(400,"Comprueba importe y referencia contra la cuenta bancaria.");

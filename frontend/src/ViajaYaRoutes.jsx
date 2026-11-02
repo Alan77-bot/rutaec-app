@@ -14,6 +14,7 @@ import Boleto from "./modules/boletos/Boleto";
 import Historial from "./modules/boletos/Historial";
 import PanelOficinista from "./modules/pagos/PanelOficinista";
 import PanelCoop from "./modules/cooperativas/PanelCoop";
+import Revisiones from "./modules/pagos/Revisiones";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 import Rutas from "./modules/rutas/Rutas";
@@ -150,6 +151,8 @@ export default function ViajaYaRoutes() {
               </Protegida>
             }
           />
+
+          <Route path="/revisiones" element={<Protegida roles={["oficinista", "cooperativa", "admin"]}><Revisiones /></Protegida>} />
 
           <Route
             path="/frecuencias"
