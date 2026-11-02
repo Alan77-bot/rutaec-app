@@ -1,4 +1,3 @@
-import CrearReserva from './CrearReserva'
 ﻿import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
@@ -13,6 +12,7 @@ import {
 import { urlResultados } from './reservas.enlaces'
 import { DESCUENTOS, cedulaValida } from '../../data/viajes'
 import { fechaLarga } from '../../data/fechas'
+import CrearReserva from './CrearReserva'
 
 const PASOS = ['Asientos', 'Pasajeros', 'Pago']
 

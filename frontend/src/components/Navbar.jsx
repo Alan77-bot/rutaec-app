@@ -63,11 +63,11 @@ export default function Navbar() {
 
         <nav className={'links' + (menu ? ' abierto' : '')} onClick={() => setMenu(false)}>
           <NavLink to="/" end>Inicio</NavLink>
-          {sesion && ["usuario", "oficinista"].includes(sesion.rol) && <NavLink to="/mis-reservas">Reservas</NavLink>}
           {(!sesion || sesion.rol === 'usuario') && <NavLink to="/mis-viajes">Mis viajes</NavLink>}
           {sesion?.rol === 'oficinista' && <NavLink to="/oficinista">Ventanilla</NavLink>}
           {sesion?.rol === 'cooperativa' && <NavLink to="/cooperativa">Mi cooperativa</NavLink>}
           {sesion?.rol === 'admin' && <NavLink to="/admin">AdministraciÃ³n</NavLink>}
+          {sesion && ["usuario", "oficinista"].includes(sesion.rol) && <NavLink to="/mis-reservas">Reservas</NavLink>}
         </nav>
 
         <div className="nav-der">
