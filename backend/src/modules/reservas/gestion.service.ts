@@ -23,14 +23,16 @@ export async function listarReservas(s: SesionAutenticada) {
 export async function detalleReserva(s: SesionAutenticada, id: string) {
   if (!uuid(id)) throw new ErrorReserva(400, "Reserva inválida.");
   const compra = await prisma.compras.findFirst({ where: { id, ...filtro(s) }, include: {
-    detalle_compra: { select: { id: true, pasajero_snapshot: true, asiento_snapshot: true, origen_orden: true, destino_orden: true, precio_base: true, descuento: true, importe: true, estado: true } },
     pagos: { select: { id: true, metodo: true, estado: true, motivo: true, creado_en: true } },
-    boletos: { select: { id: true, codigo: true, estado: true } },
-    cooperativas: { select: { nombre_comercial: true } },
   } });
   if (!compra) throw new ErrorReserva(404, "No se encontró la reserva.");
+  const [detalles, boletos, cooperativa] = await Promise.all([
+    prisma.detalle_compra.findMany({ where: { compra_id: id }, select: { id:true,pasajero_snapshot:true,asiento_snapshot:true,origen_orden:true,destino_orden:true,precio_base:true,descuento:true,importe:true,estado:true } }),
+    prisma.boletos.findMany({ where: { compra_id:id }, select:{id:true,codigo:true,estado:true} }),
+    prisma.cooperativas.findUniqueOrThrow({ where:{id:compra.cooperativa_id},select:{nombre_comercial:true} }),
+  ]);
   // La vista efectiva no conserva una reserva vencida aunque el worker esté detenido.
-  return { ...compra, estado: compra.estado === "RESERVADA" && compra.vence_en && compra.vence_en <= new Date() ? "VENCIDA" : compra.estado, ahora: new Date().toISOString() };
+  return { ...compra, detalle_compra: detalles, boletos, cooperativas:cooperativa, estado: compra.estado === "RESERVADA" && compra.vence_en && compra.vence_en <= new Date() ? "VENCIDA" : compra.estado, ahora: new Date().toISOString() };
 }
 export async function crearReserva(s: SesionAutenticada, entrada: Record<string, unknown>) {
   filtro(s);
