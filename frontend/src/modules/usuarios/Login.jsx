@@ -197,10 +197,6 @@ export default function Login() {
             </p>
           )}
 
-          <Link to="/recuperar-contrasena" className="btn-link">
-            ¿Olvidaste tu contraseña?
-          </Link>
-
           <form
             onSubmit={entrar}
             className="auth-campos"
@@ -254,6 +250,10 @@ export default function Login() {
             >
               {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             </button>
+
+            <Link to="/recuperar-contrasena" className="btn-link">
+              ¿Olvidaste tu contraseña?
+            </Link>
 
             {error && (
               <p role="alert" className="auth-aviso">
