@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 export default function DetalleReserva() {
   const { id } = useParams()
   const [compra, setCompra] = useState(null)
+  const [plazos,setPlazos] = useState([])
   const [error, setError] = useState('')
   const [ahora, setAhora] = useState(Date.now())
   const [offset, setOffset] = useState(0)
@@ -22,6 +23,12 @@ export default function DetalleReserva() {
     cargar(); const intervalo = setInterval(cargar, 8000)
     return () => { controller.abort(); clearInterval(intervalo) }
   }, [id, version])
+  useEffect(() => {
+    const control=new AbortController()
+    async function cargar(){try{const r=await fetch(`/api/pagos/revisiones/plazos/${id}`,{credentials:'include',signal:control.signal});if(r.ok){const b=await r.json();setPlazos(b.datos)}}catch{/* El detalle de compra sigue disponible. */}}
+    cargar();const timer=setInterval(cargar,8000)
+    return()=>{control.abort();clearInterval(timer)}
+  },[id,version])
   useEffect(() => { const timer = setInterval(() => setAhora(Date.now()), 1000); return () => clearInterval(timer) }, [])
   async function cancelar(e) {
     e.preventDefault(); if (ocupado) return; setOcupado(true)
@@ -46,6 +53,7 @@ export default function DetalleReserva() {
         {compra.motivo && <p>{compra.motivo}</p>}
         {vigente && <Link className="btn btn-acento" to={`/pagar/${id}`}>Presentar pago</Link>}
         {compra.estado === 'EN_REVISION' && <p>Pago en revisión. Tu asiento permanece apartado; aquí aparecerá la decisión o la solicitud de corrección.</p>}
+        {plazos.filter(p=>!['APROBADA','RECHAZADA'].includes(p.estado)).map(p=><div key={p.id}><p>Revisión hasta: {new Date(p.revisionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}</p>{p.correccionVenceEn&&<p>Corrección hasta: {new Date(p.correccionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}</p>}{p.alertadoEn&&<p>El plazo terminó. Se abrió una incidencia para conciliar el pago; no se garantiza el asiento original.</p>}</div>)}
         {compra.pagos.map(p => <p key={p.id}>Pago {p.metodo}: {p.estado} {p.motivo && `· ${p.motivo}`}{p.estado === 'CORRECCION' && <Link to={`/pagar/${id}`}> Corregir comprobante</Link>}</p>)}
         {compra.boletos.map(b => <p key={b.id}><Link to={`/boleto/${b.id}`}>Boleto {b.codigo.slice(0,8)}</Link></p>)}
       </section>
