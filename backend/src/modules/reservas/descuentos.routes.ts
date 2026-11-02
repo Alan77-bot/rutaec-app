@@ -19,8 +19,11 @@ router.get('/politicas', async (_req,res) => {
   const datos = await prisma.politicas_descuento.findMany({ where: { activa:true, vigente_desde:{lte:new Date()}, OR:[{vigente_hasta:null},{vigente_hasta:{gte:new Date()}}] }, orderBy:{codigo:'asc'} });
   res.json({datos});
 });
-router.get('/mios', async (_req,res) => {
-  res.json({datos:await prisma.validaciones_descuento.findMany({ where:{pasajeros:{comprador_id:res.locals.sesion.id}}, include:{pasajeros:true,politicas_descuento:true}, orderBy:{valido_desde:'desc'} })});
+router.get('/mios', async (req,res) => {
+  const s=res.locals.sesion;
+  const comprador=typeof req.query.compradorId==='string'?req.query.compradorId:s.id;
+  if(comprador!==s.id && (s.rol!=='oficinista'||!s.coopId||!UUID.test(comprador))) throw new ErrorDescuento(403,'Consulta no permitida.');
+  res.json({datos:await prisma.validaciones_descuento.findMany({ where:{pasajeros:{comprador_id:comprador},...(s.rol==='oficinista'?{cooperativa_id:s.coopId??''}:{})}, include:{pasajeros:true,politicas_descuento:true}, orderBy:{valido_desde:'desc'} })});
 });
 router.post('/solicitar', raw({type:'multipart/form-data',limit:'6mb'}), async (req,res) => {
   const s=res.locals.sesion;
