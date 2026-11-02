@@ -76,6 +76,7 @@ export default function ViajaYaRoutes() {
 
       <main key={loc.pathname} className="pagina">
         <Routes>
+          <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
 
@@ -163,7 +164,6 @@ export default function ViajaYaRoutes() {
 
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
-          <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

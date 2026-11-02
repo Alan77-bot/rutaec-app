@@ -18,12 +18,12 @@ router.use("/usuarios", usuariosRoutes);
 router.use("/cooperativas", cooperativasRoutes);
 router.use("/ventas", ventanillaRoutes);
 router.use("/buses", busesRoutes);
-router.use('/reportes-operativos', reportesRoutes);
 router.use("/rutas", rutasRoutes);
 router.use("/horarios", horariosRoutes);
 router.use("/reservas", reservasRoutes);
 router.use("/boletos", boletosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
+router.use('/reportes-operativos', reportesRoutes);
 
 export default router;
