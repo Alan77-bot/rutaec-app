@@ -31,7 +31,7 @@ export default function PresentarPago() {
       const datos = new FormData()
       for (const [key, value] of Object.entries({ compra_id: compraId, metodo, cuenta_bancaria_id: cuenta, clave_idempotencia: clave.current, numero_referencia: referencia, fecha_operacion: fecha, importe_declarado: importe })) datos.append(key, value)
       datos.append('archivo', archivo)
-      const ruta = correccion ? `/api/pagos/revisiones/pagos/${correccion.id}/corregir` : '/api/pagos'
+      const ruta = correccion ? `/api/pagos/revisiones/pagos/${correccion.id}/corregir` : info.ventanilla ? '/api/ventas/comprobante' : '/api/pagos'
       const r = await fetch(ruta, { method: 'POST', credentials: 'include', body: datos }); const b = await r.json()
       if (!r.ok) throw new Error(b.error ?? 'No se pudo recibir el comprobante.')
       nav(`/reserva/${compraId}`, { replace: true })
