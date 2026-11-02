@@ -6,6 +6,7 @@ export default function PresentarPago() {
   const { compraId } = useParams()
   const nav = useNavigate()
   const [info, setInfo] = useState(null)
+  const [plazos,setPlazos] = useState([])
   const [error, setError] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [metodo, setMetodo] = useState('DEPOSITO')
@@ -20,6 +21,7 @@ export default function PresentarPago() {
     fetch(`/api/pagos/cuentas/${compraId}`, { credentials: 'include', signal: control.signal }).then(async r => {
       const b = await r.json(); if (!r.ok) throw new Error(b.error ?? 'No se pudo consultar el pago.'); return b.datos
     }).then(d => { setInfo(d); setCuenta(d.cuentas[0]?.id ?? ''); setImporte(String(d.compra.total)) }).catch(e => { if (e.name !== 'AbortError') setError(e.message) })
+    fetch(`/api/pagos/revisiones/plazos/${compraId}`,{credentials:'include',signal:control.signal}).then(r=>r.ok?r.json():{datos:[]}).then(b=>setPlazos(b.datos)).catch(()=>{})
     return () => control.abort()
   }, [compraId])
   const correccion = info?.pagos.find(p => p.estado === 'CORRECCION')
@@ -38,12 +40,15 @@ export default function PresentarPago() {
     } catch (e) { setError(e.message) } finally { setOcupado(false) }
   }
   const c = info?.cuentas.find(x => x.id === cuenta)
-  const admite = info && (correccion || (info.compra.estado === 'RESERVADA' && new Date(info.compra.vence_en) > new Date()))
+  const correccionVencida = !!correccion && plazos.some(p=>p.correccionVenceEn && new Date(p.correccionVenceEn)<=new Date())
+  const admite = info && !correccionVencida && (correccion || (info.compra.estado === 'RESERVADA' && new Date(info.compra.vence_en) > new Date()))
   return <div className="contenedor"><h1>{correccion ? 'Corregir comprobante' : 'Presentar pago'}</h1><Link to={`/reserva/${compraId}`}>Volver a la reserva</Link>
     {error && <p role="alert" className="auth-aviso">{error}</p>}
     {!info ? <p role="status">Cargando…</p> : <section className="panel"><p>Total de la compra: {info.compra.moneda} {info.compra.total}</p>
       {admite && !correccion && info.tarjeta.habilitada && <TarjetaDemo compraId={compraId} />}
       {correccion && <p role="status">Corrección solicitada: {correccion.motivo}. El archivo anterior se conservará.</p>}
+      {plazos.filter(p=>p.correccionVenceEn).map(p=><p key={p.id}>Plazo de corrección: {new Date(p.correccionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}</p>)}
+      {correccionVencida&&<p>El plazo de corrección terminó. Continúa por la incidencia del pago.</p>}
       {!admite ? <p>Esta compra ya no admite un comprobante en su estado actual. Actualiza su detalle.</p> : <form className="auth-campos" onSubmit={enviar}>
         <label>Método<select value={metodo} onChange={e => setMetodo(e.target.value)} disabled={ocupado || !!correccion}><option value="DEPOSITO">Depósito</option><option value="TRANSFERENCIA">Transferencia</option></select></label>
         <p className="muted">Tarjeta: {info.tarjeta.mensaje}</p>
