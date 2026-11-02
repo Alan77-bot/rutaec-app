@@ -40,6 +40,8 @@ export default function DetalleReserva() {
       <section className="panel"><h2>{compra.cooperativas.nombre_comercial}</h2><p>Código: {compra.id}</p><p>Estado: {compra.estado}</p>
         {compra.estado === 'RESERVADA' && <p role="status">{vigente ? `Tiempo para presentar pago: ${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2,'0')}` : 'El plazo de reserva terminó. Actualizando el estado…'}</p>}
         <p>Total: {compra.moneda} {compra.total}</p>
+        <p><Link to={`/incidencias?compraId=${id}`}>Solicitar cancelación, devolución o informar un pago tardío</Link></p>
+        {compra.pagos.some(p => p.estado === 'APROBADO') && <p><a href={`/api/boletos/recibos/${id}`} target="_blank" rel="noreferrer">Descargar recibo del pago</a></p>}
         {compra.detalle_compra.map(d => <p key={d.id}>{d.pasajero_snapshot.nombres} {d.pasajero_snapshot.apellidos} · asiento {d.asiento_snapshot.numero} · tarifa {d.precio_base} − descuento {d.descuento} = {d.importe}</p>)}
         {compra.motivo && <p>{compra.motivo}</p>}
         {vigente && <Link className="btn btn-acento" to={`/pagar/${id}`}>Presentar pago</Link>}

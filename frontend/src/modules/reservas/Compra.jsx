@@ -46,8 +46,6 @@ export default function Compra() {
   const [paso, setPaso] = useState(0)
   const [elegidos, setElegidos] = useState([])
   const [pasajeros, setPasajeros] = useState([])
-  const [metodo, setMetodo] = useState(ventanilla ? 'Efectivo' : 'Depósito')
-  const [comprobante, setComprobante] = useState(null)
   const [errores, setErrores] = useState({})
 
   const asientos = useMemo(() => disponibilidad?.asientos ?? [], [disponibilidad])
@@ -144,12 +142,6 @@ export default function Compra() {
 
   const total = pasajeros.reduce((suma, p) => suma + conDescuento(p.precio, p.descuento), 0)
   const totalElegidos = elegidos.reduce((suma, id) => suma + (porId.get(id)?.precio ?? 0), 0)
-
-  // La reserva y el pago reales se conectan en la Issue #17.
-  const confirmar = () => {
-    if (metodo !== 'Efectivo' && !comprobante) return avisar('Sube el comprobante de pago para continuar.')
-    avisar('La reserva y el pago se conectan en la siguiente entrega (Issue #17).')
-  }
 
   const lineas =
     paso === 0
