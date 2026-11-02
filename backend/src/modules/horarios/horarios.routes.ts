@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { autenticar } from "../../middlewares/autenticacion.js";
 import { autorizarRoles } from "../../middlewares/autorizacion.js";
+import cancelacionRoutes from './cancelacion.routes.js';
 import {
   cambiarCierreVentas,
   cancelarViajeProgramado,
@@ -18,6 +19,7 @@ const router = Router();
 const soloGestion = [...autenticar, autorizarRoles("admin", "cooperativa")];
 
 router.get("/frecuencias", obtenerFrecuencias);
+router.use(cancelacionRoutes);
 router.post("/frecuencias", ...soloGestion, registrarFrecuencia);
 router.put("/frecuencias/:id", ...soloGestion, editarFrecuencia);
 router.get("/resoluciones", ...soloGestion, obtenerResoluciones);

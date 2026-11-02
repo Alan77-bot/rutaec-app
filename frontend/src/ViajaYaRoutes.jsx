@@ -7,6 +7,7 @@ import { useEffect } from "react";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import CancelacionViajes from "./modules/horarios/CancelacionViajes";
 import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
@@ -190,6 +191,7 @@ export default function ViajaYaRoutes() {
 
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
+          <Route path="/cancelacion-viajes" element={<Protegida roles={["admin", "cooperativa"]}><CancelacionViajes /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

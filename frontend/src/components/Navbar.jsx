@@ -65,6 +65,7 @@ export default function Navbar() {
           <NavLink to="/" end>Inicio</NavLink>
           {sesion && <NavLink to="/perfil">Mi perfil</NavLink>}
           {(!sesion || sesion.rol === 'usuario') && <NavLink to="/mis-viajes">Mis viajes</NavLink>}
+          {['admin','cooperativa'].includes(sesion?.rol) && <NavLink to="/cancelacion-viajes">Cancelar viajes</NavLink>}
           {sesion?.rol === 'oficinista' && <NavLink to="/oficinista">Ventanilla</NavLink>}
           {['admin','cooperativa','oficinista'].includes(sesion?.rol) && <NavLink to="/reporte-operativo">Reportes</NavLink>}
           {sesion?.rol === 'cooperativa' && <NavLink to="/cooperativa">Mi cooperativa</NavLink>}
