@@ -11,6 +11,8 @@ import pagosRoutes from "../modules/pagos/pagos.routes.js";
 import cuentasPagoRoutes from "../modules/pagos/cuentas.routes.js";
 import tarjetaDemoRoutes from "../modules/pagos/tarjeta.demo.routes.js";
 import administracionRoutes from "../modules/administracion/administracion.routes.js";
+import revisionesRoutes from "../modules/pagos/revisiones.routes.js";
+import incidenciasRoutes from "../modules/pagos/incidencias.routes.js";
 
 const router = Router();
 
@@ -20,6 +22,8 @@ router.use("/buses", busesRoutes);
 router.use("/pagos", cuentasPagoRoutes);
 router.use("/pagos", tarjetaDemoRoutes);
 router.use("/rutas", rutasRoutes);
+router.use("/pagos/revisiones", revisionesRoutes);
+router.use("/incidencias", incidenciasRoutes);
 router.use("/horarios", horariosRoutes);
 router.use("/reservas", reservasRoutes);
 router.use("/boletos", boletosRoutes);
