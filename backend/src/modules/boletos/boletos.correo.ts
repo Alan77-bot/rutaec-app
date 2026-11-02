@@ -1,3 +1,4 @@
+import { generarReciboCompra } from './recibos.pdf.js';
 import { obtenerTransporte } from "../usuarios/correo.transporte.js";
 import { prisma } from "../../lib/prisma.js";
 import { generarPdfBoleto } from "./boletos.pdf.js";
@@ -46,7 +47,7 @@ function fecha(valor: string): string {
 
 function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
   const primero = boletos[0].datos_emision;
-  const asunto = `Tus boletos ${primero.origen} → ${primero.destino} · ${primero.cooperativa}`;
+  const asunto = `${primero.modo_demo ? 'DEMOSTRACION SIN COBRO - ' : ''}Tus boletos ${primero.origen} → ${primero.destino} · ${primero.cooperativa}`;
 
   const filas = boletos
     .map((b) => {
@@ -61,7 +62,7 @@ function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
     .join("");
 
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#111">
-    <h2 style="color:#1b3f68">¡Tu pago fue confirmado!</h2>
+    ${primero.modo_demo ? '<p><b>DEMOSTRACION: SIN COBRO REAL. Estos documentos no acreditan una compra real.</b></p>' : ''}<h2 style="color:#1b3f68">¡Tu pago fue confirmado!</h2>
     <p>Estos son tus boletos de <b>${escapar(primero.cooperativa)}</b> para el viaje
     <b>${escapar(primero.origen)} → ${escapar(primero.destino)}</b>.</p>
     <p>Salida: <b>${escapar(fecha(primero.salida))}</b><br/>
@@ -139,6 +140,7 @@ async function procesarEvento(evento: EventoPendiente): Promise<void> {
           contenido: await generarPdfBoleto(b),
         }))
       );
+      adjuntos.push({nombre:`recibo-${evento.entidad_id.slice(0,8)}.pdf`,contenido:await generarReciboCompra(evento.entidad_id)});
       const { asunto, html } = cuerpoHtml(boletos);
       const proveedorId = await enviar({ para: destino, asunto, html, adjuntos });
 
