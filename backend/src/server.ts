@@ -4,9 +4,9 @@ import { iniciarNotificacionesTramites } from "./modules/boletos/notificaciones.
 import { iniciarProcesadorDeCorreos } from "./modules/boletos/boletos.correo.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
+iniciarNotificacionesTramites();
 
 app.listen(PORT, () => {
   console.log(`API RutaEC disponible en http://localhost:${PORT}`);
   iniciarProcesadorDeCorreos();
-  iniciarNotificacionesTramites();
 });
