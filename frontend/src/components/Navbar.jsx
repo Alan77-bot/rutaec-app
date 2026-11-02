@@ -67,6 +67,7 @@ export default function Navbar() {
           {sesion?.rol === 'oficinista' && <NavLink to="/oficinista">Ventanilla</NavLink>}
           {sesion?.rol === 'cooperativa' && <NavLink to="/cooperativa">Mi cooperativa</NavLink>}
           {sesion?.rol === 'admin' && <NavLink to="/admin">AdministraciÃ³n</NavLink>}
+          {['admin','cooperativa'].includes(sesion?.rol) && <NavLink to="/cancelacion-viajes">Cancelar viajes</NavLink>}
         </nav>
 
         <div className="nav-der">
