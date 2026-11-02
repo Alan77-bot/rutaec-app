@@ -3,7 +3,7 @@ import { obtenerTransporte } from '../usuarios/correo.transporte.js';
 
 type Evento = { id:string; tipo:string; entidad_id:string; cooperativa_id:string|null; datos:Record<string,unknown>; intentos:number };
 const titulos:Record<string,string> = {
-  VIAJE_CANCELADO:'Viaje cancelado: consulta tu tramite', PAGO_APROBADO:'Pago aprobado', PAGO_INCIDENCIA:'Pago recibido con incidencia', COMPRA_RESERVADA:'Reserva creada', COMPRA_VENCIDA:'Reserva vencida y asiento liberado', COMPRA_CANCELADA:'Compra cancelada', COMPRA_RECHAZADA:'Pago o compra rechazados', COMPRA_EN_REVISION:'Pago en revisión', COMPRA_CONFIRMADA:'Compra confirmada',
+  REVISION_PLAZO_VENCIDO:'Plazo vencido: pago en conciliacion', DESCUENTO_PLAZO_VENCIDO:'Revision documental fuera de plazo', VIAJE_CANCELADO:'Viaje cancelado: consulta tu tramite', PAGO_APROBADO:'Pago aprobado', PAGO_INCIDENCIA:'Pago recibido con incidencia', COMPRA_RESERVADA:'Reserva creada', COMPRA_VENCIDA:'Reserva vencida y asiento liberado', COMPRA_CANCELADA:'Compra cancelada', COMPRA_RECHAZADA:'Pago o compra rechazados', COMPRA_EN_REVISION:'Pago en revisión', COMPRA_CONFIRMADA:'Compra confirmada',
   COMPROBANTE_RECIBIDO:'Comprobante recibido', COMPROBANTE_CORREGIDO:'Corrección de comprobante recibida',
   DOCUMENTO_RECIBIDO:'Documento recibido para revisión', DESCUENTO_APROBADA:'Descuento aprobado', DESCUENTO_RECHAZADA:'Descuento rechazado', DESCUENTO_CORRECCION:'Corrección de documento solicitada',
   REVISION_PAGO_APROBAR:'Resultado de revisión de pago', REVISION_PAGO_RECHAZAR:'Pago rechazado', REVISION_PAGO_CORREGIR:'Corrección del pago solicitada',
@@ -17,7 +17,7 @@ async function contexto(e:Evento) {
   if(e.tipo==='DOCUMENTO_RECIBIDO'||e.tipo.startsWith('DESCUENTO_')){
     const v=await prisma.validaciones_descuento.findUnique({where:{id:e.entidad_id},include:{pasajeros:{include:{usuarios:{select:{correo:true}}}}}});
     if(!v)throw new Error('Solicitud inexistente');
-    return {usuarioId:v.pasajeros.comprador_id,destinatarios:[v.pasajeros.usuarios.correo],compraId:null as string|null,texto:`Estado: ${v.estado}. ${v.motivo??'Tu documento será revisado por un oficinista; no se reserva ningún asiento por esta solicitud.'}`,destino:'/descuentos'};
+    return {usuarioId:v.pasajeros.comprador_id,destinatarios:[v.pasajeros.usuarios.correo],compraId:null as string|null,texto:`Estado: ${v.estado}. ${typeof e.datos.motivo==='string'?e.datos.motivo:v.motivo??'Tu documento será revisado por un oficinista; no se reserva ningún asiento por esta solicitud.'}`,destino:'/descuentos'};
   }
   const pago=e.tipo.startsWith('PAGO_')?await prisma.pagos.findUnique({where:{id:e.entidad_id},select:{compra_id:true}}):null;
   const compraId=pago?.compra_id??(typeof e.datos.compra_id==='string'?e.datos.compra_id:e.tipo.startsWith('COMPRA_')?e.entidad_id:null);
