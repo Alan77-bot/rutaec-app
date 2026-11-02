@@ -4,6 +4,7 @@ import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../../lib/prisma.js";
 import { autenticar } from "../../middlewares/autenticacion.js";
+import { aplicarPlazosRevision, clavePolitica, plazosRevision } from './revisiones.plazos.js';
 
 const router = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,6 +21,15 @@ function personal(s: { rol: string; coopId: string | null }) {
   throw new ErrorRevision(403, "La revisión corresponde al oficinista autorizado.");
 }
 function motivo(x: unknown) { if (typeof x !== "string" || !x.trim() || x.trim().length > 500) throw new ErrorRevision(400,"Indica un motivo de hasta 500 caracteres."); return x.trim(); }
+router.get('/plazos/:compraId',async(req,res)=>{
+  const s=res.locals.sesion,id=String(req.params.compraId);
+  if(!UUID.test(id))throw new ErrorRevision(400,'Compra inválida.');
+  const compra=await prisma.compras.findFirst({where:{id,...(s.rol==='usuario'?{comprador_id:s.id}:personal(s))}});
+  if(!compra)throw new ErrorRevision(404,'Compra no encontrada.');
+  const revisiones=await prisma.revisiones.findMany({where:{pagos:{compra_id:id}},include:{historial_revisiones:{select:{accion:true,fecha:true}}}});
+  const politicas=await prisma.eventos_salida.findMany({where:{clave_deduplicacion:{in:revisiones.map(r=>clavePolitica(r.id))}},select:{clave_deduplicacion:true,datos:true}});
+  res.json({datos:revisiones.map(r=>({id:r.id,estado:r.estado,alertadoEn:r.alertado_en,...plazosRevision(r,politicas.find(p=>p.clave_deduplicacion===clavePolitica(r.id))?.datos)}))});
+});
 async function revision(s: any, id: string) {
   if (!UUID.test(id)) throw new ErrorRevision(400,"Revisión inválida.");
   const r = await prisma.revisiones.findFirst({ where: { id, ...personal(s) } });
@@ -31,9 +41,10 @@ router.get("/", async (req, res) => {
   const estado = String(req.query.estado ?? "");
   if (estado && !['PENDIENTE','EN_REVISION','CORRECCION','APROBADA','RECHAZADA'].includes(estado)) throw new ErrorRevision(400,"Estado inválido.");
   const datos = await prisma.revisiones.findMany({ where: { ...personal(s), ...(estado ? { estado } : {}) }, orderBy: { creado_en: "asc" }, take: 200,
-    include: { pagos: { include: { comprobantes_pago: { orderBy: { recibido_en: "desc" }, select: { id: true, numero_referencia: true, fecha_operacion: true, importe_declarado: true, archivo_id: true, recibido_en: true } } } }, validaciones_descuento: { include: { pasajeros: true, politicas_descuento: true } }, historial_revisiones: { orderBy: { fecha: "desc" }, select: { actor_id: true, accion: true, motivo: true, fecha: true } } } });
+    include: { pagos: { include: { comprobantes_pago: { orderBy: { recibido_en: "desc" }, select: { id: true, numero_referencia: true, fecha_operacion: true, importe_declarado: true, archivo_id: true, recibido_en: true } } } }, validaciones_descuento_revisiones_validacion_idTovalidaciones_descuento: { include: { pasajeros: true, politicas_descuento: true } }, historial_revisiones: { orderBy: { fecha: "desc" }, select: { actor_id: true, accion: true, motivo: true, fecha: true } } } });
   // BigInt solo aparece en ids de historial que no se seleccionan.
-  res.json({ datos });
+  const eventos=await prisma.eventos_salida.findMany({where:{entidad_id:{in:datos.map(r=>r.id)},tipo:{in:['REVISION_PLAZOS','REVISION_ASIGNACION_RECUPERADA']}},select:{entidad_id:true,tipo:true,datos:true,creado_en:true},orderBy:{creado_en:'desc'}});
+  res.json({ datos:datos.map(r=>({...r,validaciones_descuento:r.validaciones_descuento_revisiones_validacion_idTovalidaciones_descuento,plazos:plazosRevision(r,eventos.find(e=>e.entidad_id===r.id&&e.tipo==='REVISION_PLAZOS')?.datos),historial_sistema:eventos.filter(e=>e.entidad_id===r.id&&e.tipo==='REVISION_ASIGNACION_RECUPERADA')})) });
 });
 router.get("/:id/archivos/:archivoId", async (req, res) => {
   const r = await revision(res.locals.sesion, String(req.params.id));
@@ -49,6 +60,7 @@ router.get("/:id/archivos/:archivoId", async (req, res) => {
 });
 router.post("/:id/tomar", async (req, res) => {
   const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobación de pagos no está concedida al gerente."); const r = await revision(s, String(req.params.id));
+  await aplicarPlazosRevision(r.id);
   // La función SQL exige miembro activo y bloquea la fila: solo uno obtiene la revisión.
   await prisma.$transaction(async tx => { await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`; await tx.$queryRaw`SELECT rutaec.tomar_revision(${r.id}::uuid)`; });
   res.json({ mensaje: "Revisión asignada." });
@@ -71,7 +83,7 @@ router.post("/:id/reasignar", async (req, res) => {
   res.json({ mensaje: "Revisión reasignada." });
 });
 router.post("/:id/resolver", async (req, res) => {
-  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobación de pagos no está concedida al gerente."); const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
+  const s = res.locals.sesion; if (s.rol === "cooperativa") throw new ErrorRevision(403,"La aprobación de pagos no está concedida al gerente."); await revision(s,String(req.params.id)); await aplicarPlazosRevision(String(req.params.id)); const r = await revision(s, String(req.params.id)); const razon = motivo(req.body?.motivo);
   const decision = req.body?.decision; if (!["APROBAR","CORREGIR","RECHAZAR"].includes(decision)) throw new ErrorRevision(400,"Decisión inválida.");
   if (r.asignado_a !== s.id || r.estado !== "EN_REVISION") throw new ErrorRevision(409,"Debes tomar la revisión antes de resolverla.");
   if (r.tipo === 'PAGO' && decision === 'APROBAR' && (!/^\d+(\.\d{1,2})?$/.test(String(req.body?.importeVerificado)) || Number(req.body.importeVerificado) <= 0 || !req.body?.referencia)) throw new ErrorRevision(400,"Comprueba importe y referencia contra la cuenta bancaria.");
@@ -105,6 +117,8 @@ router.post("/pagos/:pagoId/corregir", raw({ type: 'multipart/form-data', limit:
   const pago = await prisma.pagos.findFirst({ where: { id: pagoId, ...(s.rol === 'usuario' ? { compras: { comprador_id: s.id } } : personal(s)) }, include: { compras: { select: { comprador_id: true } } } });
   if (!pago) throw new ErrorRevision(404,"Pago no encontrado.");
   if (pago.estado !== 'CORRECCION') throw new ErrorRevision(409,"Este pago no admite corrección.");
+  const revisionPago=await prisma.revisiones.findFirst({where:{pago_id:pagoId},include:{historial_revisiones:{select:{accion:true,fecha:true}}}});
+  if(revisionPago){const plazos=await aplicarPlazosRevision(revisionPago.id);if(plazos?.correccionVenceEn&&new Date(plazos.correccionVenceEn)<=new Date())throw new ErrorRevision(409,'El plazo de corrección terminó. Continúa desde la incidencia para conciliar el pago.');}
   const form = await new Request('http://interno.invalid', { method: 'POST', headers: { 'Content-Type': req.get('content-type') ?? '' }, body: new Blob([new Uint8Array(req.body)]) }).formData();
   const file = form.get('archivo');
   if (!file || typeof file === 'string' || file.size < 1 || file.size > 5 * 1024 * 1024) throw new ErrorRevision(400,"Archivo inválido (máximo 5 MB).");

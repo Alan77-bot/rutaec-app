@@ -19,7 +19,8 @@ export default function Revisiones() {
     fetch(`/api/pagos/revisiones?estado=${estado}`, { credentials: 'include', signal: c.signal }).then(async r => {
       const b = await r.json(); if (!r.ok) throw new Error(b.error ?? 'No se pudo cargar la bandeja.'); return b.datos
     }).then(datos => { setLista(datos); setSeleccion(actual => datos.find(r => r.id === actual?.id) ?? null) }).catch(e => { if (e.name !== 'AbortError') setError(e.message) })
-    return () => c.abort()
+    const intervalo=setInterval(()=>setVersion(v=>v+1),15000)
+    return () => { c.abort(); clearInterval(intervalo) }
   }, [estado, version])
   async function ejecutar(accion, extra = {}) {
     if (ocupado || !seleccion) return; setOcupado(true); setError(''); setMensaje('')
@@ -40,6 +41,10 @@ export default function Revisiones() {
       {lista?.map(r => <article key={r.id}><button className="btn btn-claro" onClick={() => { setSeleccion(r); setMotivo(''); setReferencia(''); setImporte(r.pagos?.importe ?? '') }}>{r.tipo} · {r.estado} · {r.id.slice(0,8)}</button><p>Responsable: {r.asignado_a ?? 'Sin asignar'} · {new Date(r.creado_en).toLocaleString('es-EC')}</p></article>)}
     </section><section className="panel">
       {!seleccion ? <p>Selecciona un trámite.</p> : <><h2>{seleccion.tipo}</h2><p>Estado: {seleccion.estado}</p>
+        <p>Revisión hasta: {new Date(seleccion.plazos.revisionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}</p>
+        {seleccion.plazos.correccionVenceEn&&<p>Corrección hasta: {new Date(seleccion.plazos.correccionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}</p>}
+        {seleccion.plazos.asignacionVenceEn&&<p>Asignación vigente hasta: {new Date(seleccion.plazos.asignacionVenceEn).toLocaleString('es-EC',{timeZone:'America/Guayaquil'})}. Después se libera para otro oficinista.</p>}
+        {seleccion.alertado_en&&<p role="status">Plazo excedido. Revisa la incidencia antes de confirmar el pago; no se recupera un asiento automáticamente.</p>}
         {seleccion.pagos && <><p>Compra {seleccion.pagos.compra_id} · {seleccion.pagos.moneda} {seleccion.pagos.importe}</p>
           {seleccion.pagos.comprobantes_pago.map(c => <p key={c.id}>Referencia {c.numero_referencia} · importe declarado {c.importe_declarado} · {c.fecha_operacion.slice(0,10)} <a href={`/api/pagos/revisiones/${seleccion.id}/archivos/${c.archivo_id}`} target="_blank" rel="noreferrer">Ver evidencia</a></p>)}
           <label>Importe contrastado con el banco<input type="number" step="0.01" min="0.01" value={importe} onChange={e => setImporte(e.target.value)} /></label>
@@ -53,6 +58,7 @@ export default function Revisiones() {
         </div>
         {gestion && <div><label>Identificador del nuevo revisor (vacío para liberar)<input value={usuarioId} onChange={e => setUsuarioId(e.target.value)} /></label><button className="btn btn-claro" disabled={ocupado || !motivo.trim()} onClick={() => ejecutar('reasignar')}>Reasignar con motivo</button></div>}
         <h3>Historial</h3>{seleccion.historial_revisiones.map((h,i) => <p key={i}>{new Date(h.fecha).toLocaleString('es-EC')} · {h.accion} · {h.motivo}</p>)}
+        {seleccion.historial_sistema?.map((h,i)=><p key={`sistema-${i}`}>{new Date(h.creado_en).toLocaleString('es-EC')} · SISTEMA · {h.datos.motivo}</p>)}
       </>}
     </section></div>
   </div>
