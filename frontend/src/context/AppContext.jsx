@@ -59,6 +59,22 @@ export function AppProvider({ children }) {
     if (s.rol === 'admin') setUsuarios(await api.get('/usuarios'))
   }, [])
 
+  useEffect(() => {
+    if (!sesion) return
+    const control = new AbortController()
+    async function cargarAvisos() {
+      try {
+        const r = await fetch('/api/notificaciones', { credentials:'include', signal:control.signal })
+        if (!r.ok) return
+        const b = await r.json()
+        setCorreos(b.datos.map(n => ({ id:n.id, asunto:n.titulo, para:sesion.correo, hora:n.creada_en, leido:!!n.leida_en, cuerpo:[{ t:'p', texto:n.mensaje }, ...(n.destino_interno?.startsWith('/') && !n.destino_interno.startsWith('//') ? [{ t:'boton', texto:'Ver detalle', ruta:n.destino_interno }] : [])] })))
+      } catch { /* El fallo de un aviso no bloquea las compras. */ }
+    }
+    cargarAvisos()
+    const timer=setInterval(cargarAvisos,15000)
+    return () => { control.abort(); clearInterval(timer) }
+  }, [sesion])
+
   const limpiarSesion = useCallback(() => {
     guardarToken(null)
     setSesion(null)
@@ -317,7 +333,7 @@ export function AppProvider({ children }) {
   const marcarLeidos = useCallback(async () => {
     if (!sesion) return
     try {
-      await api.post('/correos/leidos')
+      const respuesta = await fetch('/api/notificaciones/leidas', { method:'POST', credentials:'include' }); if (!respuesta.ok) return
       setCorreos((l) => l.map((c) => (c.para === sesion.correo ? { ...c, leido: true } : c)))
     } catch {
       /* no es crÃ­tico */

@@ -12,12 +12,12 @@ const titulos:Record<string,string> = {
 async function contexto(e:Evento) {
   if(e.tipo.startsWith('CUENTA_')) {
     const u=await prisma.usuarios.findUnique({where:{id:e.entidad_id},select:{correo:true}});
-    return {destinatarios:[...new Set([u?.correo,typeof e.datos.correo_anterior==='string'?e.datos.correo_anterior:null].filter((c):c is string=>!!c))],compraId:null as string|null,texto:'Si no reconoces este cambio, contacta con soporte y recupera tu cuenta.',destino:'/perfil'};
+    return {usuarioId:e.entidad_id,destinatarios:[...new Set([u?.correo,typeof e.datos.correo_anterior==='string'?e.datos.correo_anterior:null].filter((c):c is string=>!!c))],compraId:null as string|null,texto:'Si no reconoces este cambio, contacta con soporte y recupera tu cuenta.',destino:'/perfil'};
   }
   if(e.tipo==='DOCUMENTO_RECIBIDO'||e.tipo.startsWith('DESCUENTO_')){
     const v=await prisma.validaciones_descuento.findUnique({where:{id:e.entidad_id},include:{pasajeros:{include:{usuarios:{select:{correo:true}}}}}});
     if(!v)throw new Error('Solicitud inexistente');
-    return {destinatarios:[v.pasajeros.usuarios.correo],compraId:null as string|null,texto:`Estado: ${v.estado}. ${v.motivo??'Tu documento será revisado por un oficinista; no se reserva ningún asiento por esta solicitud.'}`,destino:'/descuentos'};
+    return {usuarioId:v.pasajeros.comprador_id,destinatarios:[v.pasajeros.usuarios.correo],compraId:null as string|null,texto:`Estado: ${v.estado}. ${v.motivo??'Tu documento será revisado por un oficinista; no se reserva ningún asiento por esta solicitud.'}`,destino:'/descuentos'};
   }
   const compraId=typeof e.datos.compra_id==='string'?e.datos.compra_id:e.tipo.startsWith('COMPRA_')?e.entidad_id:null;
   if(!compraId)throw new Error('Evento sin compra');
@@ -26,7 +26,7 @@ async function contexto(e:Evento) {
   const cooperativa=await prisma.cooperativas.findUniqueOrThrow({where:{id:c.cooperativa_id},select:{nombre_comercial:true}});
   const demo=c.pagos.some(p=>p.proveedor==='DEMO_SIN_COBRO');
   const detalle=`${demo?'DEMOSTRACIÓN: SIN COBRO REAL. ':''}Compra: ${c.id}. Cooperativa: ${cooperativa.nombre_comercial}. Estado actual: ${c.estado}. Total: ${c.moneda} ${c.total}. ${c.vence_en?`Vencimiento de reserva: ${c.vence_en.toISOString()}.`:''} ${c.motivo??''} ${c.pagos.map(p=>p.motivo??'').join(' ')} ${c.incidencias[0]?.resolucion??''}`;
-  return {destinatarios:[c.correo_destino],compraId,texto:detalle,destino:`/reserva/${c.id}`};
+  return {usuarioId:c.comprador_id,destinatarios:[c.correo_destino],compraId,texto:detalle,destino:`/reserva/${c.id}`};
 }
 
 export function iniciarNotificacionesTramites() {
@@ -41,15 +41,19 @@ export function iniciarNotificacionesTramites() {
         const e=filas[0];if(!e)break;
         try{
           const c=await contexto(e);
+          await prisma.notificaciones.upsert({where:{clave_deduplicacion:`tramite-aviso:${e.id}`},update:{},create:{usuario_id:c.usuarioId,cooperativa_id:e.cooperativa_id,evento_id:e.id,tipo:e.tipo,titulo:titulos[e.tipo],mensaje:c.texto,destino_interno:c.destino,clave_deduplicacion:`tramite-aviso:${e.id}`}});
           for(const destinatario of c.destinatarios){
             const clave=`tramite:${e.id}:${destinatario}`;
             const envio=await prisma.envios_correo.upsert({where:{clave_deduplicacion:clave},update:{},create:{evento_id:e.id,destinatario,plantilla:e.tipo,compra_id:c.compraId,clave_deduplicacion:clave}});
             if(envio.estado==='ENVIADO')continue;
+            await prisma.envios_correo.update({where:{id:envio.id},data:{intentos:{increment:1}}});
+            try {
             const {transporte,usuario}=obtenerTransporte();
             const base=process.env.FRONTEND_URL??'http://localhost:5173';
             const resultado=await transporte.sendMail({from:{name:'RutaEC',address:usuario},to:destinatario,subject:`RutaEC · ${titulos[e.tipo]}`,messageId:`<tramite-${envio.id}@rutaec.local>`,text:`${titulos[e.tipo]}\n\n${c.texto}\n\nConsulta el detalle: ${new URL(c.destino,base).toString()}\n\nEste aviso no contiene documentos de identidad ni datos de tarjeta.`});
             if(!resultado.accepted.length)throw new Error('No aceptado');
-            await prisma.envios_correo.update({where:{id:envio.id},data:{estado:'ENVIADO',enviado_en:new Date(),proveedor_id:resultado.messageId,intentos:{increment:1},ultimo_error:null}});
+            await prisma.envios_correo.update({where:{id:envio.id},data:{estado:'ENVIADO',enviado_en:new Date(),proveedor_id:resultado.messageId,ultimo_error:null}});
+            } catch (error) { await prisma.envios_correo.update({where:{id:envio.id},data:{estado:'ERROR',ultimo_error:'No se pudo entregar el aviso por SMTP.'}}); throw error; }
           }
           await prisma.eventos_salida.update({where:{id:e.id},data:{estado:'COMPLETADO',procesado_en:new Date(),bloqueado_hasta:null}});
         }catch{
