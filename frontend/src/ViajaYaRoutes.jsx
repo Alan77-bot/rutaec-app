@@ -7,6 +7,7 @@ import Footer from "./components/Footer";
 import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
+import ReporteOperativo from './modules/pagos/ReporteOperativo';
 import Login from "./modules/usuarios/Login";
 import Resultados from "./modules/reservas/Resultados";
 import Compra from "./modules/reservas/Compra";
@@ -162,6 +163,7 @@ export default function ViajaYaRoutes() {
 
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
+          <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
