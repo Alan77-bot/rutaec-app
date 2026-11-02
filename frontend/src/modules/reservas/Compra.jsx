@@ -12,6 +12,7 @@ import {
 import { urlResultados } from './reservas.enlaces'
 import { DESCUENTOS, cedulaValida } from '../../data/viajes'
 import { fechaLarga } from '../../data/fechas'
+import CrearReserva from './CrearReserva'
 
 const PASOS = ['Asientos', 'Pasajeros', 'Pago']
 
@@ -70,8 +71,6 @@ export default function Compra() {
   )
 
   const [pasajeros, setPasajeros] = useState([])
-  const [metodo, setMetodo] = useState(ventanilla ? 'Efectivo' : 'Depósito')
-  const [comprobante, setComprobante] = useState(null)
   const [errores, setErrores] = useState({})
 
   const asientos = useMemo(() => disponibilidad?.asientos ?? [], [disponibilidad])
@@ -189,7 +188,7 @@ export default function Compra() {
     const err = {}
     pasajeros.forEach((p, i) => {
       if (p.nombre.trim().length < 3) err[`n${i}`] = 'Escribe el nombre completo'
-      if (!cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
+      if (p.tipoDocumento === 'PASAPORTE' ? !/^[A-Z0-9]{4,20}$/i.test(p.cedula) : !cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
       if (!/^\S+@\S+\.\S+$/.test(p.correo)) err[`m${i}`] = 'Correo no válido'
     })
     setErrores(err)
@@ -199,12 +198,6 @@ export default function Compra() {
 
   const total = pasajeros.reduce((suma, p) => suma + conDescuento(p.precio, p.descuento), 0)
   const totalElegidos = elegidos.reduce((suma, id) => suma + (porId.get(id)?.precio ?? 0), 0)
-
-  // La reserva y el pago reales se conectan en la Issue #17.
-  const confirmar = () => {
-    if (metodo !== 'Efectivo' && !comprobante) return avisar('Sube el comprobante de pago para continuar.')
-    avisar('La reserva y el pago se conectan en la siguiente entrega (Issue #17).')
-  }
 
   const lineas =
     paso === 0
@@ -294,20 +287,16 @@ export default function Compra() {
                     <input value={p.nombre} onChange={(e) => cambiarPas(i, 'nombre', e.target.value)} />
                     {errores[`n${i}`] && <small>{errores[`n${i}`]}</small>}
                   </label>
-                  <label className={errores[`c${i}`] ? 'err' : ''}>Cédula
-                    <input value={p.cedula} inputMode="numeric" maxLength={10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
+                  <label>Tipo de documento<select value={p.tipoDocumento??'CEDULA'} onChange={e=>cambiarPas(i,'tipoDocumento',e.target.value)}><option value="CEDULA">Cédula ecuatoriana</option><option value="PASAPORTE">Pasaporte</option></select></label>
+                  <label className={errores[`c${i}`] ? 'err' : ''}>Número de documento
+                    <input value={p.cedula} inputMode={p.tipoDocumento === "PASAPORTE" ? "text" : "numeric"} maxLength={p.tipoDocumento === "PASAPORTE" ? 20 : 10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
                     {errores[`c${i}`] && <small>{errores[`c${i}`]}</small>}
                   </label>
                   <label className={errores[`m${i}`] ? 'err' : ''}>Correo
                     <input value={p.correo} onChange={(e) => cambiarPas(i, 'correo', e.target.value)} />
                     {errores[`m${i}`] && <small>{errores[`m${i}`]}</small>}
                   </label>
-                  <label>Descuento
-                    <select value={p.descuento} onChange={(e) => cambiarPas(i, 'descuento', e.target.value)}>
-                      {Object.entries(DESCUENTOS).map(([k, d]) => <option key={k} value={k}>{d.nombre}{d.pct ? ' (50%)' : ''}</option>)}
-                    </select>
-                    {p.descuento !== 'ninguno' && <small className="ayuda">Se valida con la cédula al abordar.</small>}
-                  </label>
+                  <p className="ayuda">Solo se aplican descuentos con validación documental aprobada. El importe final lo calcula el servidor.</p>
                 </fieldset>
               ))}
               <div className="acciones">
@@ -317,43 +306,7 @@ export default function Compra() {
             </>
           )}
 
-          {paso === 2 && (
-            <>
-              <h3>Método de pago</h3>
-              <div className="metodos">
-                {ventanilla && (
-                  <label className={metodo === 'Efectivo' ? 'on' : ''}>
-                    <input type="radio" checked={metodo === 'Efectivo'} onChange={() => setMetodo('Efectivo')} />
-                    <b>Efectivo</b><small>Cobro en ventanilla</small>
-                  </label>
-                )}
-                <label className={metodo === 'Depósito' ? 'on' : ''}>
-                  <input type="radio" checked={metodo === 'Depósito'} onChange={() => setMetodo('Depósito')} />
-                  <b>Depósito</b><small>Sube la foto del comprobante</small>
-                </label>
-                <label className={metodo === 'Transferencia' ? 'on' : ''}>
-                  <input type="radio" checked={metodo === 'Transferencia'} onChange={() => setMetodo('Transferencia')} />
-                  <b>Transferencia</b><small>Desde tu banca en línea</small>
-                </label>
-              </div>
-              {metodo !== 'Efectivo' && (
-                <div className="banco">
-                  <p>Los datos bancarios de <b>{coop.nombre}</b> se muestran al confirmar la reserva.</p>
-                  <label className="subir">
-                    <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files[0])} />
-                    {comprobante ? `✓ ${comprobante.name}` : 'Subir comprobante (imagen o PDF)'}
-                  </label>
-                  <small className="ayuda">El oficinista lo revisará y recibirás un correo con la respuesta.</small>
-                </div>
-              )}
-              <div className="acciones">
-                <button className="btn btn-claro" onClick={() => setPaso(1)}>Atrás</button>
-                <button className="btn btn-acento btn-lg" onClick={confirmar}>
-                  {metodo === 'Efectivo' ? 'Cobrar y emitir boleto' : 'Enviar comprobante'}
-                </button>
-              </div>
-            </>
-          )}
+          {paso === 2 && <CrearReserva pasajeros={pasajeros} viajeId={viajeId} origen={origen} destino={destino} cooperativaId={coop.id} />}
         </section>
 
         <aside className="resumen">

@@ -1,0 +1,11 @@
+# Complemento del compose principal. No crea ni modifica servicios de base de datos.
+# docker compose -f compose.yaml -f compose.documentos.yaml up -d --build
+services:
+  backend:
+    environment:
+      DOCUMENTOS_DIR: /app/storage/documentos
+    volumes:
+      - rutaec_documentos:/app/storage/documentos
+
+volumes:
+  rutaec_documentos:
