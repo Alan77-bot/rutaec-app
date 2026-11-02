@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
+import ReporteOperativo from './modules/pagos/ReporteOperativo';
 import Login from "./modules/usuarios/Login";
 import Perfil from "./modules/usuarios/Perfil";
 import Resultados from "./modules/reservas/Resultados";
@@ -83,6 +84,7 @@ export default function ViajaYaRoutes() {
 
       <main key={loc.pathname} className="pagina">
         <Routes>
+          <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
           <Route path="/perfil" element={<Protegida roles={["admin", "cooperativa", "oficinista", "usuario"]}><Perfil /></Protegida>} />

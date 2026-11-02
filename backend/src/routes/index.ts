@@ -5,8 +5,10 @@ import cooperativasRoutes from "../modules/cooperativas/cooperativas.routes.js";
 import rutasRoutes from "../modules/rutas/rutas.routes.js";
 import horariosRoutes from "../modules/horarios/horarios.routes.js";
 import reservasRoutes from "../modules/reservas/reservas.routes.js";
+import ventanillaRoutes from "../modules/pagos/ventanilla.routes.js";
 import boletosRoutes from "../modules/boletos/boletos.routes.js";
 import busesRoutes from "../modules/buses/buses.routes.js";
+import reportesRoutes from '../modules/pagos/reportes.routes.js';
 import pagosRoutes from "../modules/pagos/pagos.routes.js";
 import cuentasPagoRoutes from "../modules/pagos/cuentas.routes.js";
 import tarjetaDemoRoutes from "../modules/pagos/tarjeta.demo.routes.js";
@@ -18,6 +20,7 @@ const router = Router();
 
 router.use("/usuarios", usuariosRoutes);
 router.use("/cooperativas", cooperativasRoutes);
+router.use("/ventas", ventanillaRoutes);
 router.use("/buses", busesRoutes);
 router.use("/pagos", cuentasPagoRoutes);
 router.use("/pagos", tarjetaDemoRoutes);
@@ -29,5 +32,6 @@ router.use("/reservas", reservasRoutes);
 router.use("/boletos", boletosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
+router.use('/reportes-operativos', reportesRoutes);
 
 export default router;
