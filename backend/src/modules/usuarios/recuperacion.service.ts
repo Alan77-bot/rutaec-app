@@ -186,12 +186,12 @@ export async function restablecerContrasena(entrada: unknown) {
 
   if (
     typeof nuevaClave !== "string" ||
-    nuevaClave.length < 12 ||
+    nuevaClave.length < 8 ||
     Buffer.byteLength(nuevaClave, "utf8") > 72
   ) {
     throw new ErrorAutenticacion(
       400,
-      "La contraseña debe tener al menos 12 caracteres y hasta 72 bytes."
+      "La contraseña debe tener al menos 8 caracteres y hasta 72 bytes."
     );
   }
 
