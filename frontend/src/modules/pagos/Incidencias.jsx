@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
+import { useSearchParams } from 'react-router-dom'
 
 export default function Incidencias() {
   const {sesion}=useApp()
+  const [parametros] = useSearchParams()
   const [lista,setLista]=useState(null)
-  const [form,setForm]=useState({compraId:'',tipo:'CANCELACION',motivo:''})
+  const [form,setForm]=useState({compraId:parametros.get('compraId') ?? '',tipo:'CANCELACION',motivo:''})
   const [elegida,setElegida]=useState(null)
   const [decision,setDecision]=useState({decision:'CERRAR',motivo:'',importe:'',referencia:'',cuentaId:'',metodo:'TRANSFERENCIA',cancelarCompra:false})
   const [error,setError]=useState(''),[mensaje,setMensaje]=useState(''),[version,setVersion]=useState(0),[ocupado,setOcupado]=useState(false)
