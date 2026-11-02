@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { autenticar } from "../../middlewares/autenticacion.js";
 import { autorizarRoles } from "../../middlewares/autorizacion.js";
+import cancelacionRoutes from './cancelacion.routes.js';
 import {
   editarFrecuencia,
   obtenerFrecuencias,
@@ -16,5 +17,6 @@ router.get("/frecuencias", obtenerFrecuencias);
 router.post("/frecuencias", ...soloGestion, registrarFrecuencia);
 router.put("/frecuencias/:id", ...soloGestion, editarFrecuencia);
 router.get("/resoluciones", ...soloGestion, obtenerResoluciones);
+router.use(cancelacionRoutes);
 
 export default router;
