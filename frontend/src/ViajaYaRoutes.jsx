@@ -13,6 +13,7 @@ import Compra from "./modules/reservas/Compra";
 import Boleto from "./modules/boletos/Boleto";
 import Historial from "./modules/boletos/Historial";
 import PanelOficinista from "./modules/pagos/PanelOficinista";
+import PresentarPago from "./modules/pagos/PresentarPago";
 import PanelCoop from "./modules/cooperativas/PanelCoop";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
@@ -159,6 +160,8 @@ export default function ViajaYaRoutes() {
               </Protegida>
             }
           />
+
+          <Route path="/pagar/:compraId" element={<Protegida roles={["usuario", "oficinista"]}><PresentarPago /></Protegida>} />
 
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
