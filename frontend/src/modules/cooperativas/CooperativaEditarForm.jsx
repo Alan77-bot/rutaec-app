@@ -1,20 +1,50 @@
 
 import { useEffect, useState } from 'react'
+import { actualizarCooperativa } from './services/cooperativas.service'
 
-export default function CooperativaEditarForm({ cooperativa, onCancelar }) {
+export default function CooperativaEditarForm({ cooperativa, onCancelar, onActualizada }) {
   const [form, setForm] = useState({
-    nombre_comercial: '',
-    razon_social: '',
-  })
+  nombre_comercial: '',
+  razon_social: '',
+  correo: '',
+  telefono: '',
+  direccion: '',
+  sitio_web: '',
+})
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (cooperativa) {
       setForm({
         nombre_comercial: cooperativa.nombre_comercial,
         razon_social: cooperativa.razon_social,
+        correo: cooperativa.correo ?? '',
+        telefono: cooperativa.telefono ?? '',
+        direccion: cooperativa.direccion ?? '',
+        sitio_web: cooperativa.sitio_web ?? '',
       })
     }
   }, [cooperativa])
+
+  async function guardar(e) {
+  e.preventDefault()
+  setGuardando(true)
+  setError('')
+
+  try {
+    await actualizarCooperativa(cooperativa.id, form)
+    await onActualizada?.()
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'No se pudo actualizar la cooperativa'
+    )
+  } finally {
+    setGuardando(false)
+  }
+}
 
   if (!cooperativa) return null
 
@@ -26,7 +56,7 @@ export default function CooperativaEditarForm({ cooperativa, onCancelar }) {
   }
 
   return (
-    <div className="panel">
+    <form className="panel" onSubmit={guardar}>
       <h4>Editar cooperativa</h4>
 
       <p className="muted">
@@ -51,13 +81,52 @@ export default function CooperativaEditarForm({ cooperativa, onCancelar }) {
         />
       </label>
 
+      <label>
+  Correo electrónico
+  <input
+    type="email"
+    value={form.correo}
+    required
+    onChange={(e) => cambiar('correo', e.target.value)}
+  />
+</label>
+
+<label>
+  Teléfono
+  <input
+    type="tel"
+    value={form.telefono}
+    required
+    onChange={(e) => cambiar('telefono', e.target.value)}
+  />
+</label>
+
+<label>
+  Dirección
+  <input
+    value={form.direccion}
+    required
+    onChange={(e) => cambiar('direccion', e.target.value)}
+  />
+</label>
+
+<label>
+  Sitio web (opcional)
+  <input
+    type="url"
+    value={form.sitio_web}
+    placeholder="https://ejemplo.com"
+    onChange={(e) => cambiar('sitio_web', e.target.value)}
+  />
+</label>
+
       <div className="form-fila">
         <button
-          type="button"
+          type="submit"
           className="btn btn-oscuro"
-          disabled
+          disabled={guardando}
         >
-          Guardar cambios
+         {guardando ? 'Guardando...' : 'Guardar cambios'}
         </button>
 
         <button
@@ -69,10 +138,7 @@ export default function CooperativaEditarForm({ cooperativa, onCancelar }) {
         </button>
       </div>
 
-      <p className="muted">
-        La edición estará disponible cuando se integren
-        los permisos de administrador.
-      </p>
-    </div>
+      {error && <p role="alert" className="muted">{error}</p>}
+    </form>
   )
 }
