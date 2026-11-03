@@ -4,6 +4,26 @@ import { oficinistasService } from './services/oficinistas.service'
 
 const LIMITE = 10
 
+const FORMULARIO_VACIO = {
+  nombres: '',
+  apellidos: '',
+  correo: '',
+  numero_documento: '',
+  telefono: '',
+  clave: '',
+}
+
+const PAGINACION_INICIAL = {
+  pagina: 1,
+  limite: LIMITE,
+  total: 0,
+  totalPaginas: 0,
+}
+
+function obtenerMensajeError(error, predeterminado) {
+  return error instanceof Error ? error.message : predeterminado
+}
+
 export default function TabOficinistas() {
   const [oficinistas, setOficinistas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -11,30 +31,42 @@ export default function TabOficinistas() {
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
 
+  // Asignación de usuarios existentes
   const [mostrarAsignacion, setMostrarAsignacion] = useState(false)
   const [usuariosDisponibles, setUsuariosDisponibles] = useState([])
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
   const [errorUsuarios, setErrorUsuarios] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
-  const [paginacion, setPaginacion] = useState({
-    pagina: 1,
-    limite: LIMITE,
-    total: 0,
-    totalPaginas: 0,
-  })
+  const [paginacion, setPaginacion] = useState(PAGINACION_INICIAL)
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('')
   const [asignando, setAsignando] = useState(false)
 
+  // Registro de nuevos oficinistas
+  const [mostrarCreacion, setMostrarCreacion] = useState(false)
+  const [creando, setCreando] = useState(false)
+  const [nuevoOficinista, setNuevoOficinista] = useState({
+    ...FORMULARIO_VACIO,
+  })
+
+  const hayOperacion = asignando || creando || procesando !== null
+
+  // Cargar personal registrado
   const cargar = useCallback(async () => {
     setCargando(true)
-    setError('')
 
     try {
       const datos = await oficinistasService.listar()
       setOficinistas(datos)
+      return true
     } catch (err) {
-      setError(err.message || 'No se pudieron cargar los oficinistas.')
+      setError(
+        obtenerMensajeError(
+          err,
+          'No se pudieron cargar los oficinistas.'
+        )
+      )
+      return false
     } finally {
       setCargando(false)
     }
@@ -44,15 +76,16 @@ export default function TabOficinistas() {
     cargar()
   }, [cargar])
 
+  // Consultar usuarios disponibles con búsqueda y paginación
   useEffect(() => {
     if (!mostrarAsignacion) return
 
     let cancelado = false
 
-    const consultar = async () => {
-      setCargandoUsuarios(true)
-      setErrorUsuarios('')
+    setCargandoUsuarios(true)
+    setErrorUsuarios('')
 
+    const consultar = async () => {
       try {
         const resultado =
           await oficinistasService.listarUsuariosDisponibles(
@@ -69,11 +102,17 @@ export default function TabOficinistas() {
         if (cancelado) return
 
         setUsuariosDisponibles([])
+        setPaginacion(PAGINACION_INICIAL)
         setErrorUsuarios(
-          err.message || 'No se pudieron cargar los usuarios disponibles.'
+          obtenerMensajeError(
+            err,
+            'No se pudieron cargar los usuarios disponibles.'
+          )
         )
       } finally {
-        if (!cancelado) setCargandoUsuarios(false)
+        if (!cancelado) {
+          setCargandoUsuarios(false)
+        }
       }
     }
 
@@ -85,12 +124,18 @@ export default function TabOficinistas() {
     }
   }, [mostrarAsignacion, busqueda, pagina])
 
+  // Abrir asignación
   const abrirAsignacion = () => {
+    setMostrarCreacion(false)
+    setNuevoOficinista({ ...FORMULARIO_VACIO })
+
     setBusqueda('')
     setPagina(1)
     setUsuarioSeleccionado('')
     setUsuariosDisponibles([])
+    setPaginacion(PAGINACION_INICIAL)
     setErrorUsuarios('')
+    setError('')
     setMensaje('')
     setMostrarAsignacion(true)
   }
@@ -101,8 +146,9 @@ export default function TabOficinistas() {
     setErrorUsuarios('')
   }
 
+  // Asignar usuario existente
   const asignarUsuario = async () => {
-    if (!usuarioSeleccionado || asignando) return
+    if (!usuarioSeleccionado || hayOperacion) return
 
     setAsignando(true)
     setError('')
@@ -110,18 +156,27 @@ export default function TabOficinistas() {
 
     try {
       await oficinistasService.asignar(usuarioSeleccionado)
-      await cargar()
 
       cerrarAsignacion()
+
       setMensaje('Oficinista asignado correctamente.')
+      await cargar()
     } catch (err) {
-      setError(err.message || 'No se pudo asignar el oficinista.')
+      setError(
+        obtenerMensajeError(
+          err,
+          'No se pudo asignar el oficinista.'
+        )
+      )
     } finally {
       setAsignando(false)
     }
   }
 
+  // Activar o desactivar oficinista
   const cambiarEstado = async (oficinista) => {
+    if (hayOperacion) return
+
     const activar = !oficinista.activo
 
     setProcesando(oficinista.usuario_id)
@@ -134,17 +189,79 @@ export default function TabOficinistas() {
         activar
       )
 
-      await cargar()
-
       setMensaje(
         activar
           ? 'Oficinista activado correctamente.'
           : 'Oficinista desactivado correctamente.'
       )
+
+      await cargar()
     } catch (err) {
-      setError(err.message || 'No se pudo cambiar el estado.')
+      setError(
+        obtenerMensajeError(
+          err,
+          'No se pudo cambiar el estado.'
+        )
+      )
     } finally {
       setProcesando(null)
+    }
+  }
+
+  // Abrir formulario de creación
+  const abrirCreacion = () => {
+    cerrarAsignacion()
+    setNuevoOficinista({ ...FORMULARIO_VACIO })
+    setError('')
+    setMensaje('')
+    setMostrarCreacion(true)
+  }
+
+  // Cerrar formulario de creación
+  const cerrarCreacion = () => {
+    setMostrarCreacion(false)
+    setNuevoOficinista({ ...FORMULARIO_VACIO })
+  }
+
+  // Actualizar campos del formulario
+  const actualizarNuevoOficinista = (evento) => {
+    const { name, value } = evento.target
+
+    setNuevoOficinista((actual) => ({
+      ...actual,
+      [name]: value,
+    }))
+  }
+
+  // Registrar nuevo oficinista
+  const registrarOficinista = async (evento) => {
+    evento.preventDefault()
+
+    if (hayOperacion) return
+
+    setCreando(true)
+    setError('')
+    setMensaje('')
+
+    try {
+      await oficinistasService.registrarNuevo(nuevoOficinista)
+
+      cerrarCreacion()
+
+      setMensaje(
+        'Oficinista registrado correctamente. Debe verificar su correo electrónico antes de utilizar su cuenta.'
+      )
+
+      await cargar()
+    } catch (err) {
+      setError(
+        obtenerMensajeError(
+          err,
+          'No se pudo registrar el oficinista.'
+        )
+      )
+    } finally {
+      setCreando(false)
     }
   }
 
@@ -156,7 +273,9 @@ export default function TabOficinistas() {
     <section>
       <div className="seccion-cab izq">
         <h2>Gestión de oficinistas</h2>
-        <p>Administra el acceso del personal de tu cooperativa.</p>
+        <p>
+          Administra el acceso del personal de tu cooperativa.
+        </p>
       </div>
 
       {error && (
@@ -172,6 +291,7 @@ export default function TabOficinistas() {
       )}
 
       <div className="panel">
+        {/* Cabecera y botones */}
         <div className="form-fila">
           <h4>Personal registrado</h4>
 
@@ -179,7 +299,7 @@ export default function TabOficinistas() {
             <button
               type="button"
               className="btn btn-oscuro"
-              disabled={asignando}
+              disabled={hayOperacion}
               onClick={
                 mostrarAsignacion
                   ? cerrarAsignacion
@@ -193,15 +313,182 @@ export default function TabOficinistas() {
 
             <button
               type="button"
+              className="btn btn-oscuro"
+              disabled={hayOperacion}
+              onClick={
+                mostrarCreacion
+                  ? cerrarCreacion
+                  : abrirCreacion
+              }
+            >
+              {mostrarCreacion
+                ? 'Cancelar creación'
+                : 'Crear nuevo oficinista'}
+            </button>
+
+            <button
+              type="button"
               className="btn btn-claro"
-              onClick={cargar}
-              disabled={cargando}
+              disabled={cargando || hayOperacion}
+              onClick={() => {
+                setError('')
+                setMensaje('')
+                cargar()
+              }}
             >
               Actualizar
             </button>
           </div>
         </div>
 
+        {/* Formulario para crear nuevo oficinista */}
+        {mostrarCreacion && (
+          <div className="panel">
+            <h4>Crear nuevo oficinista</h4>
+
+            <p className="muted">
+              Registra un usuario nuevo y asígnalo a tu
+              cooperativa. Deberá verificar su correo
+              electrónico antes de utilizar su cuenta.
+            </p>
+
+            <form onSubmit={registrarOficinista}>
+              <div className="form-fila">
+                <label htmlFor="oficinista-nombres">
+                  Nombres
+                </label>
+                <input
+                  id="oficinista-nombres"
+                  name="nombres"
+                  type="text"
+                  maxLength={100}
+                  required
+                  autoComplete="given-name"
+                  value={nuevoOficinista.nombres}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <div className="form-fila">
+                <label htmlFor="oficinista-apellidos">
+                  Apellidos
+                </label>
+                <input
+                  id="oficinista-apellidos"
+                  name="apellidos"
+                  type="text"
+                  maxLength={100}
+                  required
+                  autoComplete="family-name"
+                  value={nuevoOficinista.apellidos}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <div className="form-fila">
+                <label htmlFor="oficinista-correo">
+                  Correo electrónico
+                </label>
+                <input
+                  id="oficinista-correo"
+                  name="correo"
+                  type="email"
+                  maxLength={254}
+                  required
+                  autoComplete="email"
+                  value={nuevoOficinista.correo}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <div className="form-fila">
+                <label htmlFor="oficinista-documento">
+                  Cédula
+                </label>
+                <input
+                  id="oficinista-documento"
+                  name="numero_documento"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
+                  required
+                  value={nuevoOficinista.numero_documento}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <div className="form-fila">
+                <label htmlFor="oficinista-telefono">
+                  Celular
+                </label>
+                <input
+                  id="oficinista-telefono"
+                  name="telefono"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="09[0-9]{8}"
+                  maxLength={10}
+                  required
+                  autoComplete="tel"
+                  value={nuevoOficinista.telefono}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <div className="form-fila">
+                <label htmlFor="oficinista-clave">
+                  Contraseña
+                </label>
+                <input
+                  id="oficinista-clave"
+                  name="clave"
+                  type="password"
+                  minLength={12}
+                  required
+                  autoComplete="new-password"
+                  value={nuevoOficinista.clave}
+                  onChange={actualizarNuevoOficinista}
+                  disabled={creando}
+                />
+              </div>
+
+              <p className="muted">
+                La contraseña debe contener al menos
+                12 caracteres. El correo se verificará
+                mediante el proceso habitual.
+              </p>
+
+              <div className="form-fila">
+                <button
+                  type="submit"
+                  className="btn btn-oscuro"
+                  disabled={creando}
+                >
+                  {creando
+                    ? 'Registrando...'
+                    : 'Registrar oficinista'}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-claro"
+                  onClick={cerrarCreacion}
+                  disabled={creando}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tabla para asignar usuarios existentes */}
         {mostrarAsignacion && (
           <div className="panel">
             <h4>Usuarios disponibles</h4>
@@ -214,6 +501,7 @@ export default function TabOficinistas() {
               <input
                 id="buscar-oficinista"
                 type="search"
+                maxLength={100}
                 placeholder="Nombre, apellido, correo o documento"
                 value={busqueda}
                 disabled={asignando}
@@ -221,6 +509,9 @@ export default function TabOficinistas() {
                   setBusqueda(evento.target.value)
                   setPagina(1)
                   setUsuarioSeleccionado('')
+                  setUsuariosDisponibles([])
+                  setPaginacion(PAGINACION_INICIAL)
+                  setCargandoUsuarios(true)
                 }}
               />
             </div>
@@ -233,7 +524,8 @@ export default function TabOficinistas() {
 
             {cargandoUsuarios ? (
               <p className="muted">Buscando usuarios...</p>
-            ) : !errorUsuarios && usuariosDisponibles.length === 0 ? (
+            ) : !errorUsuarios &&
+              usuariosDisponibles.length === 0 ? (
               <div className="vacio">
                 No se encontraron usuarios disponibles.
               </div>
@@ -255,11 +547,14 @@ export default function TabOficinistas() {
                         <tr key={usuario.id}>
                           <td>
                             <b>
-                              {usuario.nombres} {usuario.apellidos}
+                              {usuario.nombres}{' '}
+                              {usuario.apellidos}
                             </b>
                           </td>
+
                           <td>{usuario.correo}</td>
                           <td>{usuario.numero_documento}</td>
+
                           <td>
                             <button
                               type="button"
@@ -289,10 +584,12 @@ export default function TabOficinistas() {
                   <button
                     type="button"
                     className="btn btn-claro"
-                    disabled={pagina <= 1 || cargandoUsuarios || asignando}
+                    disabled={pagina <= 1 || hayOperacion}
                     onClick={() => {
                       setPagina((actual) => actual - 1)
                       setUsuarioSeleccionado('')
+                      setUsuariosDisponibles([])
+                      setCargandoUsuarios(true)
                     }}
                   >
                     Anterior
@@ -310,12 +607,13 @@ export default function TabOficinistas() {
                     className="btn btn-claro"
                     disabled={
                       pagina >= paginacion.totalPaginas ||
-                      cargandoUsuarios ||
-                      asignando
+                      hayOperacion
                     }
                     onClick={() => {
                       setPagina((actual) => actual + 1)
                       setUsuarioSeleccionado('')
+                      setUsuariosDisponibles([])
+                      setCargandoUsuarios(true)
                     }}
                   >
                     Siguiente
@@ -324,12 +622,13 @@ export default function TabOficinistas() {
               </>
             ) : null}
 
-            {seleccionado && (
+            {seleccionado && !cargandoUsuarios && (
               <div className="panel">
                 <p>
                   Vas a asignar a{' '}
                   <b>
-                    {seleccionado.nombres} {seleccionado.apellidos}
+                    {seleccionado.nombres}{' '}
+                    {seleccionado.apellidos}
                   </b>{' '}
                   como oficinista de tu cooperativa.
                 </p>
@@ -337,7 +636,7 @@ export default function TabOficinistas() {
                 <button
                   type="button"
                   className="btn btn-oscuro"
-                  disabled={asignando}
+                  disabled={hayOperacion}
                   onClick={asignarUsuario}
                 >
                   {asignando
@@ -349,8 +648,11 @@ export default function TabOficinistas() {
           </div>
         )}
 
+        {/* Listado de oficinistas registrados */}
         {cargando ? (
-          <p className="muted">Cargando oficinistas...</p>
+          <p className="muted">
+            Cargando oficinistas...
+          </p>
         ) : oficinistas.length === 0 ? (
           <div className="vacio">
             <b>Aún no tienes oficinistas registrados.</b>
@@ -372,7 +674,9 @@ export default function TabOficinistas() {
                 {oficinistas.map((oficinista) => (
                   <tr
                     key={oficinista.usuario_id}
-                    className={oficinista.activo ? '' : 'inactiva'}
+                    className={
+                      oficinista.activo ? '' : 'inactiva'
+                    }
                   >
                     <td>
                       <b>
@@ -381,18 +685,33 @@ export default function TabOficinistas() {
                       </b>
                     </td>
 
-                    <td>{oficinista.usuarios.correo}</td>
-                    <td>{oficinista.usuarios.telefono}</td>
+                    <td>
+                      {oficinista.usuarios.correo}
+                    </td>
+
+                    <td>
+                      {oficinista.usuarios.telefono}
+                    </td>
 
                     <td>
                       <span
                         className={
                           'badge ' +
-                          (oficinista.activo ? 'verde' : 'gris')
+                          (oficinista.activo
+                            ? 'verde'
+                            : 'gris')
                         }
                       >
-                        {oficinista.activo ? 'Activo' : 'Inactivo'}
+                        {oficinista.activo
+                          ? 'Activo'
+                          : 'Inactivo'}
                       </span>
+
+                      {!oficinista.usuarios.correo_verificado_en && (
+                        <span className="muted">
+                          {' '}· Correo pendiente
+                        </span>
+                      )}
                     </td>
 
                     <td>
@@ -405,11 +724,13 @@ export default function TabOficinistas() {
                             : 'btn-oscuro')
                         }
                         disabled={
-                          procesando === oficinista.usuario_id ||
+                          hayOperacion ||
                           !oficinista.usuarios.activo ||
                           !oficinista.usuarios.correo_verificado_en
                         }
-                        onClick={() => cambiarEstado(oficinista)}
+                        onClick={() =>
+                          cambiarEstado(oficinista)
+                        }
                       >
                         {procesando === oficinista.usuario_id
                           ? 'Guardando...'
