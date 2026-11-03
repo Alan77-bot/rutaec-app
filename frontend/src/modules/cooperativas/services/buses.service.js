@@ -1,4 +1,9 @@
-﻿const BASE_URL = "/api/buses";
+﻿
+const BASE_URL = "/api/buses";
+
+// ========================================
+// FUNCIÓN GENERAL PARA PETICIONES
+// ========================================
 
 async function solicitar(ruta, opciones = {}) {
   let respuesta;
@@ -8,7 +13,9 @@ async function solicitar(ruta, opciones = {}) {
       credentials: "include",
       ...opciones,
       headers: {
-        ...(opciones.body ? { "Content-Type": "application/json" } : {}),
+        ...(opciones.body
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...opciones.headers,
       },
     });
@@ -20,52 +27,81 @@ async function solicitar(ruta, opciones = {}) {
 
   if (!respuesta.ok) {
     throw new Error(
-      resultado?.error ?? "No se pudo completar la operación."
+      resultado?.error ??
+        "No se pudo completar la operación."
     );
   }
 
   return resultado;
 }
 
+// ========================================
+// SERVICIO DE BUSES
+// ========================================
+
 export const busesService = {
+  // Consultar buses de la cooperativa
   async listar() {
     const resultado = await solicitar("/");
-    return resultado.datos;
+    return resultado?.datos ?? [];
   },
 
+  // Consultar grupos disponibles
   async listarGrupos() {
     const resultado = await solicitar("/grupos");
-    return resultado.datos;
+    return resultado?.datos ?? [];
   },
 
+  // Consultar catálogo de comodidades
+  async listarComodidades() {
+    const resultado = await solicitar("/comodidades");
+    return resultado?.datos ?? [];
+  },
+
+  // Registrar bus con sus comodidades
   async registrar(datos) {
     const resultado = await solicitar("/", {
       method: "POST",
       body: JSON.stringify(datos),
     });
 
-    return resultado.datos;
+    return resultado?.datos;
   },
 
-
+  // Editar bus y sus comodidades
   async editar(id, datos) {
-  const resultado = await solicitar(`/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(datos),
-  });
+    const resultado = await solicitar(
+      `/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(datos),
+      }
+    );
 
-  return resultado.datos;
-},
+    return resultado?.datos;
+  },
 
-async cambiarEstado(id, estado) {
-  const resultado = await solicitar(`/${id}/estado`, {
-    method: "PATCH",
-    body: JSON.stringify({ estado }),
-  });
+  // Cambiar estado:
+  // ACTIVO | INACTIVO | MANTENIMIENTO
+  async cambiarEstado(id, estado) {
+    const estadosPermitidos = [
+      "ACTIVO",
+      "INACTIVO",
+      "MANTENIMIENTO",
+    ];
 
-  return resultado.datos;
-},
+    if (!estadosPermitidos.includes(estado)) {
+      throw new Error("El estado del bus no es válido.");
+    }
 
+    const resultado = await solicitar(
+      `/${encodeURIComponent(id)}/estado`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ estado }),
+      }
+    );
 
-
+    return resultado?.datos;
+  },
 };
