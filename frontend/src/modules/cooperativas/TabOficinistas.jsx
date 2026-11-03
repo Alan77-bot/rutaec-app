@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { oficinistasService } from './services/oficinistas.service'
 
+const LIMITE = 10
+
 export default function TabOficinistas() {
   const [oficinistas, setOficinistas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -12,6 +14,15 @@ export default function TabOficinistas() {
   const [mostrarAsignacion, setMostrarAsignacion] = useState(false)
   const [usuariosDisponibles, setUsuariosDisponibles] = useState([])
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
+  const [errorUsuarios, setErrorUsuarios] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [paginacion, setPaginacion] = useState({
+    pagina: 1,
+    limite: LIMITE,
+    total: 0,
+    totalPaginas: 0,
+  })
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('')
   const [asignando, setAsignando] = useState(false)
 
@@ -33,27 +44,64 @@ export default function TabOficinistas() {
     cargar()
   }, [cargar])
 
-  const abrirAsignacion = async () => {
-    setMostrarAsignacion(true)
-    setCargandoUsuarios(true)
-    setUsuariosDisponibles([])
-    setUsuarioSeleccionado('')
-    setError('')
-    setMensaje('')
+  useEffect(() => {
+    if (!mostrarAsignacion) return
 
-    try {
-      const usuarios = await oficinistasService.listarUsuariosDisponibles()
-      setUsuariosDisponibles(usuarios)
-    } catch (err) {
-      setError(err.message || 'No se pudieron cargar los usuarios disponibles.')
-    } finally {
-      setCargandoUsuarios(false)
+    let cancelado = false
+
+    const consultar = async () => {
+      setCargandoUsuarios(true)
+      setErrorUsuarios('')
+
+      try {
+        const resultado =
+          await oficinistasService.listarUsuariosDisponibles(
+            busqueda,
+            pagina,
+            LIMITE
+          )
+
+        if (cancelado) return
+
+        setUsuariosDisponibles(resultado.datos)
+        setPaginacion(resultado.paginacion)
+      } catch (err) {
+        if (cancelado) return
+
+        setUsuariosDisponibles([])
+        setErrorUsuarios(
+          err.message || 'No se pudieron cargar los usuarios disponibles.'
+        )
+      } finally {
+        if (!cancelado) setCargandoUsuarios(false)
+      }
     }
+
+    const temporizador = setTimeout(consultar, 300)
+
+    return () => {
+      cancelado = true
+      clearTimeout(temporizador)
+    }
+  }, [mostrarAsignacion, busqueda, pagina])
+
+  const abrirAsignacion = () => {
+    setBusqueda('')
+    setPagina(1)
+    setUsuarioSeleccionado('')
+    setUsuariosDisponibles([])
+    setErrorUsuarios('')
+    setMensaje('')
+    setMostrarAsignacion(true)
   }
 
-  const asignarUsuario = async (evento) => {
-    evento.preventDefault()
+  const cerrarAsignacion = () => {
+    setMostrarAsignacion(false)
+    setUsuarioSeleccionado('')
+    setErrorUsuarios('')
+  }
 
+  const asignarUsuario = async () => {
     if (!usuarioSeleccionado || asignando) return
 
     setAsignando(true)
@@ -64,9 +112,7 @@ export default function TabOficinistas() {
       await oficinistasService.asignar(usuarioSeleccionado)
       await cargar()
 
-      setMostrarAsignacion(false)
-      setUsuariosDisponibles([])
-      setUsuarioSeleccionado('')
+      cerrarAsignacion()
       setMensaje('Oficinista asignado correctamente.')
     } catch (err) {
       setError(err.message || 'No se pudo asignar el oficinista.')
@@ -102,6 +148,10 @@ export default function TabOficinistas() {
     }
   }
 
+  const seleccionado = usuariosDisponibles.find(
+    (usuario) => usuario.id === usuarioSeleccionado
+  )
+
   return (
     <section>
       <div className="seccion-cab izq">
@@ -130,16 +180,15 @@ export default function TabOficinistas() {
               type="button"
               className="btn btn-oscuro"
               disabled={asignando}
-              onClick={() => {
-                if (mostrarAsignacion) {
-                  setMostrarAsignacion(false)
-                  setUsuarioSeleccionado('')
-                } else {
-                  abrirAsignacion()
-                }
-              }}
+              onClick={
+                mostrarAsignacion
+                  ? cerrarAsignacion
+                  : abrirAsignacion
+              }
             >
-              {mostrarAsignacion ? 'Cancelar asignación' : 'Asignar oficinista'}
+              {mostrarAsignacion
+                ? 'Cancelar asignación'
+                : 'Asignar oficinista'}
             </button>
 
             <button
@@ -155,48 +204,147 @@ export default function TabOficinistas() {
 
         {mostrarAsignacion && (
           <div className="panel">
-            <h4>Asignar usuario existente</h4>
+            <h4>Usuarios disponibles</h4>
+
+            <div className="form-fila">
+              <label htmlFor="buscar-oficinista">
+                Buscar usuario
+              </label>
+
+              <input
+                id="buscar-oficinista"
+                type="search"
+                placeholder="Nombre, apellido, correo o documento"
+                value={busqueda}
+                disabled={asignando}
+                onChange={(evento) => {
+                  setBusqueda(evento.target.value)
+                  setPagina(1)
+                  setUsuarioSeleccionado('')
+                }}
+              />
+            </div>
+
+            {errorUsuarios && (
+              <div className="aviso-hoja mal" role="alert">
+                {errorUsuarios}
+              </div>
+            )}
 
             {cargandoUsuarios ? (
-              <p className="muted">Cargando usuarios disponibles...</p>
-            ) : usuariosDisponibles.length === 0 ? (
-              <p className="muted">
-                No hay usuarios disponibles para asignar.
-              </p>
-            ) : (
-              <form onSubmit={asignarUsuario}>
-                <div className="form-fila">
-                  <label htmlFor="usuario-oficinista">
-                    Usuario disponible
-                  </label>
+              <p className="muted">Buscando usuarios...</p>
+            ) : !errorUsuarios && usuariosDisponibles.length === 0 ? (
+              <div className="vacio">
+                No se encontraron usuarios disponibles.
+              </div>
+            ) : !errorUsuarios ? (
+              <>
+                <div className="tabla-wrap">
+                  <table className="tabla">
+                    <thead>
+                      <tr>
+                        <th>Usuario</th>
+                        <th>Correo</th>
+                        <th>Documento</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
 
-                  <select
-                    id="usuario-oficinista"
-                    value={usuarioSeleccionado}
-                    onChange={(evento) =>
-                      setUsuarioSeleccionado(evento.target.value)
-                    }
-                    required
-                    disabled={asignando}
-                  >
-                    <option value="">Selecciona un usuario</option>
-
-                    {usuariosDisponibles.map((usuario) => (
-                      <option key={usuario.id} value={usuario.id}>
-                        {usuario.nombres} {usuario.apellidos} — {usuario.correo}
-                      </option>
-                    ))}
-                  </select>
+                    <tbody>
+                      {usuariosDisponibles.map((usuario) => (
+                        <tr key={usuario.id}>
+                          <td>
+                            <b>
+                              {usuario.nombres} {usuario.apellidos}
+                            </b>
+                          </td>
+                          <td>{usuario.correo}</td>
+                          <td>{usuario.numero_documento}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className={
+                                'btn ' +
+                                (usuarioSeleccionado === usuario.id
+                                  ? 'btn-oscuro'
+                                  : 'btn-claro')
+                              }
+                              disabled={asignando}
+                              onClick={() =>
+                                setUsuarioSeleccionado(usuario.id)
+                              }
+                            >
+                              {usuarioSeleccionado === usuario.id
+                                ? 'Seleccionado'
+                                : 'Seleccionar'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
+                <div className="form-fila">
+                  <button
+                    type="button"
+                    className="btn btn-claro"
+                    disabled={pagina <= 1 || cargandoUsuarios || asignando}
+                    onClick={() => {
+                      setPagina((actual) => actual - 1)
+                      setUsuarioSeleccionado('')
+                    }}
+                  >
+                    Anterior
+                  </button>
+
+                  <span className="muted">
+                    Página {paginacion.pagina} de{' '}
+                    {paginacion.totalPaginas || 1}
+                    {' · '}
+                    {paginacion.total} usuarios
+                  </span>
+
+                  <button
+                    type="button"
+                    className="btn btn-claro"
+                    disabled={
+                      pagina >= paginacion.totalPaginas ||
+                      cargandoUsuarios ||
+                      asignando
+                    }
+                    onClick={() => {
+                      setPagina((actual) => actual + 1)
+                      setUsuarioSeleccionado('')
+                    }}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {seleccionado && (
+              <div className="panel">
+                <p>
+                  Vas a asignar a{' '}
+                  <b>
+                    {seleccionado.nombres} {seleccionado.apellidos}
+                  </b>{' '}
+                  como oficinista de tu cooperativa.
+                </p>
+
                 <button
-                  type="submit"
+                  type="button"
                   className="btn btn-oscuro"
-                  disabled={!usuarioSeleccionado || asignando}
+                  disabled={asignando}
+                  onClick={asignarUsuario}
                 >
-                  {asignando ? 'Asignando...' : 'Confirmar asignación'}
+                  {asignando
+                    ? 'Asignando...'
+                    : 'Confirmar asignación'}
                 </button>
-              </form>
+              </div>
             )}
           </div>
         )}
