@@ -1,10 +1,9 @@
-import { Router } from "express";
+﻿import { Router } from "express";
+import { autenticar } from "../../middlewares/autenticacion.js";
+import { obtenerBuses } from "./buses.controller.js";
 
 const router = Router();
 
-// GET /api/buses
-router.get("/", (req, res) => {
-  res.json({ message: "Listado de buses y flota" });
-});
+router.get("/", ...autenticar, obtenerBuses);
 
 export default router;
