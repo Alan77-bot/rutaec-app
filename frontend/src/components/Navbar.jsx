@@ -59,7 +59,7 @@ export default function Navbar() {
           <span>{config.nombre}</span>
         </Link>
 
-        <button className="burger" onClick={() => setMenu(!menu)} aria-label="MenÃº"><Icon n={menu ? 'x' : 'route'} /></button>
+        <button className="burger" onClick={() => setMenu(!menu)} aria-label="Menú"><Icon n={menu ? 'x' : 'route'} /></button>
 
         <nav className={'links' + (menu ? ' abierto' : '')} onClick={() => setMenu(false)}>
           <NavLink to="/" end>Inicio</NavLink>
@@ -82,8 +82,8 @@ export default function Navbar() {
             {abierto && (
               <div className="cajon">
                 <h4>Notificaciones</h4>
-                {!sesion && <p className="vacio-sm">Inicia sesiÃ³n para ver tus notificaciones.</p>}
-                {sesion && correos.length === 0 && <p className="vacio-sm">AÃºn no tienes notificaciones.</p>}
+                {!sesion && <p className="vacio-sm">Inicia sesión para ver tus notificaciones.</p>}
+                {sesion && correos.length === 0 && <p className="vacio-sm">Aún no tienes notificaciones.</p>}
                 {correos.map((c) => (
                   <button key={c.id} className="correo" onClick={() => abrirCorreo(c)}>
                     <b>{c.asunto}</b>
