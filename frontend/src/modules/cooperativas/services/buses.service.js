@@ -1,4 +1,4 @@
-const BASE_URL = "/api/buses";
+﻿const BASE_URL = "/api/buses";
 
 async function solicitar(ruta, opciones = {}) {
   let respuesta;
@@ -31,5 +31,19 @@ export const busesService = {
   async listar() {
     const resultado = await solicitar("/");
     return resultado.datos;
-  }
+  },
+
+  async listarGrupos() {
+    const resultado = await solicitar("/grupos");
+    return resultado.datos;
+  },
+
+  async registrar(datos) {
+    const resultado = await solicitar("/", {
+      method: "POST",
+      body: JSON.stringify(datos),
+    });
+
+    return resultado.datos;
+  },
 };
