@@ -25,6 +25,18 @@ export interface UsuarioDisponibleOficinista {
   numero_documento: string;
 }
 
+export interface PaginacionOficinistas {
+  pagina: number;
+  limite: number;
+  total: number;
+  totalPaginas: number;
+}
+
+export interface ResultadoUsuariosDisponibles {
+  datos: UsuarioDisponibleOficinista[];
+  paginacion: PaginacionOficinistas;
+}
+
 async function solicitar<T>(
   ruta: string,
   metodo = "GET",
@@ -65,13 +77,20 @@ export const oficinistasService = {
     const respuesta = await solicitar<{ datos: Oficinista[] }>("/");
     return respuesta.datos;
   },
+    async listarUsuariosDisponibles(
+    buscar = "",
+    pagina = 1,
+    limite = 10
+  ): Promise<ResultadoUsuariosDisponibles> {
+    const parametros = new URLSearchParams({
+      buscar: buscar.trim(),
+      pagina: String(pagina),
+      limite: String(limite),
+    });
 
-     async listarUsuariosDisponibles(): Promise<UsuarioDisponibleOficinista[]> {
-    const respuesta = await solicitar<{
-      datos: UsuarioDisponibleOficinista[];
-    }>("/usuarios-disponibles");
-
-    return respuesta.datos;
+    return solicitar<ResultadoUsuariosDisponibles>(
+      `/usuarios-disponibles?${parametros.toString()}`
+    );
   },
 
   async asignar(usuarioId: string) {
