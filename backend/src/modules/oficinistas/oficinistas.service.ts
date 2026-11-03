@@ -323,3 +323,52 @@ export async function cambiarEstadoOficinista(
     return resultado;
   });
 }
+
+
+
+export async function obtenerUsuariosDisponiblesOficinista(
+  cooperativaId: string
+) {
+  return prisma.usuarios.findMany({
+    where: {
+      activo: true,
+      correo_verificado_en: {
+        not: null,
+      },
+      roles_globales: {
+        none: {
+          rol: "ADMINISTRADOR",
+        },
+      },
+      miembros_cooperativa: {
+        none: {
+          activo: true,
+        },
+      },
+      AND: [
+        {
+          miembros_cooperativa: {
+            none: {
+              cooperativa_id: cooperativaId,
+              rol: {
+                not: "OFICINISTA",
+              },
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      nombres: true,
+      apellidos: true,
+      correo: true,
+      numero_documento: true,
+    },
+    orderBy: [
+      { nombres: "asc" },
+      { apellidos: "asc" },
+    ],
+    take: 100,
+  });
+}

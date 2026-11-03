@@ -5,6 +5,8 @@ import {
   listarOficinistas,
   crearAsignacionOficinista,
   actualizarEstadoOficinista,
+  listarUsuariosDisponiblesOficinista,
+
 } from "./oficinistas.controller.js";
 
 const router = Router();
@@ -12,6 +14,10 @@ const router = Router();
 router.use(...autenticar, autorizarRoles("cooperativa"));
 
 router.get("/", listarOficinistas);
+router.get(
+  "/usuarios-disponibles",
+  listarUsuariosDisponiblesOficinista
+);
 router.post("/asignar-existente", crearAsignacionOficinista);
 router.patch("/:id/estado", actualizarEstadoOficinista);
 
