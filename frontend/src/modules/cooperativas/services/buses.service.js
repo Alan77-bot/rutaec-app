@@ -46,4 +46,15 @@ export const busesService = {
 
     return resultado.datos;
   },
+
+
+  async editar(id, datos) {
+  const resultado = await solicitar(`/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(datos),
+  });
+
+  return resultado.datos;
+},
+
 };

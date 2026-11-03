@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+﻿
+import { useEffect, useState } from "react";
 import { busesService } from "./services/buses.service";
 
 const FORM_INICIAL = {
@@ -23,6 +24,7 @@ export default function TabFlota({ onTotalBusesChange }) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState({ ...FORM_INICIAL });
+  const [busEditando, setBusEditando] = useState(null);
 
   async function cargarDatos() {
     const [listaBuses, listaGrupos] = await Promise.all([
@@ -44,6 +46,7 @@ export default function TabFlota({ onTotalBusesChange }) {
     ])
       .then(([listaBuses, listaGrupos]) => {
         if (!activo) return;
+
         setBuses(listaBuses);
         setGrupos(listaGrupos);
         onTotalBusesChange?.(listaBuses.length);
@@ -67,7 +70,43 @@ export default function TabFlota({ onTotalBusesChange }) {
     }));
   }
 
-  async function registrar(e) {
+  function abrirRegistro() {
+    setBusEditando(null);
+    setForm({ ...FORM_INICIAL });
+    setErrorFormulario("");
+    setMostrarFormulario(true);
+  }
+
+  function abrirEdicion(bus) {
+    setBusEditando(bus.id);
+
+    setForm({
+      grupoId: bus.grupo_id ?? "",
+      placa: bus.placa ?? "",
+      numeroUnidad: bus.numero_unidad ?? "",
+      color: bus.color ?? "",
+      marcaChasis: bus.marca_chasis ?? "",
+      marcaCarroceria: bus.marca_carroceria ?? "",
+      anio: bus.anio == null ? "" : String(bus.anio),
+      pisos: String(bus.pisos ?? 1),
+      capacidad: String(bus.capacidad ?? ""),
+      imagenUrl: bus.imagen_url ?? "",
+    });
+
+    setErrorFormulario("");
+    setMostrarFormulario(true);
+  }
+
+  function cerrarFormulario() {
+    if (guardando) return;
+
+    setMostrarFormulario(false);
+    setBusEditando(null);
+    setForm({ ...FORM_INICIAL });
+    setErrorFormulario("");
+  }
+
+  async function guardarBus(e) {
     e.preventDefault();
 
     if (guardando) return;
@@ -75,28 +114,37 @@ export default function TabFlota({ onTotalBusesChange }) {
     setGuardando(true);
     setErrorFormulario("");
 
+    const datos = {
+      grupoId: form.grupoId,
+      placa: form.placa.trim().toUpperCase(),
+      numeroUnidad: form.numeroUnidad.trim(),
+      color: form.color.trim(),
+      marcaChasis: form.marcaChasis.trim(),
+      marcaCarroceria: form.marcaCarroceria.trim(),
+      anio: form.anio ? Number(form.anio) : null,
+      pisos: Number(form.pisos),
+      capacidad: Number(form.capacidad),
+      imagenUrl: form.imagenUrl.trim() || null,
+    };
+
     try {
-      await busesService.registrar({
-        grupoId: form.grupoId,
-        placa: form.placa.trim().toUpperCase(),
-        numeroUnidad: form.numeroUnidad.trim(),
-        color: form.color.trim(),
-        marcaChasis: form.marcaChasis.trim(),
-        marcaCarroceria: form.marcaCarroceria.trim(),
-        anio: form.anio ? Number(form.anio) : null,
-        pisos: Number(form.pisos),
-        capacidad: Number(form.capacidad),
-        imagenUrl: form.imagenUrl.trim() || null,
-      });
+      if (busEditando) {
+        await busesService.editar(busEditando, datos);
+      } else {
+        await busesService.registrar(datos);
+      }
 
       setMostrarFormulario(false);
+      setBusEditando(null);
       setForm({ ...FORM_INICIAL });
 
       try {
         await cargarDatos();
         setError("");
       } catch {
-        setError("Bus registrado, pero no se pudo actualizar el listado. Recarga la página.");
+        setError(
+          "Bus guardado, pero no se pudo actualizar el listado. Recarga la página."
+        );
       }
     } catch (err) {
       setErrorFormulario(err.message);
@@ -116,10 +164,7 @@ export default function TabFlota({ onTotalBusesChange }) {
         <button
           type="button"
           className="btn btn-oscuro"
-          onClick={() => {
-            setErrorFormulario("");
-            setMostrarFormulario(true);
-          }}
+          onClick={abrirRegistro}
           disabled={cargando || !!error || grupos.length === 0}
         >
           Registrar bus
@@ -153,6 +198,7 @@ export default function TabFlota({ onTotalBusesChange }) {
                 <th>Carrocería</th>
                 <th>Capacidad</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
 
@@ -166,6 +212,16 @@ export default function TabFlota({ onTotalBusesChange }) {
                   <td>{bus.marca_carroceria}</td>
                   <td>{bus.capacidad}</td>
                   <td>{bus.estado}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-claro"
+                      onClick={() => abrirEdicion(bus)}
+                      disabled={guardando}
+                    >
+                      Editar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -198,16 +254,20 @@ export default function TabFlota({ onTotalBusesChange }) {
               overflowY: "auto",
             }}
           >
-            <h3 id="titulo-registro-bus">Registrar nuevo bus</h3>
+            <h3 id="titulo-registro-bus">
+              {busEditando ? "Editar bus" : "Registrar nuevo bus"}
+            </h3>
 
-            <form onSubmit={registrar}>
+            <form onSubmit={guardarBus}>
               <div className="form-fila">
                 <label>
                   Grupo
                   <select
                     required
                     value={form.grupoId}
-                    onChange={(e) => actualizar("grupoId", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("grupoId", e.target.value)
+                    }
                   >
                     <option value="">Selecciona un grupo</option>
                     {grupos.map((grupo) => (
@@ -224,7 +284,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     required
                     maxLength={100}
                     value={form.numeroUnidad}
-                    onChange={(e) => actualizar("numeroUnidad", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("numeroUnidad", e.target.value)
+                    }
                   />
                 </label>
 
@@ -235,7 +297,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     maxLength={100}
                     placeholder="TBA-1234"
                     value={form.placa}
-                    onChange={(e) => actualizar("placa", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("placa", e.target.value)
+                    }
                   />
                 </label>
 
@@ -245,7 +309,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     required
                     maxLength={100}
                     value={form.color}
-                    onChange={(e) => actualizar("color", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("color", e.target.value)
+                    }
                   />
                 </label>
 
@@ -255,7 +321,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     required
                     maxLength={100}
                     value={form.marcaChasis}
-                    onChange={(e) => actualizar("marcaChasis", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("marcaChasis", e.target.value)
+                    }
                   />
                 </label>
 
@@ -265,7 +333,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     required
                     maxLength={100}
                     value={form.marcaCarroceria}
-                    onChange={(e) => actualizar("marcaCarroceria", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("marcaCarroceria", e.target.value)
+                    }
                   />
                 </label>
 
@@ -276,7 +346,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     min="1950"
                     max={new Date().getFullYear() + 1}
                     value={form.anio}
-                    onChange={(e) => actualizar("anio", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("anio", e.target.value)
+                    }
                   />
                 </label>
 
@@ -284,7 +356,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                   Pisos
                   <select
                     value={form.pisos}
-                    onChange={(e) => actualizar("pisos", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("pisos", e.target.value)
+                    }
                   >
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -300,7 +374,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     min="1"
                     max="100"
                     value={form.capacidad}
-                    onChange={(e) => actualizar("capacidad", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("capacidad", e.target.value)
+                    }
                   />
                 </label>
 
@@ -310,7 +386,9 @@ export default function TabFlota({ onTotalBusesChange }) {
                     type="url"
                     maxLength={2048}
                     value={form.imagenUrl}
-                    onChange={(e) => actualizar("imagenUrl", e.target.value)}
+                    onChange={(e) =>
+                      actualizar("imagenUrl", e.target.value)
+                    }
                   />
                 </label>
               </div>
@@ -319,12 +397,18 @@ export default function TabFlota({ onTotalBusesChange }) {
                 <p role="alert">{errorFormulario}</p>
               )}
 
-              <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  marginTop: 16,
+                }}
+              >
                 <button
                   type="button"
                   className="btn btn-claro"
                   disabled={guardando}
-                  onClick={() => setMostrarFormulario(false)}
+                  onClick={cerrarFormulario}
                 >
                   Cancelar
                 </button>
@@ -334,7 +418,11 @@ export default function TabFlota({ onTotalBusesChange }) {
                   className="btn btn-oscuro"
                   disabled={guardando}
                 >
-                  {guardando ? "Guardando..." : "Guardar bus"}
+                  {guardando
+                    ? "Guardando..."
+                    : busEditando
+                      ? "Guardar cambios"
+                      : "Guardar bus"}
                 </button>
               </div>
             </form>
