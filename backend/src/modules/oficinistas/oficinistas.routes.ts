@@ -6,7 +6,7 @@ import {
   crearAsignacionOficinista,
   actualizarEstadoOficinista,
   listarUsuariosDisponiblesOficinista,
-
+  crearNuevoOficinista,
 } from "./oficinistas.controller.js";
 
 const router = Router();
@@ -19,6 +19,7 @@ router.get(
   listarUsuariosDisponiblesOficinista
 );
 router.post("/asignar-existente", crearAsignacionOficinista);
+router.post("/crear", crearNuevoOficinista);
 router.patch("/:id/estado", actualizarEstadoOficinista);
 
 export default router;

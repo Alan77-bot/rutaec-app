@@ -6,6 +6,7 @@ import {
   asignarOficinista,
   cambiarEstadoOficinista,
   obtenerUsuariosDisponiblesOficinista,
+  registrarNuevoOficinista,
 } from "./oficinistas.service.js";
 
 function responderError(res: Response, error: unknown) {
@@ -57,6 +58,19 @@ export async function crearAsignacionOficinista(req: Request, res: Response) {
     req,
     res,
     (cooperativaId) => asignarOficinista(cooperativaId, req.body),
+    201
+  );
+}
+
+export async function crearNuevoOficinista(
+  req: Request,
+  res: Response
+) {
+  await ejecutar(
+    req,
+    res,
+    (cooperativaId) =>
+      registrarNuevoOficinista(cooperativaId, req.body),
     201
   );
 }
