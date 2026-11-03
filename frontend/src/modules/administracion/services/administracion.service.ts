@@ -1,5 +1,6 @@
 
 const BASE_URL = "/api/gerentes";
+const USUARIOS_ADMIN_URL = "/api/administracion/usuarios";
 
 export class ErrorAdministracion extends Error {
   estado: number;
@@ -34,6 +35,20 @@ export interface UsuarioDisponible {
       activa: boolean;
     };
   }[];
+}
+
+
+export interface UsuarioAdmin extends UsuarioDisponible {
+  tipo_documento: string;
+  pais_documento: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface DatosEditarUsuario {
+  nombres: string;
+  apellidos: string;
+  telefono: string;
 }
 
 
@@ -185,4 +200,66 @@ async cambiarEstado(
     }
   );
 },
+
+
+
+async listarUsuariosAdmin(): Promise<UsuarioAdmin[]> {
+  const respuesta = await solicitar<{
+    total: number;
+    datos: UsuarioAdmin[];
+  }>(
+    "/",
+    "GET",
+    undefined,
+    USUARIOS_ADMIN_URL
+  );
+
+  return respuesta.datos;
+},
+
+async obtenerUsuarioAdmin(
+  usuarioId: string
+): Promise<UsuarioAdmin> {
+  const respuesta = await solicitar<{
+    datos: UsuarioAdmin;
+  }>(
+    `/${encodeURIComponent(usuarioId)}`,
+    "GET",
+    undefined,
+    USUARIOS_ADMIN_URL
+  );
+
+  return respuesta.datos;
+},
+
+async editarUsuarioAdmin(
+  usuarioId: string,
+  datos: DatosEditarUsuario
+) {
+  return solicitar<{
+    mensaje: string;
+    datos: UsuarioAdmin;
+  }>(
+    `/${encodeURIComponent(usuarioId)}`,
+    "PATCH",
+    datos,
+    USUARIOS_ADMIN_URL
+  );
+},
+
+async cambiarEstadoUsuarioAdmin(
+  usuarioId: string,
+  activo: boolean
+) {
+  return solicitar<{
+    mensaje: string;
+    datos: UsuarioAdmin;
+  }>(
+    `/${encodeURIComponent(usuarioId)}/estado`,
+    "PATCH",
+    { activo },
+    USUARIOS_ADMIN_URL
+  );
+},
+
 };

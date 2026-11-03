@@ -6,6 +6,7 @@ import gerentesRoutes from "../modules/gerentes/gerentes.routes.js";
 import rutasRoutes from "../modules/rutas/rutas.routes.js";
 import horariosRoutes from "../modules/horarios/horarios.routes.js";
 import reservasRoutes from "../modules/reservas/reservas.routes.js";
+import usuariosAdminRoutes from "../modules/administracion/usuarios-admin.routes.js";
 import boletosRoutes from "../modules/boletos/boletos.routes.js";
 import busesRoutes from "../modules/buses/buses.routes.js";
 import pagosRoutes from "../modules/pagos/pagos.routes.js";
@@ -23,5 +24,7 @@ router.use("/boletos", boletosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
 router.use("/gerentes", gerentesRoutes);
+router.use("/administracion/usuarios", usuariosAdminRoutes);
+
 
 export default router;

@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
+import GestionUsuariosGerentes from './GestionUsuariosGerentes'
 
 const COLORES = ['#f2a33a', '#e4572e', '#2a9d8f', '#4f7cac', '#8a5a9e', '#c0392b']
 
@@ -174,9 +175,8 @@ export default function PanelAdmin() {
         <button className={tab === 'config' ? 'on' : ''} onClick={() => setTab('config')}>ConfiguraciÃ³n</button>
       </div>
       {tab === 'coops' && <Cooperativas />}
-      {tab === 'users' && <Usuarios />}
+      {tab === 'users' && <GestionUsuariosGerentes />}
       {tab === 'config' && <Configuracion />}
     </div>
   )
 }
-
