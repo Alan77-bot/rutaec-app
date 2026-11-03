@@ -4,6 +4,7 @@ import usuariosRoutes from "../modules/usuarios/usuarios.routes.js";
 import cooperativasRoutes from "../modules/cooperativas/cooperativas.routes.js";
 import rutasRoutes from "../modules/rutas/rutas.routes.js";
 import horariosRoutes from "../modules/horarios/horarios.routes.js";
+import oficinistasRoutes from "../modules/oficinistas/oficinistas.routes.js";
 import reservasRoutes from "../modules/reservas/reservas.routes.js";
 import boletosRoutes from "../modules/boletos/boletos.routes.js";
 import busesRoutes from "../modules/buses/buses.routes.js";
@@ -21,5 +22,6 @@ router.use("/reservas", reservasRoutes);
 router.use("/boletos", boletosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
+router.use("/oficinistas", oficinistasRoutes);
 
 export default router;
