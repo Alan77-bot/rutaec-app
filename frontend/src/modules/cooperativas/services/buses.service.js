@@ -57,4 +57,10 @@ export const busesService = {
   return resultado.datos;
 },
 
+cambiarEstado: (id, estado) =>
+  request(`/api/buses/${id}/estado`, {
+    method: "PATCH",
+    body: JSON.stringify({ estado }),
+  }),
+
 };

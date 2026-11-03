@@ -25,6 +25,7 @@ export default function TabFlota({ onTotalBusesChange }) {
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState({ ...FORM_INICIAL });
   const [busEditando, setBusEditando] = useState(null);
+  const [busCambiandoEstado, setBusCambiandoEstado] = useState(null);
 
   async function cargarDatos() {
     const [listaBuses, listaGrupos] = await Promise.all([
@@ -153,6 +154,43 @@ export default function TabFlota({ onTotalBusesChange }) {
     }
   }
 
+  async function cambiarEstadoBus(bus) {
+    if (busCambiandoEstado) return;
+
+    const nuevoEstado =
+      bus.estado === "ACTIVO" ? "INACTIVO" : "ACTIVO";
+
+    const accion =
+      nuevoEstado === "ACTIVO" ? "activar" : "desactivar";
+
+    const confirmado = window.confirm(
+      `¿Seguro que deseas ${accion} el bus ${bus.numero_unidad} (${bus.placa})?`
+    );
+
+    if (!confirmado) return;
+
+    setBusCambiandoEstado(bus.id);
+
+    try {
+      await busesService.cambiarEstado(bus.id, nuevoEstado);
+
+      try {
+        await cargarDatos();
+        setError("");
+      } catch {
+        setError(
+          "Estado actualizado, pero no se pudo refrescar el listado. Recarga la página."
+        );
+      }
+    } catch (err) {
+      window.alert(
+        err.message || "No se pudo cambiar el estado del bus."
+      );
+    } finally {
+      setBusCambiandoEstado(null);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="seccion-cab">
@@ -165,7 +203,12 @@ export default function TabFlota({ onTotalBusesChange }) {
           type="button"
           className="btn btn-oscuro"
           onClick={abrirRegistro}
-          disabled={cargando || !!error || grupos.length === 0}
+          disabled={
+            cargando ||
+            !!error ||
+            grupos.length === 0 ||
+            !!busCambiandoEstado
+          }
         >
           Registrar bus
         </button>
@@ -213,14 +256,39 @@ export default function TabFlota({ onTotalBusesChange }) {
                   <td>{bus.capacidad}</td>
                   <td>{bus.estado}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn btn-claro"
-                      onClick={() => abrirEdicion(bus)}
-                      disabled={guardando}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
                     >
-                      Editar
-                    </button>
+                      <button
+                        type="button"
+                        className="btn btn-claro"
+                        onClick={() => abrirEdicion(bus)}
+                        disabled={
+                          guardando || !!busCambiandoEstado
+                        }
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-claro"
+                        onClick={() => cambiarEstadoBus(bus)}
+                        disabled={
+                          guardando || !!busCambiandoEstado
+                        }
+                      >
+                        {busCambiandoEstado === bus.id
+                          ? "Procesando..."
+                          : bus.estado === "ACTIVO"
+                            ? "Desactivar"
+                            : "Activar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
