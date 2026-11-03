@@ -1,42 +1,176 @@
-﻿import type { Request, Response } from "express";
+﻿
+import type { Request, Response } from "express";
+
 import {
   listarBusesPorCooperativa,
   registrarBus,
   listarGruposBuses,
   actualizarBus,
   cambiarEstadoBus,
+  listarComodidades,
   type DatosEdicionBus,
+  type EstadoBus,
 } from "./buses.service.js";
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const CAMPOS_TEXTO = [
+  "placa",
+  "numeroUnidad",
+  "color",
+  "marcaChasis",
+  "marcaCarroceria",
+] as const;
+
+const CAMPOS_EDICION = [
+  "grupoId",
+  ...CAMPOS_TEXTO,
+  "anio",
+  "pisos",
+  "capacidad",
+  "imagenUrl",
+  "comodidades",
+] as const;
+
+const ESTADOS_PERMITIDOS: EstadoBus[] = [
+  "ACTIVO",
+  "INACTIVO",
+  "MANTENIMIENTO",
+];
+
+function esObjeto(
+  valor: unknown
+): valor is Record<string, unknown> {
+  return (
+    typeof valor === "object" &&
+    valor !== null &&
+    !Array.isArray(valor)
+  );
+}
+
+function esUUID(valor: unknown): valor is string {
+  return (
+    typeof valor === "string" &&
+    UUID_REGEX.test(valor)
+  );
+}
+
+function esTextoValido(valor: unknown): valor is string {
+  return (
+    typeof valor === "string" &&
+    valor.trim().length > 0 &&
+    valor.trim().length <= 100
+  );
+}
+
+function sonComodidadesValidas(
+  valor: unknown
+): valor is string[] {
+  return (
+    Array.isArray(valor) &&
+    valor.length <= 100 &&
+    valor.every(
+      (codigo) =>
+        typeof codigo === "string" &&
+        codigo.trim().length > 0 &&
+        codigo.length <= 100
+    )
+  );
+}
+
+function sonNumerosValidos(
+  datos: Record<string, unknown>
+): boolean {
+  return (
+    (datos.pisos === undefined ||
+      (Number.isInteger(datos.pisos) &&
+        (datos.pisos as number) >= 1 &&
+        (datos.pisos as number) <= 3)) &&
+    (datos.capacidad === undefined ||
+      (Number.isInteger(datos.capacidad) &&
+        (datos.capacidad as number) >= 1 &&
+        (datos.capacidad as number) <= 100)) &&
+    (datos.anio == null ||
+      (Number.isInteger(datos.anio) &&
+        (datos.anio as number) >= 1950 &&
+        (datos.anio as number) <=
+          new Date().getFullYear() + 1)) &&
+    (datos.imagenUrl == null ||
+      (typeof datos.imagenUrl === "string" &&
+        datos.imagenUrl.length <= 2048))
+  );
+}
+
+function obtenerCooperativaId(
+  req: Request,
+  res: Response,
+  origen: "query" | "body"
+): unknown {
+  const sesion = res.locals.sesion;
+
+  if (sesion.rol !== "admin") {
+    return sesion.coopId;
+  }
+
+  return origen === "query"
+    ? req.query.cooperativaId
+    : req.body?.cooperativaId;
+}
+
+function verificarAcceso(
+  res: Response,
+  operacion: string
+): boolean {
+  const sesion = res.locals.sesion;
+
+  if (!sesion) {
+    res.status(401).json({
+      error: "Debes iniciar sesión",
+    });
+    return false;
+  }
+
+  if (
+    sesion.rol !== "admin" &&
+    sesion.rol !== "cooperativa"
+  ) {
+    res.status(403).json({
+      error: `No tienes permisos para ${operacion}`,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+function esErrorUnico(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
+// ========================================
+// CONSULTAR BUSES
+// ========================================
 
 export async function obtenerBuses(
   req: Request,
   res: Response
 ): Promise<void> {
-  const sesion = res.locals.sesion;
-
-  if (!sesion) {
-    res.status(401).json({ error: "Debes iniciar sesión" });
+  if (!verificarAcceso(res, "consultar la flota")) {
     return;
   }
 
-  if (sesion.rol !== "admin" && sesion.rol !== "cooperativa") {
-    res.status(403).json({
-      error: "No tienes permisos para consultar la flota",
-    });
-    return;
-  }
+  const cooperativaId = obtenerCooperativaId(
+    req,
+    res,
+    "query"
+  );
 
-  const cooperativaId =
-    sesion.rol === "admin"
-      ? req.query.cooperativaId
-      : sesion.coopId;
-
-  if (
-    typeof cooperativaId !== "string" ||
-    !UUID_REGEX.test(cooperativaId)
-  ) {
+  if (!esUUID(cooperativaId)) {
     res.status(400).json({
       error: "Debes proporcionar una cooperativa válida",
     });
@@ -44,7 +178,9 @@ export async function obtenerBuses(
   }
 
   try {
-    const buses = await listarBusesPorCooperativa(cooperativaId);
+    const buses = await listarBusesPorCooperativa(
+      cooperativaId
+    );
 
     res.status(200).json({
       total: buses.length,
@@ -59,155 +195,25 @@ export async function obtenerBuses(
   }
 }
 
-export async function crearBus(
-  req: Request,
-  res: Response
-): Promise<void> {
-  const sesion = res.locals.sesion;
-
-  if (!sesion) {
-    res.status(401).json({ error: "Debes iniciar sesión" });
-    return;
-  }
-
-  if (sesion.rol !== "admin" && sesion.rol !== "cooperativa") {
-    res.status(403).json({
-      error: "No tienes permisos para registrar buses",
-    });
-    return;
-  }
-
-  const datos = req.body;
-
-  if (!datos || typeof datos !== "object" || Array.isArray(datos)) {
-    res.status(400).json({ error: "Debes enviar los datos del bus" });
-    return;
-  }
-
-  const cooperativaId =
-    sesion.rol === "admin"
-      ? datos.cooperativaId
-      : sesion.coopId;
-
-  if (
-    typeof cooperativaId !== "string" ||
-    !UUID_REGEX.test(cooperativaId) ||
-    typeof datos.grupoId !== "string" ||
-    !UUID_REGEX.test(datos.grupoId)
-  ) {
-    res.status(400).json({
-      error: "La cooperativa o el grupo son inválidos",
-    });
-    return;
-  }
-
-  const campos = [
-    "placa",
-    "numeroUnidad",
-    "color",
-    "marcaChasis",
-    "marcaCarroceria",
-  ] as const;
-
-  for (const campo of campos) {
-    if (
-      typeof datos[campo] !== "string" ||
-      !datos[campo].trim() ||
-      datos[campo].trim().length > 100
-    ) {
-      res.status(400).json({
-        error: `El campo ${campo} es obligatorio y debe tener máximo 100 caracteres`,
-      });
-      return;
-    }
-  }
-
-  if (
-    !Number.isInteger(datos.pisos) ||
-    datos.pisos < 1 ||
-    datos.pisos > 3 ||
-    !Number.isInteger(datos.capacidad) ||
-    datos.capacidad < 1 ||
-    datos.capacidad > 100 ||
-    (datos.anio != null &&
-      (!Number.isInteger(datos.anio) ||
-        datos.anio < 1950 ||
-        datos.anio > new Date().getFullYear() + 1)) ||
-    (datos.imagenUrl != null &&
-      (typeof datos.imagenUrl !== "string" ||
-        datos.imagenUrl.length > 2048))
-  ) {
-    res.status(400).json({
-      error: "Año, pisos, capacidad o imagen inválidos",
-    });
-    return;
-  }
-
-  try {
-    const resultado = await registrarBus({
-      cooperativaId,
-      grupoId: datos.grupoId,
-      placa: datos.placa.trim().toUpperCase(),
-      numeroUnidad: datos.numeroUnidad.trim(),
-      color: datos.color.trim(),
-      marcaChasis: datos.marcaChasis.trim(),
-      marcaCarroceria: datos.marcaCarroceria.trim(),
-      anio: datos.anio ?? null,
-      pisos: datos.pisos,
-      capacidad: datos.capacidad,
-      imagenUrl: datos.imagenUrl ?? null,
-    });
-
-    if ("error" in resultado) {
-      res.status(400).json({ error: resultado.error });
-      return;
-    }
-
-    res.status(201).json({ datos: resultado.bus });
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      res.status(409).json({
-        error: "Ya existe un bus con esa placa o número de unidad",
-      });
-      return;
-    }
-
-    console.error("Error al registrar bus:", error);
-    res.status(500).json({
-      error: "No se pudo registrar el bus",
-    });
-  }
-}
+// ========================================
+// CONSULTAR GRUPOS
+// ========================================
 
 export async function obtenerGruposBuses(
   req: Request,
   res: Response
 ): Promise<void> {
-  const sesion = res.locals.sesion;
-
-  if (!sesion) {
-    res.status(401).json({ error: "Debes iniciar sesión" });
+  if (!verificarAcceso(res, "consultar grupos")) {
     return;
   }
 
-  if (sesion.rol !== "admin" && sesion.rol !== "cooperativa") {
-    res.status(403).json({ error: "No tienes permisos" });
-    return;
-  }
+  const cooperativaId = obtenerCooperativaId(
+    req,
+    res,
+    "query"
+  );
 
-  const cooperativaId =
-    sesion.rol === "admin"
-      ? req.query.cooperativaId
-      : sesion.coopId;
-
-  if (
-    typeof cooperativaId !== "string" ||
-    !UUID_REGEX.test(cooperativaId)
-  ) {
+  if (!esUUID(cooperativaId)) {
     res.status(400).json({
       error: "Cooperativa inválida",
     });
@@ -215,69 +221,199 @@ export async function obtenerGruposBuses(
   }
 
   try {
-    const grupos = await listarGruposBuses(cooperativaId);
-    res.json({ datos: grupos });
+    const grupos = await listarGruposBuses(
+      cooperativaId
+    );
+
+    res.status(200).json({
+      datos: grupos,
+    });
   } catch (error) {
     console.error("Error al consultar grupos:", error);
+
     res.status(500).json({
       error: "No se pudieron consultar los grupos",
     });
   }
-
-
 }
 
+// ========================================
+// CONSULTAR COMODIDADES
+// ========================================
 
-
-export async function editarBus(
+export async function obtenerComodidades(
   req: Request,
   res: Response
 ): Promise<void> {
-  const sesion = res.locals.sesion;
-
-  if (!sesion) {
-    res.status(401).json({
-      error: "Debes iniciar sesión",
-    });
+  if (!verificarAcceso(res, "consultar comodidades")) {
     return;
   }
 
-  if (
-    sesion.rol !== "admin" &&
-    sesion.rol !== "cooperativa"
-  ) {
-    res.status(403).json({
-      error: "No tienes permisos para editar buses",
+  try {
+    const comodidades = await listarComodidades();
+
+    res.status(200).json({
+      datos: comodidades,
     });
+  } catch (error) {
+    console.error(
+      "Error al consultar comodidades:",
+      error
+    );
+
+    res.status(500).json({
+      error: "No se pudieron consultar las comodidades",
+    });
+  }
+}
+
+// ========================================
+// REGISTRAR BUS
+// ========================================
+
+export async function crearBus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  if (!verificarAcceso(res, "registrar buses")) {
     return;
   }
 
-  const busId = req.params.id;
+  const datos: unknown = req.body;
 
-  if (
-    typeof busId !== "string" ||
-    !UUID_REGEX.test(busId)
-  ) {
-    res.status(400).json({
-      error: "El identificador del bus es inválido",
-    });
-    return;
-  }
-
-  const datos = req.body;
-
-  if (
-    !datos ||
-    typeof datos !== "object" ||
-    Array.isArray(datos)
-  ) {
+  if (!esObjeto(datos)) {
     res.status(400).json({
       error: "Debes enviar los datos del bus",
     });
     return;
   }
 
-  // Nunca se permite cambiar la cooperativa del bus.
+  const cooperativaId =
+    res.locals.sesion.rol === "admin"
+      ? datos.cooperativaId
+      : res.locals.sesion.coopId;
+
+  if (
+    !esUUID(cooperativaId) ||
+    !esUUID(datos.grupoId)
+  ) {
+    res.status(400).json({
+      error: "La cooperativa o el grupo son inválidos",
+    });
+    return;
+  }
+
+  for (const campo of CAMPOS_TEXTO) {
+    if (!esTextoValido(datos[campo])) {
+      res.status(400).json({
+        error:
+          `El campo ${campo} es obligatorio y debe tener máximo 100 caracteres`,
+      });
+      return;
+    }
+  }
+
+  if (
+    datos.pisos === undefined ||
+    datos.capacidad === undefined ||
+    !sonNumerosValidos(datos)
+  ) {
+    res.status(400).json({
+      error: "Año, pisos, capacidad o imagen inválidos",
+    });
+    return;
+  }
+
+  // Si el frontend antiguo todavía no envía
+  // comodidades, se utiliza un arreglo vacío.
+  const comodidades = datos.comodidades ?? [];
+
+  if (!sonComodidadesValidas(comodidades)) {
+    res.status(400).json({
+      error: "Las comodidades enviadas son inválidas",
+    });
+    return;
+  }
+
+  try {
+    const resultado = await registrarBus({
+      cooperativaId,
+      grupoId: datos.grupoId as string,
+      placa: (datos.placa as string)
+        .trim()
+        .toUpperCase(),
+      numeroUnidad: (datos.numeroUnidad as string).trim(),
+      color: (datos.color as string).trim(),
+      marcaChasis: (datos.marcaChasis as string).trim(),
+      marcaCarroceria: (
+        datos.marcaCarroceria as string
+      ).trim(),
+      anio: (datos.anio as number | null) ?? null,
+      pisos: datos.pisos as number,
+      capacidad: datos.capacidad as number,
+      imagenUrl:
+        (datos.imagenUrl as string | null) ?? null,
+      comodidades,
+    });
+
+    if ("error" in resultado) {
+      res.status(resultado.estado ?? 400).json({
+        error: resultado.error,
+      });
+      return;
+    }
+
+    res.status(201).json({
+      datos: resultado.bus,
+    });
+  } catch (error) {
+    if (esErrorUnico(error)) {
+      res.status(409).json({
+        error:
+          "Ya existe un bus con esa placa o número de unidad",
+      });
+      return;
+    }
+
+    console.error("Error al registrar bus:", error);
+
+    res.status(500).json({
+      error: "No se pudo registrar el bus",
+    });
+  }
+}
+
+// ========================================
+// EDITAR BUS
+// ========================================
+
+export async function editarBus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  if (!verificarAcceso(res, "editar buses")) {
+    return;
+  }
+
+  const busId = req.params.id;
+
+  if (!esUUID(busId)) {
+    res.status(400).json({
+      error: "El identificador del bus es inválido",
+    });
+    return;
+  }
+
+  const datos: unknown = req.body;
+
+  if (!esObjeto(datos)) {
+    res.status(400).json({
+      error: "Debes enviar los datos del bus",
+    });
+    return;
+  }
+
+  // La cooperativa propietaria nunca se modifica.
   if (
     "cooperativaId" in datos ||
     "cooperativa_id" in datos
@@ -288,33 +424,18 @@ export async function editarBus(
     return;
   }
 
-  const cooperativaId =
-    sesion.rol === "admin"
-      ? req.query.cooperativaId
-      : sesion.coopId;
+  const cooperativaId = obtenerCooperativaId(
+    req,
+    res,
+    "query"
+  );
 
-  if (
-    typeof cooperativaId !== "string" ||
-    !UUID_REGEX.test(cooperativaId)
-  ) {
+  if (!esUUID(cooperativaId)) {
     res.status(400).json({
       error: "La cooperativa es inválida",
     });
     return;
   }
-
-  const camposPermitidos = [
-    "grupoId",
-    "placa",
-    "numeroUnidad",
-    "color",
-    "marcaChasis",
-    "marcaCarroceria",
-    "anio",
-    "pisos",
-    "capacidad",
-    "imagenUrl",
-  ] as const;
 
   const camposRecibidos = Object.keys(datos);
 
@@ -322,8 +443,8 @@ export async function editarBus(
     camposRecibidos.length === 0 ||
     camposRecibidos.some(
       (campo) =>
-        !camposPermitidos.includes(
-          campo as (typeof camposPermitidos)[number]
+        !CAMPOS_EDICION.includes(
+          campo as (typeof CAMPOS_EDICION)[number]
         )
     )
   ) {
@@ -335,8 +456,7 @@ export async function editarBus(
 
   if (
     datos.grupoId !== undefined &&
-    (typeof datos.grupoId !== "string" ||
-      !UUID_REGEX.test(datos.grupoId))
+    !esUUID(datos.grupoId)
   ) {
     res.status(400).json({
       error: "El grupo es inválido",
@@ -344,65 +464,58 @@ export async function editarBus(
     return;
   }
 
-  const camposTexto = [
-    "placa",
-    "numeroUnidad",
-    "color",
-    "marcaChasis",
-    "marcaCarroceria",
-  ] as const;
-
-  for (const campo of camposTexto) {
+  for (const campo of CAMPOS_TEXTO) {
     if (
       datos[campo] !== undefined &&
-      (typeof datos[campo] !== "string" ||
-        !datos[campo].trim() ||
-        datos[campo].trim().length > 100)
+      !esTextoValido(datos[campo])
     ) {
       res.status(400).json({
-        error: `El campo ${campo} debe contener entre 1 y 100 caracteres`,
+        error:
+          `El campo ${campo} debe contener entre 1 y 100 caracteres`,
       });
       return;
     }
   }
 
-  if (
-    (datos.pisos !== undefined &&
-      (!Number.isInteger(datos.pisos) ||
-        datos.pisos < 1 ||
-        datos.pisos > 3)) ||
-    (datos.capacidad !== undefined &&
-      (!Number.isInteger(datos.capacidad) ||
-        datos.capacidad < 1 ||
-        datos.capacidad > 100)) ||
-    (datos.anio != null &&
-      (!Number.isInteger(datos.anio) ||
-        datos.anio < 1950 ||
-        datos.anio > new Date().getFullYear() + 1)) ||
-    (datos.imagenUrl != null &&
-      (typeof datos.imagenUrl !== "string" ||
-        datos.imagenUrl.length > 2048))
-  ) {
+  if (!sonNumerosValidos(datos)) {
     res.status(400).json({
       error: "Año, pisos, capacidad o imagen inválidos",
     });
     return;
   }
 
+  if (
+    datos.comodidades !== undefined &&
+    !sonComodidadesValidas(datos.comodidades)
+  ) {
+    res.status(400).json({
+      error: "Las comodidades enviadas son inválidas",
+    });
+    return;
+  }
+
   const cambios: DatosEdicionBus = {};
 
-  for (const campo of camposPermitidos) {
+  for (const campo of CAMPOS_EDICION) {
     if (datos[campo] !== undefined) {
-      cambios[campo] = datos[campo];
+      // La validación anterior ya verificó los tipos.
+      Object.assign(cambios, {
+        [campo]: datos[campo],
+      });
     }
   }
 
   if (cambios.placa !== undefined) {
-    cambios.placa = cambios.placa.trim().toUpperCase();
+    cambios.placa = cambios.placa
+      .trim()
+      .toUpperCase();
   }
 
-  for (const campo of camposTexto) {
-    if (campo !== "placa" && cambios[campo] !== undefined) {
+  for (const campo of CAMPOS_TEXTO) {
+    if (
+      campo !== "placa" &&
+      cambios[campo] !== undefined
+    ) {
       cambios[campo] = cambios[campo].trim();
     }
   }
@@ -414,24 +527,21 @@ export async function editarBus(
       cambios
     );
 
-   if ("error" in resultado) {
-  res.status(resultado.estado ?? 400).json({
-    error: resultado.error,
-  });
-  return;
-}
+    if ("error" in resultado) {
+      res.status(resultado.estado ?? 400).json({
+        error: resultado.error,
+      });
+      return;
+    }
 
     res.status(200).json({
       datos: resultado.bus,
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
+    if (esErrorUnico(error)) {
       res.status(409).json({
-        error: "Ya existe un bus con esa placa o número de unidad",
+        error:
+          "Ya existe un bus con esa placa o número de unidad",
       });
       return;
     }
@@ -444,51 +554,54 @@ export async function editarBus(
   }
 }
 
-
+// ========================================
+// CAMBIAR ESTADO
+// ========================================
 
 export async function cambiarEstadoDeBus(
   req: Request,
   res: Response
 ): Promise<void> {
-  const sesion = res.locals.sesion;
-
-  if (!sesion) {
-    res.status(401).json({ error: "Debes iniciar sesión" });
-    return;
-  }
-
-  if (sesion.rol !== "admin" && sesion.rol !== "cooperativa") {
-    res.status(403).json({ error: "No tienes permisos para cambiar el estado del bus" });
+  if (
+    !verificarAcceso(
+      res,
+      "cambiar el estado del bus"
+    )
+  ) {
     return;
   }
 
   const busId = req.params.id;
-  const cooperativaId =
-    sesion.rol === "admin"
-      ? req.query.cooperativaId
-      : sesion.coopId;
+
+  const cooperativaId = obtenerCooperativaId(
+    req,
+    res,
+    "query"
+  );
 
   if (
-    typeof busId !== "string" ||
-    !UUID_REGEX.test(busId) ||
-    typeof cooperativaId !== "string" ||
-    !UUID_REGEX.test(cooperativaId)
+    !esUUID(busId) ||
+    !esUUID(cooperativaId)
   ) {
-    res.status(400).json({ error: "Bus o cooperativa inválidos" });
+    res.status(400).json({
+      error: "Bus o cooperativa inválidos",
+    });
     return;
   }
 
-  const datos = req.body;
+  const datos: unknown = req.body;
 
   if (
-    !datos ||
-    typeof datos !== "object" ||
-    Array.isArray(datos) ||
+    !esObjeto(datos) ||
     Object.keys(datos).length !== 1 ||
-    !["ACTIVO", "INACTIVO"].includes(datos.estado)
+    typeof datos.estado !== "string" ||
+    !ESTADOS_PERMITIDOS.includes(
+      datos.estado as EstadoBus
+    )
   ) {
     res.status(400).json({
-      error: "Debes enviar únicamente el estado ACTIVO o INACTIVO",
+      error:
+        "Debes enviar únicamente el estado ACTIVO, INACTIVO o MANTENIMIENTO",
     });
     return;
   }
@@ -497,17 +610,25 @@ export async function cambiarEstadoDeBus(
     const resultado = await cambiarEstadoBus(
       busId,
       cooperativaId,
-      datos.estado as "ACTIVO" | "INACTIVO"
+      datos.estado as EstadoBus
     );
 
     if ("error" in resultado) {
-      res.status(resultado.estado ?? 400).json({ error: resultado.error });
+      res.status(resultado.estado ?? 400).json({
+        error: resultado.error,
+      });
       return;
     }
 
-    res.status(200).json({ datos: resultado.bus });
+    res.status(200).json({
+      datos: resultado.bus,
+    });
   } catch (error) {
-    console.error("Error al cambiar estado del bus:", error);
+    console.error(
+      "Error al cambiar estado del bus:",
+      error
+    );
+
     res.status(500).json({
       error: "No se pudo cambiar el estado del bus",
     });

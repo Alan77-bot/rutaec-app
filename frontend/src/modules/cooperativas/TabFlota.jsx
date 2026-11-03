@@ -13,6 +13,7 @@ const FORM_INICIAL = {
   pisos: "1",
   capacidad: "",
   imagenUrl: "",
+  comodidades: [],
 };
 
 const overlayStyle = {
@@ -54,7 +55,29 @@ const valorStyle = {
 };
 
 function EtiquetaEstado({ estado }) {
-  const activo = estado === "ACTIVO";
+  const estilos = {
+    ACTIVO: {
+      fondo: "#dcfce7",
+      texto: "#15803d",
+      punto: "#16a34a",
+    },
+    INACTIVO: {
+      fondo: "#fee2e2",
+      texto: "#b91c1c",
+      punto: "#dc2626",
+    },
+    MANTENIMIENTO: {
+      fondo: "#fef3c7",
+      texto: "#92400e",
+      punto: "#f59e0b",
+    },
+  };
+
+  const estilo = estilos[estado] ?? {
+    fondo: "#f1f5f9",
+    texto: "#475569",
+    punto: "#64748b",
+  };
 
   return (
     <span
@@ -66,8 +89,8 @@ function EtiquetaEstado({ estado }) {
         borderRadius: 30,
         fontSize: 12,
         fontWeight: 800,
-        background: activo ? "#dcfce7" : "#fee2e2",
-        color: activo ? "#15803d" : "#b91c1c",
+        background: estilo.fondo,
+        color: estilo.texto,
       }}
     >
       <span
@@ -75,7 +98,7 @@ function EtiquetaEstado({ estado }) {
           width: 7,
           height: 7,
           borderRadius: "50%",
-          background: activo ? "#16a34a" : "#dc2626",
+          background: estilo.punto,
         }}
       />
       {estado || "SIN ESTADO"}
@@ -107,13 +130,16 @@ function DatoBus({ etiqueta, valor }) {
 export default function TabFlota({ onTotalBusesChange }) {
   const [buses, setBuses] = useState([]);
   const [grupos, setGrupos] = useState([]);
+  const [comodidadesDisponibles, setComodidadesDisponibles] =
+  useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
   const [errorFormulario, setErrorFormulario] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
-
+  const [nuevoEstadoSeleccionado, setNuevoEstadoSeleccionado] =
+  useState("ACTIVO");
   const [form, setForm] = useState({ ...FORM_INICIAL });
   const [busEditando, setBusEditando] = useState(null);
 
@@ -142,16 +168,18 @@ export default function TabFlota({ onTotalBusesChange }) {
     let activo = true;
 
     Promise.all([
-      busesService.listar(),
-      busesService.listarGrupos(),
-    ])
-      .then(([listaBuses, listaGrupos]) => {
-        if (!activo) return;
+  busesService.listar(),
+  busesService.listarGrupos(),
+  busesService.listarComodidades(),
+])
+  .then(([listaBuses, listaGrupos, listaComodidades]) => {
+    if (!activo) return;
 
-        setBuses(listaBuses);
-        setGrupos(listaGrupos);
-        onTotalBusesChange?.(listaBuses.length);
-      })
+    setBuses(listaBuses);
+    setGrupos(listaGrupos);
+    setComodidadesDisponibles(listaComodidades);
+    onTotalBusesChange?.(listaBuses.length);
+  })
       .catch((err) => {
         if (activo) setError(err.message);
       })
@@ -192,6 +220,8 @@ export default function TabFlota({ onTotalBusesChange }) {
       pisos: String(bus.pisos ?? 1),
       capacidad: String(bus.capacidad ?? ""),
       imagenUrl: bus.imagen_url ?? "",
+      comodidades:
+  bus.bus_comodidades?.map((item) => item.comodidad) ?? [],
     });
 
     setErrorFormulario("");
@@ -227,6 +257,7 @@ export default function TabFlota({ onTotalBusesChange }) {
       pisos: Number(form.pisos),
       capacidad: Number(form.capacidad),
       imagenUrl: form.imagenUrl.trim() || null,
+      comodidades: form.comodidades,
     };
 
     try {
@@ -256,10 +287,13 @@ export default function TabFlota({ onTotalBusesChange }) {
   }
 
   function abrirConfirmacionEstado(bus) {
-    setErrorEstado("");
-    setMensajeEstado("");
-    setBusConfirmandoEstado(bus);
-  }
+  setErrorEstado("");
+  setMensajeEstado("");
+  setNuevoEstadoSeleccionado(
+    bus.estado === "ACTIVO" ? "INACTIVO" : "ACTIVO"
+  );
+  setBusConfirmandoEstado(bus);
+}
 
   function cerrarConfirmacionEstado() {
     if (busCambiandoEstado) return;
@@ -274,8 +308,7 @@ export default function TabFlota({ onTotalBusesChange }) {
 
     const bus = busConfirmandoEstado;
 
-    const nuevoEstado =
-      bus.estado === "ACTIVO" ? "INACTIVO" : "ACTIVO";
+    const nuevoEstado = nuevoEstadoSeleccionado;
 
     setBusCambiandoEstado(bus.id);
     setErrorEstado("");
@@ -332,6 +365,10 @@ export default function TabFlota({ onTotalBusesChange }) {
     (bus) => bus.estado === "INACTIVO"
   ).length;
 
+  const totalMantenimiento = buses.filter(
+  (bus) => bus.estado === "MANTENIMIENTO"
+).length;
+
   return (
     <section className="panel">
       {/* ENCABEZADO */}
@@ -377,6 +414,12 @@ export default function TabFlota({ onTotalBusesChange }) {
               valor: totalActivos,
               color: "#15803d",
             },
+
+            {
+  titulo: "En mantenimiento",
+  valor: totalMantenimiento,
+  color: "#92400e",
+},
             {
               titulo: "Buses inactivos",
               valor: totalInactivos,
@@ -889,7 +932,45 @@ export default function TabFlota({ onTotalBusesChange }) {
                 </div>
               </div>
             )}
+            {!mensajeEstado && (
+  <label
+    style={{
+      display: "block",
+      textAlign: "left",
+      marginBottom: 16,
+      fontWeight: 700,
+    }}
+  >
+    Nuevo estado
 
+    <select
+      value={nuevoEstadoSeleccionado}
+      onChange={(e) =>
+        setNuevoEstadoSeleccionado(e.target.value)
+      }
+      disabled={!!busCambiandoEstado}
+      style={{
+        display: "block",
+        width: "100%",
+        marginTop: 8,
+        padding: 10,
+        borderRadius: 10,
+        border: "1px solid #cbd5e1",
+      }}
+    >
+      {["ACTIVO", "INACTIVO", "MANTENIMIENTO"]
+        .filter(
+          (estado) =>
+            estado !== busConfirmandoEstado.estado
+        )
+        .map((estado) => (
+          <option key={estado} value={estado}>
+            {estado}
+          </option>
+        ))}
+    </select>
+  </label>
+)}
             {errorEstado && (
               <div
                 role="alert"
@@ -1169,6 +1250,64 @@ export default function TabFlota({ onTotalBusesChange }) {
                   />
                 </label>
               </div>
+
+              <div style={{ marginTop: 22 }}>
+  <h4 style={{ color: "#1b304b", marginBottom: 12 }}>
+    Comodidades del vehículo
+  </h4>
+
+  {comodidadesDisponibles.length === 0 ? (
+    <p style={{ color: "#64748b", fontSize: 13 }}>
+      No hay comodidades disponibles.
+    </p>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: 12,
+      }}
+    >
+      {comodidadesDisponibles.map((comodidad) => (
+        <label
+          key={comodidad.codigo}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: 12,
+            border: "1px solid #e5eaf0",
+            borderRadius: 10,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={form.comodidades.includes(
+              comodidad.codigo
+            )}
+            onChange={(e) => {
+              setForm((anterior) => ({
+                ...anterior,
+                comodidades: e.target.checked
+                  ? [
+                      ...anterior.comodidades,
+                      comodidad.codigo,
+                    ]
+                  : anterior.comodidades.filter(
+                      (codigo) =>
+                        codigo !== comodidad.codigo
+                    ),
+              }));
+            }}
+          />
+          {comodidad.nombre}
+        </label>
+      ))}
+    </div>
+  )}
+</div>
 
               {errorFormulario && (
                 <div
