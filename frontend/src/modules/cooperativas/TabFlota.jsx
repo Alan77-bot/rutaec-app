@@ -15,17 +15,117 @@ const FORM_INICIAL = {
   imagenUrl: "",
 };
 
+const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(10, 24, 43, 0.68)",
+  backdropFilter: "blur(5px)",
+  display: "grid",
+  placeItems: "center",
+  padding: 16,
+  zIndex: 2000,
+};
+
+const modalStyle = {
+  width: "100%",
+  maxWidth: 720,
+  maxHeight: "92vh",
+  overflowY: "auto",
+  background: "#fff",
+  borderRadius: 20,
+  padding: 24,
+  boxShadow: "0 25px 80px rgba(0,0,0,.25)",
+  color: "#263445",
+};
+
+const labelStyle = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#526171",
+  marginBottom: 6,
+};
+
+const valorStyle = {
+  fontSize: 15,
+  fontWeight: 600,
+  color: "#1b304b",
+  overflowWrap: "anywhere",
+};
+
+function EtiquetaEstado({ estado }) {
+  const activo = estado === "ACTIVO";
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "7px 13px",
+        borderRadius: 30,
+        fontSize: 12,
+        fontWeight: 800,
+        background: activo ? "#dcfce7" : "#fee2e2",
+        color: activo ? "#15803d" : "#b91c1c",
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: activo ? "#16a34a" : "#dc2626",
+        }}
+      />
+      {estado || "SIN ESTADO"}
+    </span>
+  );
+}
+
+function DatoBus({ etiqueta, valor }) {
+  return (
+    <div
+      style={{
+        padding: "13px 15px",
+        borderRadius: 12,
+        background: "#f7f9fc",
+        border: "1px solid #e9edf3",
+        minWidth: 0,
+      }}
+    >
+      <div style={labelStyle}>{etiqueta}</div>
+      <div style={valorStyle}>
+        {valor !== null && valor !== undefined && valor !== ""
+          ? valor
+          : "No registrado"}
+      </div>
+    </div>
+  );
+}
+
 export default function TabFlota({ onTotalBusesChange }) {
   const [buses, setBuses] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+
   const [errorFormulario, setErrorFormulario] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [guardando, setGuardando] = useState(false);
+
   const [form, setForm] = useState({ ...FORM_INICIAL });
   const [busEditando, setBusEditando] = useState(null);
-  const [busCambiandoEstado, setBusCambiandoEstado] = useState(null);
+
+  const [busDetalle, setBusDetalle] = useState(null);
+  const [busConfirmandoEstado, setBusConfirmandoEstado] =
+    useState(null);
+
+  const [busCambiandoEstado, setBusCambiandoEstado] =
+    useState(null);
+
+  const [errorEstado, setErrorEstado] = useState("");
+  const [mensajeEstado, setMensajeEstado] = useState("");
 
   async function cargarDatos() {
     const [listaBuses, listaGrupos] = await Promise.all([
@@ -95,6 +195,7 @@ export default function TabFlota({ onTotalBusesChange }) {
     });
 
     setErrorFormulario("");
+    setBusDetalle(null);
     setMostrarFormulario(true);
   }
 
@@ -154,36 +255,60 @@ export default function TabFlota({ onTotalBusesChange }) {
     }
   }
 
-  async function cambiarEstadoBus(bus) {
+  function abrirConfirmacionEstado(bus) {
+    setErrorEstado("");
+    setMensajeEstado("");
+    setBusConfirmandoEstado(bus);
+  }
+
+  function cerrarConfirmacionEstado() {
     if (busCambiandoEstado) return;
+
+    setBusConfirmandoEstado(null);
+    setErrorEstado("");
+    setMensajeEstado("");
+  }
+
+  async function cambiarEstadoBus() {
+    if (!busConfirmandoEstado || busCambiandoEstado) return;
+
+    const bus = busConfirmandoEstado;
 
     const nuevoEstado =
       bus.estado === "ACTIVO" ? "INACTIVO" : "ACTIVO";
 
-    const accion =
-      nuevoEstado === "ACTIVO" ? "activar" : "desactivar";
-
-    const confirmado = window.confirm(
-      `¿Seguro que deseas ${accion} el bus ${bus.numero_unidad} (${bus.placa})?`
-    );
-
-    if (!confirmado) return;
-
     setBusCambiandoEstado(bus.id);
+    setErrorEstado("");
+    setMensajeEstado("");
 
     try {
       await busesService.cambiarEstado(bus.id, nuevoEstado);
 
       try {
         await cargarDatos();
-        setError("");
+
+        setMensajeEstado(
+          `La unidad ${bus.numero_unidad} ahora se encuentra ${nuevoEstado}.`
+        );
+
+        setBusConfirmandoEstado({
+          ...bus,
+          estado: nuevoEstado,
+        });
+
+        if (busDetalle?.id === bus.id) {
+          setBusDetalle((anterior) =>
+            anterior ? { ...anterior, estado: nuevoEstado } : null
+          );
+        }
       } catch {
         setError(
           "Estado actualizado, pero no se pudo refrescar el listado. Recarga la página."
         );
+        setBusConfirmandoEstado(null);
       }
     } catch (err) {
-      window.alert(
+      setErrorEstado(
         err.message || "No se pudo cambiar el estado del bus."
       );
     } finally {
@@ -191,12 +316,29 @@ export default function TabFlota({ onTotalBusesChange }) {
     }
   }
 
+  function abrirDetalle(bus) {
+    setBusDetalle(bus);
+  }
+
+  function cerrarDetalle() {
+    setBusDetalle(null);
+  }
+
+  const totalActivos = buses.filter(
+    (bus) => bus.estado === "ACTIVO"
+  ).length;
+
+  const totalInactivos = buses.filter(
+    (bus) => bus.estado === "INACTIVO"
+  ).length;
+
   return (
     <section className="panel">
+      {/* ENCABEZADO */}
       <div className="seccion-cab">
         <div>
           <h3>Flota de buses</h3>
-          <p>Administra los buses registrados en tu cooperativa.</p>
+          <p>Administra los vehículos de tu cooperativa.</p>
         </div>
 
         <button
@@ -210,13 +352,81 @@ export default function TabFlota({ onTotalBusesChange }) {
             !!busCambiandoEstado
           }
         >
-          Registrar bus
+          + Registrar bus
         </button>
       </div>
 
+      {/* RESUMEN */}
+      {!cargando && !error && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 14,
+            margin: "22px 0",
+          }}
+        >
+          {[
+            {
+              titulo: "Total de buses",
+              valor: buses.length,
+              color: "#1d426d",
+            },
+            {
+              titulo: "Buses activos",
+              valor: totalActivos,
+              color: "#15803d",
+            },
+            {
+              titulo: "Buses inactivos",
+              valor: totalInactivos,
+              color: "#b91c1c",
+            },
+          ].map((item) => (
+            <div
+              key={item.titulo}
+              style={{
+                background: "#fff",
+                border: "1px solid #e5eaf0",
+                borderRadius: 14,
+                padding: 17,
+              }}
+            >
+              <div style={{ color: "#718096", fontSize: 13 }}>
+                {item.titulo}
+              </div>
+              <div
+                style={{
+                  fontSize: 27,
+                  fontWeight: 800,
+                  color: item.color,
+                  marginTop: 5,
+                }}
+              >
+                {item.valor}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ESTADOS DE CARGA */}
       {cargando && <p>Cargando flota...</p>}
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            padding: 14,
+            background: "#fee2e2",
+            color: "#991b1b",
+            borderRadius: 12,
+            marginTop: 15,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {!cargando && !error && grupos.length === 0 && (
         <p className="muted">
@@ -229,6 +439,7 @@ export default function TabFlota({ onTotalBusesChange }) {
         <p>Aún no hay buses registrados.</p>
       )}
 
+      {/* TABLA DE FLOTA */}
       {!cargando && !error && buses.length > 0 && (
         <div className="tabla-wrap">
           <table className="tabla">
@@ -253,8 +464,12 @@ export default function TabFlota({ onTotalBusesChange }) {
                   <td>{bus.grupos_buses?.nombre ?? "Sin grupo"}</td>
                   <td>{bus.marca_chasis}</td>
                   <td>{bus.marca_carroceria}</td>
-                  <td>{bus.capacidad}</td>
-                  <td>{bus.estado}</td>
+                  <td>{bus.capacidad} pasajeros</td>
+
+                  <td>
+                    <EtiquetaEstado estado={bus.estado} />
+                  </td>
+
                   <td>
                     <div
                       style={{
@@ -263,6 +478,17 @@ export default function TabFlota({ onTotalBusesChange }) {
                         flexWrap: "wrap",
                       }}
                     >
+                      <button
+                        type="button"
+                        className="btn btn-claro"
+                        onClick={() => abrirDetalle(bus)}
+                        disabled={
+                          guardando || !!busCambiandoEstado
+                        }
+                      >
+                        Ver detalles
+                      </button>
+
                       <button
                         type="button"
                         className="btn btn-claro"
@@ -277,16 +503,16 @@ export default function TabFlota({ onTotalBusesChange }) {
                       <button
                         type="button"
                         className="btn btn-claro"
-                        onClick={() => cambiarEstadoBus(bus)}
+                        onClick={() =>
+                          abrirConfirmacionEstado(bus)
+                        }
                         disabled={
                           guardando || !!busCambiandoEstado
                         }
                       >
-                        {busCambiandoEstado === bus.id
-                          ? "Procesando..."
-                          : bus.estado === "ACTIVO"
-                            ? "Desactivar"
-                            : "Activar"}
+                        {bus.estado === "ACTIVO"
+                          ? "Desactivar"
+                          : "Activar"}
                       </button>
                     </div>
                   </td>
@@ -297,17 +523,448 @@ export default function TabFlota({ onTotalBusesChange }) {
         </div>
       )}
 
+      {/* MODAL: INFORMACIÓN COMPLETA DEL BUS */}
+      {busDetalle && (
+        <div
+          style={overlayStyle}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) cerrarDetalle();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-detalle-bus"
+            className="panel"
+            style={modalStyle}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <h3
+                  id="titulo-detalle-bus"
+                  style={{ margin: 0, color: "#1b304b" }}
+                >
+                  Información del vehículo
+                </h3>
+                <p style={{ margin: "5px 0 0", color: "#718096" }}>
+                  Ficha completa de la unidad
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={cerrarDetalle}
+                aria-label="Cerrar detalles"
+                style={{
+                  border: 0,
+                  background: "#f1f5f9",
+                  borderRadius: 10,
+                  width: 38,
+                  height: 38,
+                  fontSize: 22,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* IMAGEN */}
+            {busDetalle.imagen_url ? (
+              <img
+                src={busDetalle.imagen_url}
+                alt={`Bus ${busDetalle.numero_unidad}`}
+                style={{
+                  width: "100%",
+                  height: 230,
+                  objectFit: "cover",
+                  borderRadius: 15,
+                  marginBottom: 18,
+                  background: "#f1f5f9",
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  height: 150,
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: 15,
+                  background: "#f1f5f9",
+                  color: "#64748b",
+                  marginBottom: 18,
+                  fontSize: 42,
+                }}
+              >
+                🚌
+                <span style={{ fontSize: 13 }}>
+                  Sin fotografía registrada
+                </span>
+              </div>
+            )}
+
+            {/* IDENTIFICACIÓN */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    color: "#1b304b",
+                    fontSize: 25,
+                  }}
+                >
+                  Unidad {busDetalle.numero_unidad}
+                </h2>
+                <p
+                  style={{
+                    margin: "5px 0 0",
+                    color: "#64748b",
+                  }}
+                >
+                  Placa: {busDetalle.placa}
+                </p>
+              </div>
+
+              <EtiquetaEstado estado={busDetalle.estado} />
+            </div>
+
+            {/* INFORMACIÓN GENERAL */}
+            <h4 style={{ color: "#1b304b", marginBottom: 12 }}>
+              Datos generales
+            </h4>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(145px, 1fr))",
+                gap: 11,
+              }}
+            >
+              <DatoBus
+                etiqueta="Grupo"
+                valor={busDetalle.grupos_buses?.nombre}
+              />
+
+              <DatoBus
+                etiqueta="Tipo de grupo"
+                valor={busDetalle.grupos_buses?.tipo}
+              />
+
+              <DatoBus
+                etiqueta="Color"
+                valor={busDetalle.color}
+              />
+
+              <DatoBus
+                etiqueta="Marca del chasis"
+                valor={busDetalle.marca_chasis}
+              />
+
+              <DatoBus
+                etiqueta="Carrocería"
+                valor={busDetalle.marca_carroceria}
+              />
+
+              <DatoBus
+                etiqueta="Año"
+                valor={busDetalle.anio}
+              />
+
+              <DatoBus
+                etiqueta="Número de pisos"
+                valor={busDetalle.pisos}
+              />
+
+              <DatoBus
+                etiqueta="Capacidad"
+                valor={
+                  busDetalle.capacidad
+                    ? `${busDetalle.capacidad} pasajeros`
+                    : null
+                }
+              />
+
+              <DatoBus
+                etiqueta="Número de unidad"
+                valor={busDetalle.numero_unidad}
+              />
+
+              <DatoBus
+                etiqueta="Placa"
+                valor={busDetalle.placa}
+              />
+            </div>
+
+            {/* COMODIDADES */}
+            <h4
+              style={{
+                color: "#1b304b",
+                margin: "23px 0 12px",
+              }}
+            >
+              Comodidades del vehículo
+            </h4>
+
+            {busDetalle.bus_comodidades?.length > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 9,
+                }}
+              >
+                {busDetalle.bus_comodidades.map((item, index) => (
+                  <span
+                    key={item.comodidad ?? index}
+                    style={{
+                      padding: "9px 13px",
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✓ {item.comodidades?.nombre ?? item.comodidad}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p
+                style={{
+                  background: "#f7f9fc",
+                  borderRadius: 10,
+                  padding: 14,
+                  color: "#718096",
+                  fontSize: 13,
+                }}
+              >
+                No hay comodidades registradas para esta unidad.
+              </p>
+            )}
+
+            {/* ACCIONES */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                flexWrap: "wrap",
+                marginTop: 25,
+                borderTop: "1px solid #e5eaf0",
+                paddingTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-claro"
+                onClick={cerrarDetalle}
+              >
+                Cerrar
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-oscuro"
+                onClick={() => abrirEdicion(busDetalle)}
+              >
+                Editar vehículo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ACTIVAR / DESACTIVAR */}
+      {busConfirmandoEstado && (
+        <div
+          style={overlayStyle}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              cerrarConfirmacionEstado();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-confirmar-estado"
+            className="panel"
+            style={{
+              ...modalStyle,
+              maxWidth: 460,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 66,
+                height: 66,
+                margin: "0 auto 15px",
+                borderRadius: "50%",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 30,
+                background:
+                  busConfirmandoEstado.estado === "ACTIVO"
+                    ? "#fee2e2"
+                    : "#dcfce7",
+              }}
+            >
+              {busConfirmandoEstado.estado === "ACTIVO"
+                ? "⏸"
+                : "✓"}
+            </div>
+
+            <h3
+              id="titulo-confirmar-estado"
+              style={{ color: "#1b304b", margin: "0 0 10px" }}
+            >
+              {mensajeEstado
+                ? "Estado actualizado"
+                : busConfirmandoEstado.estado === "ACTIVO"
+                  ? "¿Desactivar vehículo?"
+                  : "¿Activar vehículo?"}
+            </h3>
+
+            <p style={{ color: "#64748b", lineHeight: 1.6 }}>
+              {mensajeEstado
+                ? mensajeEstado
+                : `Estás a punto de ${
+                    busConfirmandoEstado.estado === "ACTIVO"
+                      ? "desactivar"
+                      : "activar"
+                  } la unidad ${
+                    busConfirmandoEstado.numero_unidad
+                  } con placa ${busConfirmandoEstado.placa}.`}
+            </p>
+
+            {!mensajeEstado && (
+              <div
+                style={{
+                  background: "#f7f9fc",
+                  padding: 15,
+                  borderRadius: 12,
+                  margin: "18px 0",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ marginBottom: 10 }}>
+                  <strong>Unidad:</strong>{" "}
+                  {busConfirmandoEstado.numero_unidad}
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <strong>Placa:</strong>{" "}
+                  {busConfirmandoEstado.placa}
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <strong>Grupo:</strong>{" "}
+                  {busConfirmandoEstado.grupos_buses?.nombre ??
+                    "Sin grupo"}
+                </div>
+                <div>
+                  <strong>Estado actual:</strong>{" "}
+                  {busConfirmandoEstado.estado}
+                </div>
+              </div>
+            )}
+
+            {errorEstado && (
+              <div
+                role="alert"
+                style={{
+                  padding: 12,
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 10,
+                  marginBottom: 15,
+                  fontSize: 13,
+                  textAlign: "left",
+                }}
+              >
+                {errorEstado}
+              </div>
+            )}
+
+            {mensajeEstado && (
+              <div
+                role="status"
+                style={{
+                  padding: 12,
+                  background: "#dcfce7",
+                  color: "#166534",
+                  borderRadius: 10,
+                  marginBottom: 15,
+                  fontSize: 13,
+                }}
+              >
+                ✓ {mensajeEstado}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                justifyContent: "center",
+                marginTop: 20,
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-claro"
+                disabled={!!busCambiandoEstado}
+                onClick={cerrarConfirmacionEstado}
+              >
+                {mensajeEstado ? "Cerrar" : "Cancelar"}
+              </button>
+
+              {!mensajeEstado && (
+                <button
+                  type="button"
+                  className="btn btn-oscuro"
+                  disabled={!!busCambiandoEstado}
+                  onClick={cambiarEstadoBus}
+                >
+                  {busCambiandoEstado
+                    ? "Procesando..."
+                    : busConfirmandoEstado.estado === "ACTIVO"
+                      ? "Sí, desactivar"
+                      : "Sí, activar"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REGISTRAR / EDITAR */}
       {mostrarFormulario && (
         <div
-          role="presentation"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
-            zIndex: 1000,
+          style={overlayStyle}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) cerrarFormulario();
           }}
         >
           <div
@@ -316,18 +973,69 @@ export default function TabFlota({ onTotalBusesChange }) {
             aria-labelledby="titulo-registro-bus"
             className="panel"
             style={{
-              width: "100%",
-              maxWidth: 600,
-              maxHeight: "90vh",
-              overflowY: "auto",
+              ...modalStyle,
+              maxWidth: 650,
             }}
           >
-            <h3 id="titulo-registro-bus">
-              {busEditando ? "Editar bus" : "Registrar nuevo bus"}
-            </h3>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h3
+                  id="titulo-registro-bus"
+                  style={{ margin: 0, color: "#1b304b" }}
+                >
+                  {busEditando
+                    ? "Editar vehículo"
+                    : "Registrar nuevo bus"}
+                </h3>
+
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    color: "#718096",
+                    fontSize: 13,
+                  }}
+                >
+                  Completa la información del vehículo.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Cerrar formulario"
+                disabled={guardando}
+                onClick={cerrarFormulario}
+                style={{
+                  border: 0,
+                  background: "#f1f5f9",
+                  borderRadius: 10,
+                  width: 38,
+                  height: 38,
+                  fontSize: 22,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            </div>
 
             <form onSubmit={guardarBus}>
-              <div className="form-fila">
+              <div
+                className="form-fila"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 15,
+                }}
+              >
                 <label>
                   Grupo
                   <select
@@ -338,6 +1046,7 @@ export default function TabFlota({ onTotalBusesChange }) {
                     }
                   >
                     <option value="">Selecciona un grupo</option>
+
                     {grupos.map((grupo) => (
                       <option key={grupo.id} value={grupo.id}>
                         {grupo.nombre} ({grupo.tipo})
@@ -428,14 +1137,14 @@ export default function TabFlota({ onTotalBusesChange }) {
                       actualizar("pisos", e.target.value)
                     }
                   >
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
+                    <option value="1">1 piso</option>
+                    <option value="2">2 pisos</option>
+                    <option value="3">3 pisos</option>
                   </select>
                 </label>
 
                 <label>
-                  Capacidad
+                  Capacidad de pasajeros
                   <input
                     required
                     type="number"
@@ -462,14 +1171,30 @@ export default function TabFlota({ onTotalBusesChange }) {
               </div>
 
               {errorFormulario && (
-                <p role="alert">{errorFormulario}</p>
+                <div
+                  role="alert"
+                  style={{
+                    background: "#fee2e2",
+                    color: "#991b1b",
+                    padding: 13,
+                    borderRadius: 10,
+                    marginTop: 17,
+                    fontSize: 13,
+                  }}
+                >
+                  {errorFormulario}
+                </div>
               )}
 
               <div
                 style={{
                   display: "flex",
-                  gap: 12,
-                  marginTop: 16,
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginTop: 24,
+                  paddingTop: 18,
+                  borderTop: "1px solid #e5eaf0",
                 }}
               >
                 <button
@@ -490,7 +1215,7 @@ export default function TabFlota({ onTotalBusesChange }) {
                     ? "Guardando..."
                     : busEditando
                       ? "Guardar cambios"
-                      : "Guardar bus"}
+                      : "Registrar vehículo"}
                 </button>
               </div>
             </form>
