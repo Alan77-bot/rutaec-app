@@ -56,7 +56,7 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
   doc.fillColor("#ffffff").fontSize(18).font("Helvetica-Bold");
   doc.text(d.cooperativa, 24, 17, { width: 400 });
   doc.fontSize(10).font("Helvetica");
-  doc.text("RutaEC · Boleto de viaje", 400, 21, { width: 196, align: "right" });
+  doc.text(d.modo_demo ? "DEMO - SIN COBRO REAL" : "RutaEC · Boleto de viaje", 400, 21, { width: 196, align: "right" });
 
   // Ruta
   doc.fillColor("#1a1a1a").font("Helvetica-Bold").fontSize(20);

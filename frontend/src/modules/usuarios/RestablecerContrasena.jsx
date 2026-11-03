@@ -48,11 +48,11 @@ export default function RestablecerContrasena() {
     }
 
     if (
-      nuevaClave.length < 12 ||
+      nuevaClave.length < 8 ||
       new TextEncoder().encode(nuevaClave).length > 72
     ) {
       setError(
-        'La contraseña debe tener al menos 12 caracteres y hasta 72 bytes.'
+        'La contraseña debe tener al menos 8 caracteres y hasta 72 bytes.'
       )
       return
     }
@@ -136,7 +136,7 @@ export default function RestablecerContrasena() {
         <h1>Crear nueva contraseña</h1>
 
         <p className="muted">
-          Escribe una contraseña de al menos 12 caracteres.
+          Escribe una contraseña de al menos 8 caracteres.
         </p>
 
         <form

@@ -31,7 +31,7 @@ export default function VisorCorreo({ correo, onCerrar, nombreApp }) {
         <button className="modal-x" onClick={onCerrar} aria-label="Cerrar"><Icon n="x" size={16} /></button>
         <div className="mail-cab">
           <h3>{correo.asunto}</h3>
-          <p><b>De:</b> {nombreApp} &lt;no-responder@viajaya.ec&gt;</p>
+          <p><b>Aviso de:</b> {nombreApp}</p>
           <p><b>Para:</b> {correo.para}</p>
           <p className="muted">{new Date(correo.hora).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}</p>
         </div>

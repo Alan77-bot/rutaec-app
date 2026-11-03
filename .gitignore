@@ -72,3 +72,5 @@ backend/prisma/schema.backup
 backend/prisma/schema.sin-modelos.backup
 
 /frontend/viajaya-reference/
+
+backend/storage/
