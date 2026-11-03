@@ -5,6 +5,7 @@ import {
   crearBus,
   obtenerGruposBuses,
   editarBus,
+  cambiarEstadoDeBus,
 } from "./buses.controller.js";
 
 const router = Router();
@@ -55,4 +56,25 @@ router.patch(
   ...autenticar,
   editarBus
 );
+
+
+
+router.patch(
+  "/:id/estado",
+  (req, res, next) => {
+    const origen = req.get("origin");
+
+    if (!origen || !origenesPermitidos.has(origen)) {
+      res.status(403).json({
+        error: "Origen de la solicitud no permitido",
+      });
+      return;
+    }
+
+    next();
+  },
+  ...autenticar,
+  cambiarEstadoDeBus
+);
+
 export default router;

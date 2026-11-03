@@ -1,9 +1,10 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import {
   listarBusesPorCooperativa,
   registrarBus,
   listarGruposBuses,
   actualizarBus,
+  cambiarEstadoBus,
   type DatosEdicionBus,
 } from "./buses.service.js";
 const UUID_REGEX =
@@ -439,6 +440,76 @@ export async function editarBus(
 
     res.status(500).json({
       error: "No se pudo editar el bus",
+    });
+  }
+}
+
+
+
+export async function cambiarEstadoDeBus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const sesion = res.locals.sesion;
+
+  if (!sesion) {
+    res.status(401).json({ error: "Debes iniciar sesión" });
+    return;
+  }
+
+  if (sesion.rol !== "admin" && sesion.rol !== "cooperativa") {
+    res.status(403).json({ error: "No tienes permisos para cambiar el estado del bus" });
+    return;
+  }
+
+  const busId = req.params.id;
+  const cooperativaId =
+    sesion.rol === "admin"
+      ? req.query.cooperativaId
+      : sesion.coopId;
+
+  if (
+    typeof busId !== "string" ||
+    !UUID_REGEX.test(busId) ||
+    typeof cooperativaId !== "string" ||
+    !UUID_REGEX.test(cooperativaId)
+  ) {
+    res.status(400).json({ error: "Bus o cooperativa inválidos" });
+    return;
+  }
+
+  const datos = req.body;
+
+  if (
+    !datos ||
+    typeof datos !== "object" ||
+    Array.isArray(datos) ||
+    Object.keys(datos).length !== 1 ||
+    !["ACTIVO", "INACTIVO"].includes(datos.estado)
+  ) {
+    res.status(400).json({
+      error: "Debes enviar únicamente el estado ACTIVO o INACTIVO",
+    });
+    return;
+  }
+
+  try {
+    const resultado = await cambiarEstadoBus(
+      busId,
+      cooperativaId,
+      datos.estado as "ACTIVO" | "INACTIVO"
+    );
+
+    if ("error" in resultado) {
+      res.status(resultado.estado ?? 400).json({ error: resultado.error });
+      return;
+    }
+
+    res.status(200).json({ datos: resultado.bus });
+  } catch (error) {
+    console.error("Error al cambiar estado del bus:", error);
+    res.status(500).json({
+      error: "No se pudo cambiar el estado del bus",
     });
   }
 }

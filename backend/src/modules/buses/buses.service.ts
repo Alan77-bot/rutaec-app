@@ -1,4 +1,4 @@
-import { prisma } from "../../lib/prisma.js";
+﻿import { prisma } from "../../lib/prisma.js";
 
 export async function listarBusesPorCooperativa(cooperativaId: string) {
   return prisma.buses.findMany({
@@ -189,4 +189,86 @@ export async function actualizarBus(
   });
 
   return { bus };
+}
+
+
+export async function cambiarEstadoBus(
+  busId: string,
+  cooperativaId: string,
+  nuevoEstado: "ACTIVO" | "INACTIVO"
+) {
+  return prisma.$transaction(async (tx) => {
+    // Coordina este cambio con la programación de viajes.
+    const encontrados = await tx.$queryRaw<{ id: string; estado: string }[]>`
+      SELECT id, estado
+      FROM rutaec.buses
+      WHERE id = ${busId}::uuid
+        AND cooperativa_id = ${cooperativaId}::uuid
+      FOR UPDATE
+    `;
+
+    const existente = encontrados[0];
+
+    if (!existente) {
+      return {
+        error: "El bus no existe o no pertenece a la cooperativa",
+        estado: 404,
+      };
+    }
+
+    if (existente.estado === nuevoEstado) {
+      return {
+        error: `El bus ya se encuentra en estado ${nuevoEstado}`,
+        estado: 409,
+      };
+    }
+
+    if (nuevoEstado === "INACTIVO") {
+      const agendaPendiente = await tx.agenda_bus.findFirst({
+        where: {
+          bus_id: busId,
+          cooperativa_id: cooperativaId,
+          activa: true,
+          fin: { gt: new Date() },
+          OR: [
+            {
+              viajes: {
+                is: {
+                  estado: {
+                    not: "CANCELADO",
+                  },
+                },
+              },
+            },
+            {
+              viajes: {
+                is: null,
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (agendaPendiente) {
+        return {
+          error:
+            "No puedes desactivar un bus con viajes o asignaciones de agenda pendientes",
+          estado: 409,
+        };
+      }
+    }
+
+    const bus = await tx.buses.update({
+      where: {
+        id: busId,
+        cooperativa_id: cooperativaId,
+      },
+      data: {
+        estado: nuevoEstado,
+      },
+    });
+
+    return { bus };
+  });
 }
