@@ -326,38 +326,78 @@ export async function cambiarEstadoOficinista(
 
 
 
+
 export async function obtenerUsuariosDisponiblesOficinista(
-  cooperativaId: string
+  cooperativaId: string,
+  parametros: {
+    buscar?: string;
+    pagina?: number;
+    limite?: number;
+  } = {}
 ) {
-  return prisma.usuarios.findMany({
-    where: {
-      activo: true,
-      correo_verificado_en: {
-        not: null,
+  const buscar = (parametros.buscar ?? "").trim();
+  const pagina = parametros.pagina ?? 1;
+  const limite = parametros.limite ?? 10;
+
+  if (
+    buscar.length > 100 ||
+    !Number.isSafeInteger(pagina) ||
+    pagina < 1 ||
+    !Number.isSafeInteger(limite) ||
+    limite < 1 ||
+    limite > 50
+  ) {
+    throw new ErrorAutenticacion(
+      400,
+      "Los parámetros de búsqueda no son válidos."
+    );
+  }
+
+  const where = {
+    activo: true,
+    correo_verificado_en: {
+      not: null,
+    },
+    roles_globales: {
+      none: {
+        rol: "ADMINISTRADOR",
       },
-      roles_globales: {
-        none: {
-          rol: "ADMINISTRADOR",
-        },
+    },
+    miembros_cooperativa: {
+      none: {
+        activo: true,
       },
-      miembros_cooperativa: {
-        none: {
-          activo: true,
-        },
-      },
-      AND: [
-        {
-          miembros_cooperativa: {
-            none: {
-              cooperativa_id: cooperativaId,
-              rol: {
-                not: "OFICINISTA",
-              },
+    },
+    AND: [
+      {
+        miembros_cooperativa: {
+          none: {
+            cooperativa_id: cooperativaId,
+            rol: {
+              not: "OFICINISTA",
             },
           },
         },
-      ],
-    },
+      },
+      ...(buscar
+        ? [
+            {
+              OR: [
+                { nombres: { contains: buscar, mode: "insensitive" as const } },
+                { apellidos: { contains: buscar, mode: "insensitive" as const } },
+                { correo: { contains: buscar, mode: "insensitive" as const } },
+                { numero_documento: { contains: buscar, mode: "insensitive" as const } },
+              ],
+            },
+          ]
+        : []),
+    ],
+  };
+
+  const total = await prisma.usuarios.count({ where });
+
+  const datos = await prisma.usuarios.findMany({
+    where,
     select: {
       id: true,
       nombres: true,
@@ -368,7 +408,19 @@ export async function obtenerUsuariosDisponiblesOficinista(
     orderBy: [
       { nombres: "asc" },
       { apellidos: "asc" },
+      { id: "asc" },
     ],
-    take: 100,
+    skip: (pagina - 1) * limite,
+    take: limite,
   });
+
+  return {
+    datos,
+    paginacion: {
+      pagina,
+      limite,
+      total,
+      totalPaginas: Math.ceil(total / limite),
+    },
+  };
 }

@@ -72,14 +72,60 @@ export async function actualizarEstadoOficinista(req: Request, res: Response) {
 }
 
 
+
 export async function listarUsuariosDisponiblesOficinista(
   req: Request,
   res: Response
 ) {
-  await ejecutar(
-    req,
-    res,
-    (cooperativaId) =>
-      obtenerUsuariosDisponiblesOficinista(cooperativaId)
-  );
+  try {
+    const sesion = res.locals.sesion as SesionAutenticada;
+
+    if (!sesion.coopId) {
+      res.status(403).json({
+        error: "No tienes una cooperativa asignada.",
+      });
+      return;
+    }
+
+    await comprobarGerente(sesion.id, sesion.coopId);
+
+    const leerEntero = (
+      valor: unknown,
+      predeterminado: number
+    ): number => {
+      if (valor === undefined) return predeterminado;
+
+      if (
+        typeof valor !== "string" ||
+        !/^[1-9]\d*$/.test(valor)
+      ) {
+        return NaN;
+      }
+
+      return Number(valor);
+    };
+
+    if (
+      req.query.buscar !== undefined &&
+      typeof req.query.buscar !== "string"
+    ) {
+      res.status(400).json({
+        error: "La búsqueda no es válida.",
+      });
+      return;
+    }
+
+    const resultado = await obtenerUsuariosDisponiblesOficinista(
+      sesion.coopId,
+      {
+        buscar: req.query.buscar,
+        pagina: leerEntero(req.query.pagina, 1),
+        limite: leerEntero(req.query.limite, 10),
+      }
+    );
+
+    res.status(200).json(resultado);
+  } catch (error) {
+    responderError(res, error);
+  }
 }
