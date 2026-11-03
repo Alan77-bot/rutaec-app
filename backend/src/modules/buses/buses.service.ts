@@ -101,3 +101,92 @@ export async function listarGruposBuses(cooperativaId: string) {
     orderBy: { nombre: "asc" },
   });
 }
+
+
+
+export type DatosEdicionBus = Partial<
+  Omit<DatosRegistroBus, "cooperativaId">
+>;
+
+export async function actualizarBus(
+  busId: string,
+  cooperativaId: string,
+  datos: DatosEdicionBus
+) {
+  // Comprueba que el bus pertenezca a la cooperativa.
+  const existente = await prisma.buses.findFirst({
+    where: {
+      id: busId,
+      cooperativa_id: cooperativaId,
+    },
+    select: { id: true },
+  });
+
+  if (!existente) {
+    return {
+      error: "El bus no existe o no pertenece a la cooperativa",
+      estado: 404,
+    };
+  }
+
+  // Si cambia el grupo, verifica que sea válido.
+  if (datos.grupoId !== undefined) {
+    const grupo = await prisma.grupos_buses.findFirst({
+      where: {
+        id: datos.grupoId,
+        cooperativa_id: cooperativaId,
+        activo: true,
+      },
+      select: { id: true },
+    });
+
+    if (!grupo) {
+      return {
+        error: "El grupo no existe, está inactivo o no pertenece a la cooperativa",
+        estado: 400,
+      };
+    }
+  }
+
+  // Actualiza solo los campos recibidos.
+  const bus = await prisma.buses.update({
+    where: {
+      id: busId,
+      cooperativa_id: cooperativaId,
+    },
+    data: {
+      ...(datos.grupoId !== undefined && {
+        grupo_id: datos.grupoId,
+      }),
+      ...(datos.placa !== undefined && {
+        placa: datos.placa,
+      }),
+      ...(datos.numeroUnidad !== undefined && {
+        numero_unidad: datos.numeroUnidad,
+      }),
+      ...(datos.color !== undefined && {
+        color: datos.color,
+      }),
+      ...(datos.marcaChasis !== undefined && {
+        marca_chasis: datos.marcaChasis,
+      }),
+      ...(datos.marcaCarroceria !== undefined && {
+        marca_carroceria: datos.marcaCarroceria,
+      }),
+      ...(datos.anio !== undefined && {
+        anio: datos.anio,
+      }),
+      ...(datos.pisos !== undefined && {
+        pisos: datos.pisos,
+      }),
+      ...(datos.capacidad !== undefined && {
+        capacidad: datos.capacidad,
+      }),
+      ...(datos.imagenUrl !== undefined && {
+        imagen_url: datos.imagenUrl,
+      }),
+    },
+  });
+
+  return { bus };
+}
