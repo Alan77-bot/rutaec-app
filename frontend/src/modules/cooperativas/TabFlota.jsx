@@ -14,7 +14,7 @@ const FORM_INICIAL = {
   imagenUrl: "",
 };
 
-export default function TabFlota() {
+export default function TabFlota({ onTotalBusesChange }) {
   const [buses, setBuses] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -32,6 +32,7 @@ export default function TabFlota() {
 
     setBuses(listaBuses);
     setGrupos(listaGrupos);
+    onTotalBusesChange?.(listaBuses.length);
   }
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function TabFlota() {
         if (!activo) return;
         setBuses(listaBuses);
         setGrupos(listaGrupos);
+        onTotalBusesChange?.(listaBuses.length);
       })
       .catch((err) => {
         if (activo) setError(err.message);
