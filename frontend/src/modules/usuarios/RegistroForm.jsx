@@ -57,8 +57,8 @@ export default function RegistroForm({ onRegistrar, onVolver }) {
       nuevos.correo = 'Escribe un correo válido.'
     }
 
-    if (datos.clave.length < 12) {
-      nuevos.clave = 'La contraseña debe tener al menos 12 caracteres.'
+    if (datos.clave.length < 8) {
+      nuevos.clave = 'La contraseña debe tener al menos 8 caracteres.'
     } else if (new TextEncoder().encode(datos.clave).length > 72) {
       nuevos.clave = 'La contraseña supera el tamaño permitido.'
     }

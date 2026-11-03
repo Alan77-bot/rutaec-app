@@ -7,6 +7,15 @@ import {
   listarFrecuencias,
   listarResoluciones,
 } from "./horarios.service.js";
+import { hoyEn } from "./horarios.programacion.js";
+import {
+  ajustarCierreVentas,
+  cancelarViaje,
+  listarBuses,
+  listarViajes,
+  programarViajes,
+  ZONA_PROGRAMACION,
+} from "./horarios.viajes.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -122,4 +131,165 @@ export async function editarFrecuencia(
     console.error("Error al actualizar frecuencia:", error);
     res.status(500).json({ error: "No se pudo actualizar la frecuencia" });
   }
+}
+
+// Cooperativa sobre la que trabaja la sesion: la propia para el rol
+// cooperativa; para el administrador, la indicada (o todas si no indica).
+// Devuelve null si ya se respondio con un error.
+function cooperativaConsultada(
+  req: Request,
+  res: Response
+): { cooperativaId: string | undefined } | null {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return null;
+    }
+    return { cooperativaId: sesion.coopId };
+  }
+  if (req.query.cooperativa_id === undefined) return { cooperativaId: undefined };
+  const indicada = String(req.query.cooperativa_id);
+  if (!UUID.test(indicada)) {
+    res.status(400).json({ error: "cooperativa_id debe ser un UUID valido" });
+    return null;
+  }
+  return { cooperativaId: indicada };
+}
+
+export async function obtenerBuses(req: Request, res: Response): Promise<void> {
+  const alcance = cooperativaConsultada(req, res);
+  if (!alcance) return;
+
+  try {
+    const buses = await listarBuses(alcance.cooperativaId);
+    res.status(200).json({ total: buses.length, datos: buses });
+  } catch (error) {
+    console.error("Error al consultar buses:", error);
+    res.status(500).json({ error: "No se pudieron consultar los buses" });
+  }
+}
+
+export async function programarViajesFrecuencia(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  let restringida: string | undefined;
+  if (sesion.rol === "cooperativa") {
+    if (!sesion.coopId) {
+      res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+      return;
+    }
+    restringida = sesion.coopId;
+  }
+
+  try {
+    const resultado = await programarViajes(req.body, sesion.id, restringida);
+    const creados = resultado.creados.length;
+    res.status(creados > 0 ? 201 : 200).json({
+      mensaje:
+        creados > 0
+          ? `Se programaron ${creados} viajes`
+          : "No se programo ningun viaje",
+      datos: resultado,
+    });
+  } catch (error) {
+    if (error instanceof ErrorHorarios) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al programar viajes:", error);
+    res.status(500).json({ error: "No se pudieron programar los viajes" });
+  }
+}
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+function sumarDias(fecha: string, dias: number): string {
+  const d = new Date(`${fecha}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function obtenerViajes(req: Request, res: Response): Promise<void> {
+  const alcance = cooperativaConsultada(req, res);
+  if (!alcance) return;
+
+  const hoy = hoyEn(ZONA_PROGRAMACION);
+  const desde = req.query.desde === undefined ? hoy : String(req.query.desde);
+  const hasta = req.query.hasta === undefined ? sumarDias(desde, 14) : String(req.query.hasta);
+  if (!FECHA.test(desde) || !FECHA.test(hasta) || Number.isNaN(Date.parse(desde)) || Number.isNaN(Date.parse(hasta))) {
+    res.status(400).json({ error: "desde y hasta deben ser fechas validas (YYYY-MM-DD)" });
+    return;
+  }
+  if (hasta < desde || hasta > sumarDias(desde, 62)) {
+    res.status(400).json({ error: "El rango de fechas debe ser de 1 a 63 dias" });
+    return;
+  }
+
+  try {
+    const viajes = await listarViajes(desde, hasta, alcance.cooperativaId);
+    res.status(200).json({ total: viajes.length, desde, hasta, datos: viajes });
+  } catch (error) {
+    console.error("Error al consultar viajes:", error);
+    res.status(500).json({ error: "No se pudieron consultar los viajes" });
+  }
+}
+
+// Para el rol cooperativa devuelve su cooperativa; undefined para el admin.
+// Devuelve null si ya se respondio con un error.
+function cooperativaPermitida(res: Response): { id: string | undefined } | null {
+  const sesion = res.locals.sesion as SesionAutenticada;
+  if (sesion.rol !== "cooperativa") return { id: undefined };
+  if (!sesion.coopId) {
+    res.status(403).json({ error: "Tu cuenta no esta asociada a ninguna cooperativa" });
+    return null;
+  }
+  return { id: sesion.coopId };
+}
+
+async function responderCambioViaje(
+  req: Request,
+  res: Response,
+  accion: (id: string, permitida?: string) => Promise<unknown>,
+  mensaje: string
+): Promise<void> {
+  const id = String(req.params.id);
+  if (!UUID.test(id)) {
+    res.status(400).json({ error: "El id del viaje no es valido" });
+    return;
+  }
+  const permitida = cooperativaPermitida(res);
+  if (!permitida) return;
+
+  try {
+    const datos = await accion(id, permitida.id);
+    res.status(200).json({ mensaje, datos });
+  } catch (error) {
+    if (error instanceof ErrorHorarios) {
+      res.status(error.estado).json({ error: error.message });
+      return;
+    }
+    console.error("Error al modificar el viaje:", error);
+    res.status(500).json({ error: "No se pudo modificar el viaje" });
+  }
+}
+
+export async function cancelarViajeProgramado(req: Request, res: Response): Promise<void> {
+  await responderCambioViaje(
+    req,
+    res,
+    (id, permitida) => cancelarViaje(id, req.body?.motivo, permitida),
+    "Viaje cancelado"
+  );
+}
+
+export async function cambiarCierreVentas(req: Request, res: Response): Promise<void> {
+  await responderCambioViaje(
+    req,
+    res,
+    (id, permitida) => ajustarCierreVentas(id, req.body?.minutos_cierre, permitida),
+    "Cierre de ventas actualizado"
+  );
 }
