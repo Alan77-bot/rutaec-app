@@ -48,9 +48,14 @@ function Modal({
 
     const manejarTeclado = (evento) => {
       if (evento.key === 'Escape') {
-        evento.preventDefault()
-        onCerrar()
-      }
+  evento.preventDefault()
+
+  if (!bloqueado) {
+    onCerrar()
+  }
+
+  return
+}
 
       if (evento.key !== 'Tab') return
 
@@ -89,7 +94,7 @@ function Modal({
         anterior.focus()
       }
     }
-  }, [onCerrar])
+  }, [onCerrar, bloqueado])
 
   return (
     <div
@@ -227,15 +232,18 @@ export default function TabOficinistas() {
     }
   }, [modal, busqueda, pagina])
 
-  const cerrarModal = useCallback(() => {
-    if (procesando) return
+  const limpiarModal = useCallback(() => {
+  setModal(null)
+  setErrorModal('')
+  setOficinistaEstado(null)
+  setUsuarioSeleccionado(null)
+  setNuevoOficinista({ ...FORMULARIO_VACIO })
+}, [])
 
-    setModal(null)
-    setErrorModal('')
-    setOficinistaEstado(null)
-    setUsuarioSeleccionado(null)
-    setNuevoOficinista({ ...FORMULARIO_VACIO })
-  }, [procesando])
+const cerrarModal = useCallback(() => {
+  if (procesando) return
+  limpiarModal()
+}, [procesando, limpiarModal])
 
   const abrirCrear = () => {
     setError('')
@@ -283,9 +291,7 @@ export default function TabOficinistas() {
     try {
       await oficinistasService.registrarNuevo(nuevoOficinista)
 
-      setProcesando(false)
-      cerrarModal()
-
+      limpiarModal()
       setMensaje(
         'Oficinista registrado. Debe verificar su correo electrónico antes de iniciar sesión.'
       )
