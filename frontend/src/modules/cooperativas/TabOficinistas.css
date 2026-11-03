@@ -194,3 +194,38 @@
     flex: 1 1 auto;
   }
 }
+
+.of-filtros {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.of-filtros select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+}
+
+.of-filtros select:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .of-filtros {
+    grid-template-columns: 1fr;
+  }
+
+  .of-filtros .btn {
+    width: 100%;
+  }
+}

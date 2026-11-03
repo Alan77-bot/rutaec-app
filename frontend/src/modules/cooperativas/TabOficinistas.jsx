@@ -27,8 +27,13 @@ function Modal({
   ancho = 'normal',
 }) {
   const dialogoRef = useRef(null)
-  const tituloId = 'modal-oficinistas-titulo'
-  const descripcionId = 'modal-oficinistas-descripcion'
+  const cerrarRef = useRef(onCerrar)
+  const bloqueadoRef = useRef(bloqueado)
+
+  useEffect(() => {
+    cerrarRef.current = onCerrar
+    bloqueadoRef.current = bloqueado
+  }, [onCerrar, bloqueado])
 
   useEffect(() => {
     const anterior = document.activeElement
@@ -36,26 +41,30 @@ function Modal({
 
     if (!dialogo) return
 
-    const enfocar = () => {
+    const enfocarPrimero = () => {
       const primero = dialogo.querySelector(
         'input:not(:disabled), button:not(:disabled), select:not(:disabled)'
       )
 
-      primero?.focus()
+      if (primero) {
+        primero.focus()
+      } else {
+        dialogo.focus()
+      }
     }
 
-    enfocar()
+    enfocarPrimero()
 
     const manejarTeclado = (evento) => {
       if (evento.key === 'Escape') {
-  evento.preventDefault()
+        evento.preventDefault()
 
-  if (!bloqueado) {
-    onCerrar()
-  }
+        if (!bloqueadoRef.current) {
+          cerrarRef.current()
+        }
 
-  return
-}
+        return
+      }
 
       if (evento.key !== 'Tab') return
 
@@ -65,7 +74,7 @@ function Modal({
         )
       )
 
-      if (!elementos.length) {
+      if (elementos.length === 0) {
         evento.preventDefault()
         dialogo.focus()
         return
@@ -73,14 +82,15 @@ function Modal({
 
       const primero = elementos[0]
       const ultimo = elementos[elementos.length - 1]
+      const actual = document.activeElement
 
-      if (evento.shiftKey && document.activeElement === primero) {
+      if (!dialogo.contains(actual)) {
+        evento.preventDefault()
+        primero.focus()
+      } else if (evento.shiftKey && actual === primero) {
         evento.preventDefault()
         ultimo.focus()
-      } else if (
-        !evento.shiftKey &&
-        document.activeElement === ultimo
-      ) {
+      } else if (!evento.shiftKey && actual === ultimo) {
         evento.preventDefault()
         primero.focus()
       }
@@ -90,17 +100,21 @@ function Modal({
 
     return () => {
       document.removeEventListener('keydown', manejarTeclado)
+
       if (anterior instanceof HTMLElement) {
         anterior.focus()
       }
     }
-  }, [onCerrar, bloqueado])
+  }, [])
 
   return (
     <div
       className="of-modal-fondo"
       onMouseDown={(evento) => {
-        if (evento.target === evento.currentTarget && !bloqueado) {
+        if (
+          evento.target === evento.currentTarget &&
+          !bloqueado
+        ) {
           onCerrar()
         }
       }}
@@ -110,15 +124,23 @@ function Modal({
         className={`of-modal of-modal--${ancho}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={tituloId}
-        aria-describedby={descripcion ? descripcionId : undefined}
+        aria-labelledby="modal-oficinistas-titulo"
+        aria-describedby={
+          descripcion
+            ? 'modal-oficinistas-descripcion'
+            : undefined
+        }
         tabIndex={-1}
       >
         <div className="of-modal-cabecera">
           <div>
-            <h3 id={tituloId}>{titulo}</h3>
+            <h3 id="modal-oficinistas-titulo">{titulo}</h3>
+
             {descripcion && (
-              <p id={descripcionId} className="muted">
+              <p
+                id="modal-oficinistas-descripcion"
+                className="muted"
+              >
                 {descripcion}
               </p>
             )}
@@ -135,7 +157,9 @@ function Modal({
           </button>
         </div>
 
-        <div className="of-modal-contenido">{children}</div>
+        <div className="of-modal-contenido">
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -146,6 +170,9 @@ export default function TabOficinistas() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
+
+  const [filtroBusqueda, setFiltroBusqueda] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
 
   const [modal, setModal] = useState(null)
   const [procesando, setProcesando] = useState(false)
@@ -159,25 +186,32 @@ export default function TabOficinistas() {
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
+
   const [paginacion, setPaginacion] = useState({
     pagina: 1,
     limite: LIMITE,
     total: 0,
     totalPaginas: 0,
   })
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
 
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
   const [oficinistaEstado, setOficinistaEstado] = useState(null)
+
+  // LISTAR OFICINISTAS
 
   const cargar = useCallback(async () => {
     setCargando(true)
+    setError('')
 
     try {
       const datos = await oficinistasService.listar()
       setOficinistas(datos)
     } catch (err) {
       setError(
-        mensajeError(err, 'No se pudieron cargar los oficinistas.')
+        mensajeError(
+          err,
+          'No se pudieron cargar los oficinistas.'
+        )
       )
     } finally {
       setCargando(false)
@@ -187,6 +221,8 @@ export default function TabOficinistas() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  // CONSULTAR USUARIOS DISPONIBLES PARA ASIGNAR
 
   useEffect(() => {
     if (modal !== 'asignar') return
@@ -220,7 +256,9 @@ export default function TabOficinistas() {
           )
         )
       } finally {
-        if (!cancelado) setCargandoUsuarios(false)
+        if (!cancelado) {
+          setCargandoUsuarios(false)
+        }
       }
     }
 
@@ -232,21 +270,54 @@ export default function TabOficinistas() {
     }
   }, [modal, busqueda, pagina])
 
-  const limpiarModal = useCallback(() => {
-  setModal(null)
-  setErrorModal('')
-  setOficinistaEstado(null)
-  setUsuarioSeleccionado(null)
-  setNuevoOficinista({ ...FORMULARIO_VACIO })
-}, [])
+  // FILTROS DEL LISTADO PRINCIPAL
 
-const cerrarModal = useCallback(() => {
-  if (procesando) return
-  limpiarModal()
-}, [procesando, limpiarModal])
+  const oficinistasFiltrados = oficinistas.filter((oficinista) => {
+    const usuario = oficinista.usuarios
+
+    const texto = [
+      usuario?.nombres ?? '',
+      usuario?.apellidos ?? '',
+      usuario?.correo ?? '',
+    ]
+      .join(' ')
+      .toLocaleLowerCase('es')
+
+    const busquedaNormalizada = filtroBusqueda
+      .trim()
+      .toLocaleLowerCase('es')
+
+    const coincideBusqueda = texto.includes(busquedaNormalizada)
+
+    const coincideEstado =
+      filtroEstado === 'todos' ||
+      (filtroEstado === 'activos' && oficinista.activo) ||
+      (filtroEstado === 'inactivos' && !oficinista.activo)
+
+    return coincideBusqueda && coincideEstado
+  })
+
+  const limpiarFiltros = () => {
+    setFiltroBusqueda('')
+    setFiltroEstado('todos')
+  }
+
+  // CONTROL DE MODALES
+
+  const limpiarModal = useCallback(() => {
+    setModal(null)
+    setErrorModal('')
+    setOficinistaEstado(null)
+    setUsuarioSeleccionado(null)
+    setNuevoOficinista({ ...FORMULARIO_VACIO })
+  }, [])
+
+  const cerrarModal = useCallback(() => {
+    if (procesando) return
+    limpiarModal()
+  }, [procesando, limpiarModal])
 
   const abrirCrear = () => {
-    setError('')
     setMensaje('')
     setErrorModal('')
     setNuevoOficinista({ ...FORMULARIO_VACIO })
@@ -254,7 +325,6 @@ const cerrarModal = useCallback(() => {
   }
 
   const abrirAsignar = () => {
-    setError('')
     setMensaje('')
     setErrorModal('')
     setBusqueda('')
@@ -265,7 +335,6 @@ const cerrarModal = useCallback(() => {
   }
 
   const abrirEstado = (oficinista) => {
-    setError('')
     setMensaje('')
     setErrorModal('')
     setOficinistaEstado(oficinista)
@@ -281,8 +350,11 @@ const cerrarModal = useCallback(() => {
     }))
   }
 
+  // REGISTRAR NUEVO OFICINISTA
+
   const registrarNuevo = async (evento) => {
     evento.preventDefault()
+
     if (procesando) return
 
     setProcesando(true)
@@ -292,18 +364,25 @@ const cerrarModal = useCallback(() => {
       await oficinistasService.registrarNuevo(nuevoOficinista)
 
       limpiarModal()
+
       setMensaje(
-        'Oficinista registrado. Debe verificar su correo electrónico antes de iniciar sesión.'
+        'Oficinista registrado correctamente. La verificación de correo queda pendiente.'
       )
 
       await cargar()
     } catch (err) {
       setErrorModal(
-        mensajeError(err, 'No se pudo registrar el oficinista.')
+        mensajeError(
+          err,
+          'No se pudo registrar el oficinista.'
+        )
       )
+    } finally {
       setProcesando(false)
     }
   }
+
+  // ASIGNAR USUARIO EXISTENTE
 
   const asignarExistente = async () => {
     if (!usuarioSeleccionado || procesando) return
@@ -314,18 +393,23 @@ const cerrarModal = useCallback(() => {
     try {
       await oficinistasService.asignar(usuarioSeleccionado.id)
 
-      setProcesando(false)
-      cerrarModal()
-
+      limpiarModal()
       setMensaje('Oficinista asignado correctamente.')
+
       await cargar()
     } catch (err) {
       setErrorModal(
-        mensajeError(err, 'No se pudo asignar el oficinista.')
+        mensajeError(
+          err,
+          'No se pudo asignar el oficinista.'
+        )
       )
+    } finally {
       setProcesando(false)
     }
   }
+
+  // ACTIVAR O DESACTIVAR OFICINISTA
 
   const confirmarEstado = async () => {
     if (!oficinistaEstado || procesando) return
@@ -341,8 +425,7 @@ const cerrarModal = useCallback(() => {
         activar
       )
 
-      setProcesando(false)
-      cerrarModal()
+      limpiarModal()
 
       setMensaje(
         activar
@@ -353,8 +436,12 @@ const cerrarModal = useCallback(() => {
       await cargar()
     } catch (err) {
       setErrorModal(
-        mensajeError(err, 'No se pudo cambiar el estado.')
+        mensajeError(
+          err,
+          'No se pudo cambiar el estado del oficinista.'
+        )
       )
+    } finally {
       setProcesando(false)
     }
   }
@@ -377,6 +464,8 @@ const cerrarModal = useCallback(() => {
           {mensaje}
         </div>
       )}
+
+      {/* LISTADO PRINCIPAL */}
 
       <div className="panel">
         <div className="of-barra">
@@ -409,22 +498,93 @@ const cerrarModal = useCallback(() => {
               className="btn btn-claro"
               disabled={cargando}
               onClick={() => {
-                setError('')
                 setMensaje('')
                 cargar()
               }}
             >
-              Actualizar
+              {cargando ? 'Actualizando...' : 'Actualizar'}
             </button>
           </div>
         </div>
 
+        {/* FILTROS */}
+
+        <div className="of-filtros">
+          <div className="of-campo">
+            <label htmlFor="filtro-oficinistas">
+              Buscar oficinista
+            </label>
+
+            <input
+              id="filtro-oficinistas"
+              type="search"
+              placeholder="Nombre, apellido o correo"
+              value={filtroBusqueda}
+              onChange={(evento) =>
+                setFiltroBusqueda(evento.target.value)
+              }
+            />
+          </div>
+
+          <div className="of-campo">
+            <label htmlFor="estado-oficinistas">
+              Estado
+            </label>
+
+            <select
+              id="estado-oficinistas"
+              value={filtroEstado}
+              onChange={(evento) =>
+                setFiltroEstado(evento.target.value)
+              }
+            >
+              <option value="todos">Todos</option>
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-claro"
+            disabled={
+              filtroBusqueda === '' &&
+              filtroEstado === 'todos'
+            }
+            onClick={limpiarFiltros}
+          >
+            Limpiar filtros
+          </button>
+        </div>
+
+        <p className="muted" role="status">
+          Mostrando {oficinistasFiltrados.length} de{' '}
+          {oficinistas.length} oficinistas
+        </p>
+
+        {/* TABLA PRINCIPAL */}
+
         {cargando ? (
-          <p className="muted">Cargando oficinistas...</p>
+          <p className="muted">
+            Cargando oficinistas...
+          </p>
+        ) : error && oficinistas.length === 0 ? (
+          <div className="vacio">
+            No se pudo cargar el listado.
+          </div>
         ) : oficinistas.length === 0 ? (
           <div className="vacio">
             <b>No hay oficinistas registrados.</b>
-            <p>Utiliza Crear oficinista o Asignar existente.</p>
+            <p>
+              Utiliza Crear oficinista o Asignar existente.
+            </p>
+          </div>
+        ) : oficinistasFiltrados.length === 0 ? (
+          <div className="vacio">
+            <b>No se encontraron oficinistas.</b>
+            <p>
+              Prueba otra búsqueda o cambia el filtro de estado.
+            </p>
           </div>
         ) : (
           <div className="tabla-wrap">
@@ -441,8 +601,9 @@ const cerrarModal = useCallback(() => {
               </thead>
 
               <tbody>
-                {oficinistas.map((oficinista) => {
+                {oficinistasFiltrados.map((oficinista) => {
                   const usuario = oficinista.usuarios
+
                   const verificado = Boolean(
                     usuario.correo_verificado_en
                   )
@@ -461,6 +622,7 @@ const cerrarModal = useCallback(() => {
                       </td>
 
                       <td>{usuario.correo}</td>
+
                       <td>{usuario.telefono}</td>
 
                       <td>
@@ -504,7 +666,9 @@ const cerrarModal = useCallback(() => {
                             !usuario.activo ||
                             !verificado
                           }
-                          onClick={() => abrirEstado(oficinista)}
+                          onClick={() =>
+                            abrirEstado(oficinista)
+                          }
                         >
                           {oficinista.activo
                             ? 'Desactivar'
@@ -520,7 +684,8 @@ const cerrarModal = useCallback(() => {
         )}
       </div>
 
-      {/* MODAL CREAR */}
+      {/* MODAL: CREAR OFICINISTA */}
+
       {modal === 'crear' && (
         <Modal
           titulo="Crear nuevo oficinista"
@@ -537,7 +702,10 @@ const cerrarModal = useCallback(() => {
           <form onSubmit={registrarNuevo}>
             <div className="of-form-grid">
               <div className="of-campo">
-                <label htmlFor="of-nombres">Nombres</label>
+                <label htmlFor="of-nombres">
+                  Nombres
+                </label>
+
                 <input
                   id="of-nombres"
                   name="nombres"
@@ -551,7 +719,10 @@ const cerrarModal = useCallback(() => {
               </div>
 
               <div className="of-campo">
-                <label htmlFor="of-apellidos">Apellidos</label>
+                <label htmlFor="of-apellidos">
+                  Apellidos
+                </label>
+
                 <input
                   id="of-apellidos"
                   name="apellidos"
@@ -568,6 +739,7 @@ const cerrarModal = useCallback(() => {
                 <label htmlFor="of-correo">
                   Correo electrónico
                 </label>
+
                 <input
                   id="of-correo"
                   name="correo"
@@ -582,7 +754,10 @@ const cerrarModal = useCallback(() => {
               </div>
 
               <div className="of-campo">
-                <label htmlFor="of-cedula">Cédula</label>
+                <label htmlFor="of-cedula">
+                  Cédula
+                </label>
+
                 <input
                   id="of-cedula"
                   name="numero_documento"
@@ -598,7 +773,10 @@ const cerrarModal = useCallback(() => {
               </div>
 
               <div className="of-campo">
-                <label htmlFor="of-telefono">Celular</label>
+                <label htmlFor="of-telefono">
+                  Celular
+                </label>
+
                 <input
                   id="of-telefono"
                   name="telefono"
@@ -619,6 +797,7 @@ const cerrarModal = useCallback(() => {
                 <label htmlFor="of-clave">
                   Contraseña inicial
                 </label>
+
                 <input
                   id="of-clave"
                   name="clave"
@@ -630,9 +809,9 @@ const cerrarModal = useCallback(() => {
                   onChange={actualizarCampo}
                   disabled={procesando}
                 />
+
                 <small className="muted">
                   Mínimo 12 caracteres y máximo 72 bytes.
-                  La persona deberá verificar su correo.
                 </small>
               </div>
             </div>
@@ -661,7 +840,8 @@ const cerrarModal = useCallback(() => {
         </Modal>
       )}
 
-      {/* MODAL ASIGNAR */}
+      {/* MODAL: ASIGNAR USUARIO EXISTENTE */}
+
       {modal === 'asignar' && (
         <Modal
           titulo="Asignar usuario existente"
@@ -680,6 +860,7 @@ const cerrarModal = useCallback(() => {
             <label htmlFor="of-buscar">
               Buscar usuario
             </label>
+
             <input
               id="of-buscar"
               type="search"
@@ -698,8 +879,10 @@ const cerrarModal = useCallback(() => {
           </div>
 
           {cargandoUsuarios ? (
-            <p className="muted">Buscando usuarios...</p>
-          ) : !errorModal && usuariosDisponibles.length === 0 ? (
+            <p className="muted">
+              Buscando usuarios...
+            </p>
+          ) : errorModal ? null : usuariosDisponibles.length === 0 ? (
             <div className="vacio">
               No se encontraron usuarios disponibles.
             </div>
@@ -720,11 +903,15 @@ const cerrarModal = useCallback(() => {
                     <tr key={usuario.id}>
                       <td>
                         <b>
-                          {usuario.nombres} {usuario.apellidos}
+                          {usuario.nombres}{' '}
+                          {usuario.apellidos}
                         </b>
                       </td>
+
                       <td>{usuario.correo}</td>
+
                       <td>{usuario.numero_documento}</td>
+
                       <td>
                         <button
                           type="button"
@@ -804,6 +991,7 @@ const cerrarModal = useCallback(() => {
                 {usuarioSeleccionado.nombres}{' '}
                 {usuarioSeleccionado.apellidos}
               </strong>
+
               <p className="muted">
                 Se asignará como oficinista de tu cooperativa.
               </p>
@@ -838,7 +1026,8 @@ const cerrarModal = useCallback(() => {
         </Modal>
       )}
 
-      {/* MODAL CAMBIAR ESTADO */}
+      {/* MODAL: ACTIVAR O DESACTIVAR */}
+
       {modal === 'estado' && oficinistaEstado && (
         <Modal
           titulo={
