@@ -1,5 +1,7 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
+import { obtenerCooperativas } from './services/cooperativas.service'
+import TabOficinistas from './TabOficinistas'
 import BusArt from '../../components/BusArt'
 import { TIPOS_BUS, generarHoja } from '../../data/mock'
 import { addDays, DIAS, fechaCorta, hoy, parse } from '../../data/fechas'
@@ -234,11 +236,95 @@ function TabHoja({ coop, misBuses, misFrecs }) {
   )
 }
 
+
 export default function PanelCoop() {
-  const { sesion, cooperativas, buses, frecuencias } = useApp()
-  const [tab, setTab] = useState('hoja')
-  const coop = cooperativas.find((c) => c.id === sesion.coopId)
-  if (!coop) return <div className="contenedor vacio"><b>Tu usuario no tiene una cooperativa asignada.</b></div>
+  const { sesion, cooperativas, buses, frecuencias, hojas } = useApp()
+
+  const [tab, setTab] = useState('oficinistas')
+  const [cooperativaRemota, setCooperativaRemota] = useState(null)
+  const [cargandoCoop, setCargandoCoop] = useState(true)
+  const [errorCoop, setErrorCoop] = useState('')
+
+  useEffect(() => {
+    let vigente = true
+
+    async function cargarCooperativa() {
+      setCargandoCoop(true)
+      setErrorCoop('')
+      setCooperativaRemota(null)
+
+      try {
+        const lista = await obtenerCooperativas()
+
+        const encontrada = lista.find(
+          (c) => c.id === sesion?.coopId
+        )
+
+        if (vigente) {
+          setCooperativaRemota(encontrada ?? null)
+        }
+      } catch (error) {
+        if (vigente) {
+          setErrorCoop(
+            error.message || 'No se pudo consultar la cooperativa.'
+          )
+        }
+      } finally {
+        if (vigente) {
+          setCargandoCoop(false)
+        }
+      }
+    }
+
+    if (sesion?.coopId) {
+      cargarCooperativa()
+    } else {
+      setCargandoCoop(false)
+    }
+
+    return () => {
+      vigente = false
+    }
+  }, [sesion?.coopId])
+
+  const cooperativaLocal = cooperativas.find(
+    (c) => c.id === sesion?.coopId
+  )
+
+  const coop = cooperativaLocal ?? (
+    cooperativaRemota
+      ? {
+          ...cooperativaRemota,
+          nombre: cooperativaRemota.nombre_comercial,
+          color: '#1d3f8f',
+        }
+      : null
+  )
+
+  if (cargandoCoop && !coop) {
+    return (
+      <div className="contenedor vacio">
+        <b>Cargando tu cooperativa...</b>
+      </div>
+    )
+  }
+
+  if (errorCoop && !coop) {
+    return (
+      <div className="contenedor vacio">
+        <b>{errorCoop}</b>
+      </div>
+    )
+  }
+
+  if (!coop) {
+    return (
+      <div className="contenedor vacio">
+        <b>Tu usuario no tiene una cooperativa asignada.</b>
+      </div>
+    )
+  }
+
   const misBuses = buses.filter((b) => b.coopId === coop.id)
   const misFrecs = frecuencias.filter((f) => f.coopId === coop.id)
 
@@ -246,17 +332,76 @@ export default function PanelCoop() {
     <div className="contenedor">
       <div className="seccion-cab izq">
         <h1>Cooperativa {coop.nombre}</h1>
-        <p>Administra tu flota, las frecuencias asignadas y la hoja de ruta que alimenta la venta.</p>
+        <p>
+          Administra tu flota, las frecuencias asignadas,
+          la hoja de ruta y el personal de tu cooperativa.
+        </p>
       </div>
+
       <div className="tabs">
-        <button className={tab === 'hoja' ? 'on' : ''} onClick={() => setTab('hoja')}>Hoja de ruta</button>
-        <button className={tab === 'frec' ? 'on' : ''} onClick={() => setTab('frec')}>Frecuencias <i>{misFrecs.length}</i></button>
-        <button className={tab === 'buses' ? 'on' : ''} onClick={() => setTab('buses')}>Buses <i>{misBuses.length}</i></button>
+        <button
+          className={tab === 'hoja' ? 'on' : ''}
+          onClick={() => setTab('hoja')}
+        >
+          Hoja de ruta
+        </button>
+
+        <button
+          className={tab === 'frec' ? 'on' : ''}
+          onClick={() => setTab('frec')}
+        >
+          Frecuencias <i>{misFrecs.length}</i>
+        </button>
+
+        <button
+          className={tab === 'buses' ? 'on' : ''}
+          onClick={() => setTab('buses')}
+        >
+          Buses <i>{misBuses.length}</i>
+        </button>
+
+        <button
+          className={tab === 'oficinistas' ? 'on' : ''}
+          onClick={() => setTab('oficinistas')}
+        >
+          Oficinistas
+        </button>
       </div>
-      {tab === 'hoja' && <TabHoja coop={coop} misBuses={misBuses} misFrecs={misFrecs} />}
-      {tab === 'frec' && <TabFrecuencias coop={coop} misFrecs={misFrecs} />}
-      {tab === 'buses' && <TabBuses coop={coop} misBuses={misBuses} />}
+
+      {tab === 'hoja' && (
+  hojas[coop.id] ? (
+    <TabHoja
+      coop={coop}
+      misBuses={misBuses}
+      misFrecs={misFrecs}
+    />
+  ) : (
+    <div className="panel">
+      <h4>Hoja de ruta no disponible</h4>
+      <p className="muted">
+        Todavía no hay una hoja de ruta cargada para esta cooperativa.
+      </p>
+    </div>
+  )
+)}
+
+      {tab === 'frec' && (
+        <TabFrecuencias
+          coop={coop}
+          misFrecs={misFrecs}
+        />
+      )}
+
+      {tab === 'buses' && (
+        <TabBuses
+          coop={coop}
+          misBuses={misBuses}
+        />
+      )}
+
+      {tab === 'oficinistas' && <TabOficinistas />}
     </div>
   )
 }
+
 

@@ -5,6 +5,7 @@ import cooperativasRoutes from "../modules/cooperativas/cooperativas.routes.js";
 import gerentesRoutes from "../modules/gerentes/gerentes.routes.js";
 import rutasRoutes from "../modules/rutas/rutas.routes.js";
 import horariosRoutes from "../modules/horarios/horarios.routes.js";
+import oficinistasRoutes from "../modules/oficinistas/oficinistas.routes.js";
 import reservasRoutes from "../modules/reservas/reservas.routes.js";
 import usuariosAdminRoutes from "../modules/administracion/usuarios-admin.routes.js";
 import ventanillaRoutes from "../modules/pagos/ventanilla.routes.js";
@@ -38,6 +39,7 @@ router.use("/boletos", recibosRoutes);
 router.use("/notificaciones", avisosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
+router.use("/oficinistas", oficinistasRoutes);
 router.use("/gerentes", gerentesRoutes);
 router.use("/administracion/usuarios", usuariosAdminRoutes);
 
