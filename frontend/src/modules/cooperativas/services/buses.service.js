@@ -57,10 +57,15 @@ export const busesService = {
   return resultado.datos;
 },
 
-cambiarEstado: (id, estado) =>
-  request(`/api/buses/${id}/estado`, {
+async cambiarEstado(id, estado) {
+  const resultado = await solicitar(`/${id}/estado`, {
     method: "PATCH",
     body: JSON.stringify({ estado }),
-  }),
+  });
+
+  return resultado.datos;
+},
+
+
 
 };
