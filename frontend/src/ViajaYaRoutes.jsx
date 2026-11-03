@@ -1,23 +1,33 @@
+import MisReservas from "./modules/reservas/MisReservas";
+import Descuentos from "./modules/reservas/Descuentos";
+import DetalleReserva from "./modules/reservas/DetalleReserva";
 
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import CancelacionViajes from "./modules/horarios/CancelacionViajes";
 import { useApp } from "./context/AppContext";
 
 import Home from "./pages/Home";
+import ReporteOperativo from './modules/pagos/ReporteOperativo';
 import Login from "./modules/usuarios/Login";
+import Perfil from "./modules/usuarios/Perfil";
 import Resultados from "./modules/reservas/Resultados";
 import Compra from "./modules/reservas/Compra";
 import Boleto from "./modules/boletos/Boleto";
 import Historial from "./modules/boletos/Historial";
 import PanelOficinista from "./modules/pagos/PanelOficinista";
+import PresentarPago from "./modules/pagos/PresentarPago";
 import PanelCoop from "./modules/cooperativas/PanelCoop";
+import Revisiones from "./modules/pagos/Revisiones";
+import Incidencias from "./modules/pagos/Incidencias";
 import PanelAdmin from "./modules/administracion/PanelAdmin";
 import AccesoDenegado from "./modules/usuarios/AccesoDenegado";
 import Rutas from "./modules/rutas/Rutas";
 import Frecuencias from "./modules/horarios/Frecuencias";
+import Viajes from "./modules/horarios/Viajes";
 
 import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
 import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";
@@ -75,10 +85,15 @@ export default function ViajaYaRoutes() {
 
       <main key={loc.pathname} className="pagina">
         <Routes>
+          <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
+          <Route path="/perfil" element={<Protegida roles={["admin", "cooperativa", "oficinista", "usuario"]}><Perfil /></Protegida>} />
 
           <Route path="/buscar" element={<Resultados />} />
+          <Route path="/descuentos" element={<Protegida roles={["usuario"]}><Descuentos /></Protegida>} />
+          <Route path="/mis-reservas" element={<Protegida roles={["usuario", "oficinista"]}><MisReservas /></Protegida>} />
+          <Route path="/reserva/:id" element={<Protegida roles={["usuario", "oficinista"]}><DetalleReserva /></Protegida>} />
           <Route
               path="/recuperar-contrasena"
               element={<RecuperarContrasena />}
@@ -96,6 +111,8 @@ export default function ViajaYaRoutes() {
               </Protegida>
             }
           />
+
+          <Route path="/pagar/:compraId" element={<Protegida roles={["usuario", "oficinista"]}><PresentarPago /></Protegida>} />
 
           <Route
             path="/boleto/:id"
@@ -151,6 +168,9 @@ export default function ViajaYaRoutes() {
             }
           />
 
+          <Route path="/incidencias" element={<Protegida roles={["usuario", "oficinista", "admin"]}><Incidencias /></Protegida>} />
+          <Route path="/revisiones" element={<Protegida roles={["oficinista", "cooperativa", "admin"]}><Revisiones /></Protegida>} />
+
           <Route
             path="/frecuencias"
             element={
@@ -160,8 +180,18 @@ export default function ViajaYaRoutes() {
             }
           />
 
+          <Route
+            path="/programacion"
+            element={
+              <Protegida roles={["admin", "cooperativa"]}>
+                <Viajes />
+              </Protegida>
+            }
+          />
+
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
 
+          <Route path="/cancelacion-viajes" element={<Protegida roles={["admin", "cooperativa"]}><CancelacionViajes /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

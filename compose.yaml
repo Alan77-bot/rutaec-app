@@ -30,8 +30,11 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=rutaec
+      COMPROBANTES_DIR: /var/lib/rutaec/comprobantes
     ports:
       - "3000:3000"
+    volumes:
+      - rutaec_comprobantes_data:/var/lib/rutaec/comprobantes
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,3 +52,4 @@ services:
 volumes:
   rutaec_postgres_data:
   rutaec_postgres18_data:
+  rutaec_comprobantes_data:

@@ -36,6 +36,7 @@ type FilaBoleto = {
 };
 
 export type DatosEmision = {
+  modo_demo?: boolean;
   cooperativa: string;
   color_primario?: string | null;
   color_secundario?: string | null;

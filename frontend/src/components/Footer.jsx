@@ -15,13 +15,15 @@ export default function Footer() {
           <p>{config.soporteMail}</p>
         </div>
         <div>
-          <h5>SÃ­guenos</h5>
+          <h5>Síguenos</h5>
           <p>Instagram {config.redes.instagram}</p>
           <p>Facebook {config.redes.facebook}</p>
           <p>WhatsApp {config.redes.whatsapp}</p>
         </div>
       </div>
-      <div className="footer-pie">Â© {new Date().getFullYear()} {config.nombre} Â· Proyecto acadÃ©mico UTA</div>
+      <div className="footer-pie">
+  © {new Date().getFullYear()} {config.nombre} · Proyecto académico UTA
+</div>
     </footer>
   )
 }

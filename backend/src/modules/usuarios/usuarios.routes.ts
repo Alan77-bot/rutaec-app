@@ -1,3 +1,4 @@
+import perfilRoutes from "./perfil.routes.js";
 import {
   solicitar,
   restablecer,
@@ -172,6 +173,8 @@ const manejarError: ErrorRequestHandler = (error, _req, res, _next) => {
     error: "No se pudo completar la operación. Inténtalo nuevamente.",
   });
 };
+
+router.use("/perfil", perfilRoutes);
 
 router.use(manejarError);
 

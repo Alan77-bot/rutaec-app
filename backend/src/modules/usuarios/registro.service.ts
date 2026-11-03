@@ -62,12 +62,12 @@ export async function registrarUsuario(entrada: unknown) {
 
   if (
     typeof clave !== "string" ||
-    clave.length < 12 ||
+    clave.length < 8 ||
     Buffer.byteLength(clave, "utf8") > 72
   ) {
     throw new ErrorAutenticacion(
       400,
-      "La contraseña debe tener al menos 12 caracteres y hasta 72 bytes."
+      "La contraseña debe tener al menos 8 caracteres y hasta 72 bytes."
     );
   }
 
