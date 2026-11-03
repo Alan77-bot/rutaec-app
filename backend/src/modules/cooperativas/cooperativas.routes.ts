@@ -5,6 +5,7 @@ import {
   crearCooperativa,
   editarCooperativa,
   actualizarEstadoCooperativa,
+  borrarCooperativa,
 } from "./cooperativas.controller.js";
 import { autenticar } from "../../middlewares/autenticacion.js";
 import { autorizarRoles } from "../../middlewares/autorizacion.js";
@@ -32,6 +33,13 @@ router.patch(
   ...autenticar,
   autorizarRoles("admin"),
   actualizarEstadoCooperativa
+);
+
+router.delete(
+  "/:id",
+  ...autenticar,
+  autorizarRoles("admin"),
+  borrarCooperativa
 );
 
 export default router;

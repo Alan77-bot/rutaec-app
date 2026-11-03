@@ -5,6 +5,7 @@ import {
   registrarCooperativa,
   actualizarCooperativa,
   cambiarEstadoCooperativa,
+  eliminarCooperativa
 } from "./cooperativas.service.js";
 
 export async function obtenerCooperativas(
@@ -300,4 +301,72 @@ export async function actualizarEstadoCooperativa(
       error: "No se pudo cambiar el estado de la cooperativa",
     });
   }
+}
+
+export function interpretarErrorEliminacion(error: unknown): {
+  estado: number;
+  mensaje: string;
+} {
+  const codigo =
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error
+      ? error.code
+      : null;
+
+  if (codigo === "P2025") {
+    return {
+      estado: 404,
+      mensaje: "La cooperativa no existe",
+    };
+  }
+
+  if (codigo === "P2003") {
+    return {
+      estado: 409,
+      mensaje:
+        "No se puede eliminar la cooperativa porque tiene registros asociados. Puedes desactivarla.",
+    };
+  }
+
+  return {
+    estado: 500,
+    mensaje: "No se pudo eliminar la cooperativa",
+  };
+}
+
+export async function borrarCooperativa(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const id = req.params.id;
+
+  if (
+    typeof id !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    res.status(400).json({
+      error: "El identificador de la cooperativa no es válido",
+    });
+    return;
+  }
+
+  try {
+    const cooperativa = await eliminarCooperativa(id);
+
+    res.status(200).json({
+      mensaje: "Cooperativa eliminada correctamente",
+      datos: cooperativa,
+    });
+  } catch (error) {
+  const resultado = interpretarErrorEliminacion(error);
+
+  if (resultado.estado === 500) {
+    console.error("Error al eliminar cooperativa:", error);
+  }
+
+  res.status(resultado.estado).json({
+    error: resultado.mensaje,
+  });
+}
 }

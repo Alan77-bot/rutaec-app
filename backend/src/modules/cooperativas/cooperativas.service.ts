@@ -5,8 +5,13 @@ export async function listarCooperativas() {
   return prisma.cooperativas.findMany({
     select: {
       id: true,
+      ruc: true,
       nombre_comercial: true,
       razon_social: true,
+      correo: true,
+      telefono: true,
+      direccion: true,
+      sitio_web: true,
       activa: true,
     },
   });
@@ -102,6 +107,17 @@ export async function cambiarEstadoCooperativa(
       razon_social: true,
       activa: true,
       actualizado_en: true,
+    },
+  });
+}
+
+
+export async function eliminarCooperativa(id: string) {
+  return prisma.cooperativas.delete({
+    where: { id },
+    select: {
+      id: true,
+      nombre_comercial: true,
     },
   });
 }

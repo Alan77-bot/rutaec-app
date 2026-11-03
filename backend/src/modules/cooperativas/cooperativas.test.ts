@@ -6,6 +6,8 @@ import {
   crearCooperativa,
   editarCooperativa,
   actualizarEstadoCooperativa,
+  borrarCooperativa,
+  interpretarErrorEliminacion,
 } from "./cooperativas.controller.js";
 
 function respuestaFalsa() {
@@ -93,4 +95,47 @@ describe("validaciones de cooperativas", () => {
 
     assert.equal(registro.estado, 400);
   });
+
+  it("rechaza eliminar una cooperativa con ID inválido", async () => {
+  const { res, registro } = respuestaFalsa();
+
+  await borrarCooperativa(
+    {
+      params: { id: "id-invalido" },
+    } as unknown as Request,
+    res
+  );
+
+  assert.equal(registro.estado, 400);
+  assert.match(
+    registro.cuerpo?.error ?? "",
+    /identificador/
+  );
+
+  it("devuelve 404 cuando la cooperativa no existe", () => {
+  const resultado = interpretarErrorEliminacion({
+    code: "P2025",
+  });
+
+  assert.equal(resultado.estado, 404);
+  assert.match(resultado.mensaje, /no existe/);
+});
+
+it("devuelve 409 cuando tiene registros asociados", () => {
+  const resultado = interpretarErrorEliminacion({
+    code: "P2003",
+  });
+
+  assert.equal(resultado.estado, 409);
+  assert.match(resultado.mensaje, /registros asociados/);
+});
+
+it("devuelve 500 ante un error inesperado", () => {
+  const resultado = interpretarErrorEliminacion(
+    new Error("Error inesperado")
+  );
+
+  assert.equal(resultado.estado, 500);
+});
+});
 });
