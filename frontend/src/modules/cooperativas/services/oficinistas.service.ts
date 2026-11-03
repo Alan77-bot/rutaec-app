@@ -37,6 +37,26 @@ export interface ResultadoUsuariosDisponibles {
   paginacion: PaginacionOficinistas;
 }
 
+export interface DatosNuevoOficinista {
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  numero_documento: string;
+  telefono: string;
+  clave: string;
+}
+
+export interface NuevoOficinistaRegistrado {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  cooperativa_id: string;
+  correo_verificado: boolean;
+  verificacionId: string;
+  venceEn: string;
+}
+
 async function solicitar<T>(
   ruta: string,
   metodo = "GET",
@@ -101,6 +121,16 @@ export const oficinistasService = {
     );
   },
 
+    async registrarNuevo(
+    datos: DatosNuevoOficinista
+  ): Promise<NuevoOficinistaRegistrado> {
+    const respuesta = await solicitar<{
+      datos: NuevoOficinistaRegistrado;
+    }>("/crear", "POST", datos);
+
+    return respuesta.datos;
+  },
+
   async cambiarEstado(usuarioId: string, activo: boolean) {
     return solicitar(
       `/${encodeURIComponent(usuarioId)}/estado`,
@@ -109,3 +139,5 @@ export const oficinistasService = {
     );
   },
 };
+
+
