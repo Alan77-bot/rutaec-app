@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
+import GestionUsuariosGerentes from './GestionUsuariosGerentes'
 import {
   obtenerCooperativas,
   cambiarEstadoCooperativa,
@@ -704,7 +705,7 @@ export default function PanelAdmin() {
         <button className={tab === 'config' ? 'on' : ''} onClick={() => setTab('config')}>Configuración</button>
       </div>
       {tab === 'coops' && <Cooperativas />}
-      {tab === 'users' && <Usuarios />}
+      {tab === 'users' && <GestionUsuariosGerentes />}
       {tab === 'config' && <Configuracion />}
     </div>
   )

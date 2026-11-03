@@ -2,9 +2,11 @@ import { Router } from "express";
 
 import usuariosRoutes from "../modules/usuarios/usuarios.routes.js";
 import cooperativasRoutes from "../modules/cooperativas/cooperativas.routes.js";
+import gerentesRoutes from "../modules/gerentes/gerentes.routes.js";
 import rutasRoutes from "../modules/rutas/rutas.routes.js";
 import horariosRoutes from "../modules/horarios/horarios.routes.js";
 import reservasRoutes from "../modules/reservas/reservas.routes.js";
+import usuariosAdminRoutes from "../modules/administracion/usuarios-admin.routes.js";
 import ventanillaRoutes from "../modules/pagos/ventanilla.routes.js";
 import boletosRoutes from "../modules/boletos/boletos.routes.js";
 import recibosRoutes from "../modules/boletos/recibos.routes.js";
@@ -36,6 +38,9 @@ router.use("/boletos", recibosRoutes);
 router.use("/notificaciones", avisosRoutes);
 router.use("/pagos", pagosRoutes);
 router.use("/administracion", administracionRoutes);
+router.use("/gerentes", gerentesRoutes);
+router.use("/administracion/usuarios", usuariosAdminRoutes);
+
 router.use('/reportes-operativos', reportesRoutes);
 
 export default router;
