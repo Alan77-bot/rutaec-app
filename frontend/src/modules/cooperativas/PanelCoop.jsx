@@ -1,7 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { obtenerCooperativas } from './services/cooperativas.service'
+import { busesService } from './services/buses.service'
 import TabOficinistas from './TabOficinistas'
+import TabFlota from './TabFlota'
 import BusArt from '../../components/BusArt'
 import { TIPOS_BUS, generarHoja } from '../../data/mock'
 import { addDays, DIAS, fechaCorta, hoy, parse } from '../../data/fechas'
@@ -244,6 +246,26 @@ export default function PanelCoop() {
   const [cooperativaRemota, setCooperativaRemota] = useState(null)
   const [cargandoCoop, setCargandoCoop] = useState(true)
   const [errorCoop, setErrorCoop] = useState('')
+  const [totalBuses, setTotalBuses] = useState(null)
+
+  useEffect(() => {
+    let vigente = true
+
+    if (!sesion?.coopId) {
+      setTotalBuses(null)
+      return () => { vigente = false }
+    }
+
+    busesService.listar()
+      .then((lista) => {
+        if (vigente) setTotalBuses(lista.length)
+      })
+      .catch((error) => {
+        console.error('No se pudo consultar el total de buses:', error)
+      })
+
+    return () => { vigente = false }
+  }, [sesion?.coopId])
 
   useEffect(() => {
     let vigente = true
@@ -357,7 +379,7 @@ export default function PanelCoop() {
           className={tab === 'buses' ? 'on' : ''}
           onClick={() => setTab('buses')}
         >
-          Buses <i>{misBuses.length}</i>
+          Buses <i>{totalBuses ?? '—'}</i>
         </button>
 
         <button
@@ -392,12 +414,7 @@ export default function PanelCoop() {
         />
       )}
 
-      {tab === 'buses' && (
-        <TabBuses
-          coop={coop}
-          misBuses={misBuses}
-        />
-      )}
+      {tab === 'buses' && <TabFlota onTotalBusesChange={setTotalBuses} />}
 
       {tab === 'oficinistas' && <TabOficinistas />}
     </div>
