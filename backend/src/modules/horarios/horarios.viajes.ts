@@ -213,19 +213,8 @@ export async function programarViajes(
 
       const id = await prisma.$transaction(
         async (tx) => {
-// Bloquea el bus y comprueba su estado actual dentro de la transacción.
-const busesBloqueados = await tx.$queryRaw<{ estado: string }[]>`
-  SELECT estado
-  FROM rutaec.buses
-  WHERE id = ${bus.id}::uuid
-    AND cooperativa_id = ${frecuencia.cooperativa_id}::uuid
-  FOR UPDATE
-`;
-
-if (busesBloqueados[0]?.estado !== "ACTIVO") {
-  throw new DiaOmitido("El bus ya no está activo");
-}
-
+          // Bloquea el bus para que dos programaciones no lo asignen a la vez.
+          await tx.$queryRaw`SELECT id FROM rutaec.buses WHERE id = ${bus.id}::uuid FOR UPDATE`;
 
           const repetido = await tx.$queryRaw<{ id: string }[]>`
             SELECT v.id FROM rutaec.viajes v

@@ -17,35 +17,10 @@ router.post('/operacion/agenda',async(req,res)=>{
   if(typeof busId!=='string'||!/^[0-9a-f-]{36}$/i.test(busId)||!['DESCANSO','MANTENIMIENTO'].includes(tipo)||!Number.isFinite(inicio.getTime())||!Number.isFinite(fin.getTime())||fin<=inicio||motivo.length<5||motivo.length>500)throw new ErrorCancelacion(400,'Revisa bus, fechas, tipo y motivo.');
   const bus=await prisma.buses.findFirst({where:{id:busId,...(s.rol==='admin'?{}:{cooperativa_id:s.coopId??''})}});
   if(!bus)throw new ErrorCancelacion(404,'Bus no encontrado.');
-const datos = await prisma.$transaction(async (tx) => {
-  await tx.$queryRaw`
-    SELECT set_config('app.usuario_id', ${s.id}, true)
-  `;
-
-  // Usa el mismo bloqueo que la programación y el cambio de estado.
-  const busesBloqueados = await tx.$queryRaw<{ estado: string }[]>`
-    SELECT estado
-    FROM rutaec.buses
-    WHERE id = ${bus.id}::uuid
-      AND cooperativa_id = ${bus.cooperativa_id}::uuid
-    FOR UPDATE
-  `;
-
-  if (busesBloqueados[0]?.estado !== "ACTIVO") {
-    throw new ErrorCancelacion(409, "El bus no está activo.");
-  }
-
-  return tx.agenda_bus.create({
-    data: {
-      bus_id: bus.id,
-      cooperativa_id: bus.cooperativa_id,
-      tipo,
-      inicio,
-      fin,
-      motivo,
-    },
+  const datos=await prisma.$transaction(async tx=>{
+    await tx.$queryRaw`SELECT set_config('app.usuario_id',${s.id},true)`;
+    return tx.agenda_bus.create({data:{bus_id:bus.id,cooperativa_id:bus.cooperativa_id,tipo,inicio,fin,motivo}});
   });
-});
   res.status(201).json({datos,mensaje:'Bloqueo registrado. No se podrá programar un viaje que se cruce con este período.'});
 });
 router.post('/operacion/agenda/:id/liberar',async(req,res)=>{
