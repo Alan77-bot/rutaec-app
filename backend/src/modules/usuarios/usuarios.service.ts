@@ -51,6 +51,17 @@ function datosSesion(usuario: UsuarioLogin) {
   const roles = usuario.roles_globales.map((asignacion) => asignacion.rol);
   const miembros = usuario.miembros_cooperativa;
 
+  const esGerente = miembros.some(
+    (miembro) => miembro.rol === "GERENTE"
+  );
+
+  if (esGerente && roles.includes("CLIENTE")) {
+    throw new ErrorAutenticacion(
+      409,
+      "La cuenta tiene roles incompatibles: Cliente y Gerente. Contacta al administrador."
+    );
+  }
+
   let rol: "admin" | "cooperativa" | "oficinista" | "usuario";
   let coopId: string | null = null;
 
