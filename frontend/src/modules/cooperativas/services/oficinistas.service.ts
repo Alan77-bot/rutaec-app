@@ -17,6 +17,14 @@ export interface Oficinista {
   };
 }
 
+export interface UsuarioDisponibleOficinista {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  numero_documento: string;
+}
+
 async function solicitar<T>(
   ruta: string,
   metodo = "GET",
@@ -55,6 +63,14 @@ async function solicitar<T>(
 export const oficinistasService = {
   async listar(): Promise<Oficinista[]> {
     const respuesta = await solicitar<{ datos: Oficinista[] }>("/");
+    return respuesta.datos;
+  },
+
+     async listarUsuariosDisponibles(): Promise<UsuarioDisponibleOficinista[]> {
+    const respuesta = await solicitar<{
+      datos: UsuarioDisponibleOficinista[];
+    }>("/usuarios-disponibles");
+
     return respuesta.datos;
   },
 
