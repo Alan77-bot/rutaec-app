@@ -1,6 +1,7 @@
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { oficinistasService } from './services/oficinistas.service'
+import './TabOficinistas.css'
 
 const LIMITE = 10
 
@@ -13,60 +14,166 @@ const FORMULARIO_VACIO = {
   clave: '',
 }
 
-const PAGINACION_INICIAL = {
-  pagina: 1,
-  limite: LIMITE,
-  total: 0,
-  totalPaginas: 0,
+function mensajeError(error, predeterminado) {
+  return error instanceof Error ? error.message : predeterminado
 }
 
-function obtenerMensajeError(error, predeterminado) {
-  return error instanceof Error ? error.message : predeterminado
+function Modal({
+  titulo,
+  descripcion,
+  children,
+  onCerrar,
+  bloqueado = false,
+  ancho = 'normal',
+}) {
+  const dialogoRef = useRef(null)
+  const tituloId = 'modal-oficinistas-titulo'
+  const descripcionId = 'modal-oficinistas-descripcion'
+
+  useEffect(() => {
+    const anterior = document.activeElement
+    const dialogo = dialogoRef.current
+
+    if (!dialogo) return
+
+    const enfocar = () => {
+      const primero = dialogo.querySelector(
+        'input:not(:disabled), button:not(:disabled), select:not(:disabled)'
+      )
+
+      primero?.focus()
+    }
+
+    enfocar()
+
+    const manejarTeclado = (evento) => {
+      if (evento.key === 'Escape') {
+        evento.preventDefault()
+        onCerrar()
+      }
+
+      if (evento.key !== 'Tab') return
+
+      const elementos = Array.from(
+        dialogo.querySelectorAll(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        )
+      )
+
+      if (!elementos.length) {
+        evento.preventDefault()
+        dialogo.focus()
+        return
+      }
+
+      const primero = elementos[0]
+      const ultimo = elementos[elementos.length - 1]
+
+      if (evento.shiftKey && document.activeElement === primero) {
+        evento.preventDefault()
+        ultimo.focus()
+      } else if (
+        !evento.shiftKey &&
+        document.activeElement === ultimo
+      ) {
+        evento.preventDefault()
+        primero.focus()
+      }
+    }
+
+    document.addEventListener('keydown', manejarTeclado)
+
+    return () => {
+      document.removeEventListener('keydown', manejarTeclado)
+      if (anterior instanceof HTMLElement) {
+        anterior.focus()
+      }
+    }
+  }, [onCerrar])
+
+  return (
+    <div
+      className="of-modal-fondo"
+      onMouseDown={(evento) => {
+        if (evento.target === evento.currentTarget && !bloqueado) {
+          onCerrar()
+        }
+      }}
+    >
+      <div
+        ref={dialogoRef}
+        className={`of-modal of-modal--${ancho}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        aria-describedby={descripcion ? descripcionId : undefined}
+        tabIndex={-1}
+      >
+        <div className="of-modal-cabecera">
+          <div>
+            <h3 id={tituloId}>{titulo}</h3>
+            {descripcion && (
+              <p id={descripcionId} className="muted">
+                {descripcion}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="of-modal-cerrar"
+            onClick={onCerrar}
+            disabled={bloqueado}
+            aria-label="Cerrar ventana"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="of-modal-contenido">{children}</div>
+      </div>
+    </div>
+  )
 }
 
 export default function TabOficinistas() {
   const [oficinistas, setOficinistas] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [procesando, setProcesando] = useState(null)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
 
-  // Asignación de usuarios existentes
-  const [mostrarAsignacion, setMostrarAsignacion] = useState(false)
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState([])
-  const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
-  const [errorUsuarios, setErrorUsuarios] = useState('')
-  const [busqueda, setBusqueda] = useState('')
-  const [pagina, setPagina] = useState(1)
-  const [paginacion, setPaginacion] = useState(PAGINACION_INICIAL)
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('')
-  const [asignando, setAsignando] = useState(false)
+  const [modal, setModal] = useState(null)
+  const [procesando, setProcesando] = useState(false)
+  const [errorModal, setErrorModal] = useState('')
 
-  // Registro de nuevos oficinistas
-  const [mostrarCreacion, setMostrarCreacion] = useState(false)
-  const [creando, setCreando] = useState(false)
   const [nuevoOficinista, setNuevoOficinista] = useState({
     ...FORMULARIO_VACIO,
   })
 
-  const hayOperacion = asignando || creando || procesando !== null
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState([])
+  const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [paginacion, setPaginacion] = useState({
+    pagina: 1,
+    limite: LIMITE,
+    total: 0,
+    totalPaginas: 0,
+  })
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
 
-  // Cargar personal registrado
+  const [oficinistaEstado, setOficinistaEstado] = useState(null)
+
   const cargar = useCallback(async () => {
     setCargando(true)
 
     try {
       const datos = await oficinistasService.listar()
       setOficinistas(datos)
-      return true
     } catch (err) {
       setError(
-        obtenerMensajeError(
-          err,
-          'No se pudieron cargar los oficinistas.'
-        )
+        mensajeError(err, 'No se pudieron cargar los oficinistas.')
       )
-      return false
     } finally {
       setCargando(false)
     }
@@ -76,14 +183,13 @@ export default function TabOficinistas() {
     cargar()
   }, [cargar])
 
-  // Consultar usuarios disponibles con búsqueda y paginación
   useEffect(() => {
-    if (!mostrarAsignacion) return
+    if (modal !== 'asignar') return
 
     let cancelado = false
 
     setCargandoUsuarios(true)
-    setErrorUsuarios('')
+    setErrorModal('')
 
     const consultar = async () => {
       try {
@@ -102,17 +208,14 @@ export default function TabOficinistas() {
         if (cancelado) return
 
         setUsuariosDisponibles([])
-        setPaginacion(PAGINACION_INICIAL)
-        setErrorUsuarios(
-          obtenerMensajeError(
+        setErrorModal(
+          mensajeError(
             err,
-            'No se pudieron cargar los usuarios disponibles.'
+            'No se pudieron consultar los usuarios disponibles.'
           )
         )
       } finally {
-        if (!cancelado) {
-          setCargandoUsuarios(false)
-        }
+        if (!cancelado) setCargandoUsuarios(false)
       }
     }
 
@@ -122,72 +225,118 @@ export default function TabOficinistas() {
       cancelado = true
       clearTimeout(temporizador)
     }
-  }, [mostrarAsignacion, busqueda, pagina])
+  }, [modal, busqueda, pagina])
 
-  // Abrir asignación
-  const abrirAsignacion = () => {
-    setMostrarCreacion(false)
+  const cerrarModal = useCallback(() => {
+    if (procesando) return
+
+    setModal(null)
+    setErrorModal('')
+    setOficinistaEstado(null)
+    setUsuarioSeleccionado(null)
     setNuevoOficinista({ ...FORMULARIO_VACIO })
+  }, [procesando])
 
+  const abrirCrear = () => {
+    setError('')
+    setMensaje('')
+    setErrorModal('')
+    setNuevoOficinista({ ...FORMULARIO_VACIO })
+    setModal('crear')
+  }
+
+  const abrirAsignar = () => {
+    setError('')
+    setMensaje('')
+    setErrorModal('')
     setBusqueda('')
     setPagina(1)
-    setUsuarioSeleccionado('')
+    setUsuarioSeleccionado(null)
     setUsuariosDisponibles([])
-    setPaginacion(PAGINACION_INICIAL)
-    setErrorUsuarios('')
-    setError('')
-    setMensaje('')
-    setMostrarAsignacion(true)
+    setModal('asignar')
   }
 
-  const cerrarAsignacion = () => {
-    setMostrarAsignacion(false)
-    setUsuarioSeleccionado('')
-    setErrorUsuarios('')
-  }
-
-  // Asignar usuario existente
-  const asignarUsuario = async () => {
-    if (!usuarioSeleccionado || hayOperacion) return
-
-    setAsignando(true)
+  const abrirEstado = (oficinista) => {
     setError('')
     setMensaje('')
+    setErrorModal('')
+    setOficinistaEstado(oficinista)
+    setModal('estado')
+  }
+
+  const actualizarCampo = (evento) => {
+    const { name, value } = evento.target
+
+    setNuevoOficinista((actual) => ({
+      ...actual,
+      [name]: value,
+    }))
+  }
+
+  const registrarNuevo = async (evento) => {
+    evento.preventDefault()
+    if (procesando) return
+
+    setProcesando(true)
+    setErrorModal('')
 
     try {
-      await oficinistasService.asignar(usuarioSeleccionado)
+      await oficinistasService.registrarNuevo(nuevoOficinista)
 
-      cerrarAsignacion()
+      setProcesando(false)
+      cerrarModal()
+
+      setMensaje(
+        'Oficinista registrado. Debe verificar su correo electrónico antes de iniciar sesión.'
+      )
+
+      await cargar()
+    } catch (err) {
+      setErrorModal(
+        mensajeError(err, 'No se pudo registrar el oficinista.')
+      )
+      setProcesando(false)
+    }
+  }
+
+  const asignarExistente = async () => {
+    if (!usuarioSeleccionado || procesando) return
+
+    setProcesando(true)
+    setErrorModal('')
+
+    try {
+      await oficinistasService.asignar(usuarioSeleccionado.id)
+
+      setProcesando(false)
+      cerrarModal()
 
       setMensaje('Oficinista asignado correctamente.')
       await cargar()
     } catch (err) {
-      setError(
-        obtenerMensajeError(
-          err,
-          'No se pudo asignar el oficinista.'
-        )
+      setErrorModal(
+        mensajeError(err, 'No se pudo asignar el oficinista.')
       )
-    } finally {
-      setAsignando(false)
+      setProcesando(false)
     }
   }
 
-  // Activar o desactivar oficinista
-  const cambiarEstado = async (oficinista) => {
-    if (hayOperacion) return
+  const confirmarEstado = async () => {
+    if (!oficinistaEstado || procesando) return
 
-    const activar = !oficinista.activo
+    const activar = !oficinistaEstado.activo
 
-    setProcesando(oficinista.usuario_id)
-    setError('')
-    setMensaje('')
+    setProcesando(true)
+    setErrorModal('')
 
     try {
       await oficinistasService.cambiarEstado(
-        oficinista.usuario_id,
+        oficinistaEstado.usuario_id,
         activar
       )
+
+      setProcesando(false)
+      cerrarModal()
 
       setMensaje(
         activar
@@ -197,85 +346,18 @@ export default function TabOficinistas() {
 
       await cargar()
     } catch (err) {
-      setError(
-        obtenerMensajeError(
-          err,
-          'No se pudo cambiar el estado.'
-        )
+      setErrorModal(
+        mensajeError(err, 'No se pudo cambiar el estado.')
       )
-    } finally {
-      setProcesando(null)
+      setProcesando(false)
     }
   }
-
-  // Abrir formulario de creación
-  const abrirCreacion = () => {
-    cerrarAsignacion()
-    setNuevoOficinista({ ...FORMULARIO_VACIO })
-    setError('')
-    setMensaje('')
-    setMostrarCreacion(true)
-  }
-
-  // Cerrar formulario de creación
-  const cerrarCreacion = () => {
-    setMostrarCreacion(false)
-    setNuevoOficinista({ ...FORMULARIO_VACIO })
-  }
-
-  // Actualizar campos del formulario
-  const actualizarNuevoOficinista = (evento) => {
-    const { name, value } = evento.target
-
-    setNuevoOficinista((actual) => ({
-      ...actual,
-      [name]: value,
-    }))
-  }
-
-  // Registrar nuevo oficinista
-  const registrarOficinista = async (evento) => {
-    evento.preventDefault()
-
-    if (hayOperacion) return
-
-    setCreando(true)
-    setError('')
-    setMensaje('')
-
-    try {
-      await oficinistasService.registrarNuevo(nuevoOficinista)
-
-      cerrarCreacion()
-
-      setMensaje(
-        'Oficinista registrado correctamente. Debe verificar su correo electrónico antes de utilizar su cuenta.'
-      )
-
-      await cargar()
-    } catch (err) {
-      setError(
-        obtenerMensajeError(
-          err,
-          'No se pudo registrar el oficinista.'
-        )
-      )
-    } finally {
-      setCreando(false)
-    }
-  }
-
-  const seleccionado = usuariosDisponibles.find(
-    (usuario) => usuario.id === usuarioSeleccionado
-  )
 
   return (
     <section>
       <div className="seccion-cab izq">
         <h2>Gestión de oficinistas</h2>
-        <p>
-          Administra el acceso del personal de tu cooperativa.
-        </p>
+        <p>Administra el personal de tu cooperativa.</p>
       </div>
 
       {error && (
@@ -291,45 +373,35 @@ export default function TabOficinistas() {
       )}
 
       <div className="panel">
-        {/* Cabecera y botones */}
-        <div className="form-fila">
-          <h4>Personal registrado</h4>
+        <div className="of-barra">
+          <div>
+            <h4>Personal registrado</h4>
+            <p className="muted">
+              Consulta y administra las cuentas de oficinistas.
+            </p>
+          </div>
 
-          <div className="form-fila">
+          <div className="of-acciones">
             <button
               type="button"
               className="btn btn-oscuro"
-              disabled={hayOperacion}
-              onClick={
-                mostrarAsignacion
-                  ? cerrarAsignacion
-                  : abrirAsignacion
-              }
+              onClick={abrirCrear}
             >
-              {mostrarAsignacion
-                ? 'Cancelar asignación'
-                : 'Asignar oficinista'}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-oscuro"
-              disabled={hayOperacion}
-              onClick={
-                mostrarCreacion
-                  ? cerrarCreacion
-                  : abrirCreacion
-              }
-            >
-              {mostrarCreacion
-                ? 'Cancelar creación'
-                : 'Crear nuevo oficinista'}
+              + Crear oficinista
             </button>
 
             <button
               type="button"
               className="btn btn-claro"
-              disabled={cargando || hayOperacion}
+              onClick={abrirAsignar}
+            >
+              Asignar existente
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-claro"
+              disabled={cargando}
               onClick={() => {
                 setError('')
                 setMensaje('')
@@ -341,321 +413,12 @@ export default function TabOficinistas() {
           </div>
         </div>
 
-        {/* Formulario para crear nuevo oficinista */}
-        {mostrarCreacion && (
-          <div className="panel">
-            <h4>Crear nuevo oficinista</h4>
-
-            <p className="muted">
-              Registra un usuario nuevo y asígnalo a tu
-              cooperativa. Deberá verificar su correo
-              electrónico antes de utilizar su cuenta.
-            </p>
-
-            <form onSubmit={registrarOficinista}>
-              <div className="form-fila">
-                <label htmlFor="oficinista-nombres">
-                  Nombres
-                </label>
-                <input
-                  id="oficinista-nombres"
-                  name="nombres"
-                  type="text"
-                  maxLength={100}
-                  required
-                  autoComplete="given-name"
-                  value={nuevoOficinista.nombres}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <div className="form-fila">
-                <label htmlFor="oficinista-apellidos">
-                  Apellidos
-                </label>
-                <input
-                  id="oficinista-apellidos"
-                  name="apellidos"
-                  type="text"
-                  maxLength={100}
-                  required
-                  autoComplete="family-name"
-                  value={nuevoOficinista.apellidos}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <div className="form-fila">
-                <label htmlFor="oficinista-correo">
-                  Correo electrónico
-                </label>
-                <input
-                  id="oficinista-correo"
-                  name="correo"
-                  type="email"
-                  maxLength={254}
-                  required
-                  autoComplete="email"
-                  value={nuevoOficinista.correo}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <div className="form-fila">
-                <label htmlFor="oficinista-documento">
-                  Cédula
-                </label>
-                <input
-                  id="oficinista-documento"
-                  name="numero_documento"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{10}"
-                  maxLength={10}
-                  required
-                  value={nuevoOficinista.numero_documento}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <div className="form-fila">
-                <label htmlFor="oficinista-telefono">
-                  Celular
-                </label>
-                <input
-                  id="oficinista-telefono"
-                  name="telefono"
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="09[0-9]{8}"
-                  maxLength={10}
-                  required
-                  autoComplete="tel"
-                  value={nuevoOficinista.telefono}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <div className="form-fila">
-                <label htmlFor="oficinista-clave">
-                  Contraseña
-                </label>
-                <input
-                  id="oficinista-clave"
-                  name="clave"
-                  type="password"
-                  minLength={12}
-                  required
-                  autoComplete="new-password"
-                  value={nuevoOficinista.clave}
-                  onChange={actualizarNuevoOficinista}
-                  disabled={creando}
-                />
-              </div>
-
-              <p className="muted">
-                La contraseña debe contener al menos
-                12 caracteres. El correo se verificará
-                mediante el proceso habitual.
-              </p>
-
-              <div className="form-fila">
-                <button
-                  type="submit"
-                  className="btn btn-oscuro"
-                  disabled={creando}
-                >
-                  {creando
-                    ? 'Registrando...'
-                    : 'Registrar oficinista'}
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-claro"
-                  onClick={cerrarCreacion}
-                  disabled={creando}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Tabla para asignar usuarios existentes */}
-        {mostrarAsignacion && (
-          <div className="panel">
-            <h4>Usuarios disponibles</h4>
-
-            <div className="form-fila">
-              <label htmlFor="buscar-oficinista">
-                Buscar usuario
-              </label>
-
-              <input
-                id="buscar-oficinista"
-                type="search"
-                maxLength={100}
-                placeholder="Nombre, apellido, correo o documento"
-                value={busqueda}
-                disabled={asignando}
-                onChange={(evento) => {
-                  setBusqueda(evento.target.value)
-                  setPagina(1)
-                  setUsuarioSeleccionado('')
-                  setUsuariosDisponibles([])
-                  setPaginacion(PAGINACION_INICIAL)
-                  setCargandoUsuarios(true)
-                }}
-              />
-            </div>
-
-            {errorUsuarios && (
-              <div className="aviso-hoja mal" role="alert">
-                {errorUsuarios}
-              </div>
-            )}
-
-            {cargandoUsuarios ? (
-              <p className="muted">Buscando usuarios...</p>
-            ) : !errorUsuarios &&
-              usuariosDisponibles.length === 0 ? (
-              <div className="vacio">
-                No se encontraron usuarios disponibles.
-              </div>
-            ) : !errorUsuarios ? (
-              <>
-                <div className="tabla-wrap">
-                  <table className="tabla">
-                    <thead>
-                      <tr>
-                        <th>Usuario</th>
-                        <th>Correo</th>
-                        <th>Documento</th>
-                        <th>Acción</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {usuariosDisponibles.map((usuario) => (
-                        <tr key={usuario.id}>
-                          <td>
-                            <b>
-                              {usuario.nombres}{' '}
-                              {usuario.apellidos}
-                            </b>
-                          </td>
-
-                          <td>{usuario.correo}</td>
-                          <td>{usuario.numero_documento}</td>
-
-                          <td>
-                            <button
-                              type="button"
-                              className={
-                                'btn ' +
-                                (usuarioSeleccionado === usuario.id
-                                  ? 'btn-oscuro'
-                                  : 'btn-claro')
-                              }
-                              disabled={asignando}
-                              onClick={() =>
-                                setUsuarioSeleccionado(usuario.id)
-                              }
-                            >
-                              {usuarioSeleccionado === usuario.id
-                                ? 'Seleccionado'
-                                : 'Seleccionar'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="form-fila">
-                  <button
-                    type="button"
-                    className="btn btn-claro"
-                    disabled={pagina <= 1 || hayOperacion}
-                    onClick={() => {
-                      setPagina((actual) => actual - 1)
-                      setUsuarioSeleccionado('')
-                      setUsuariosDisponibles([])
-                      setCargandoUsuarios(true)
-                    }}
-                  >
-                    Anterior
-                  </button>
-
-                  <span className="muted">
-                    Página {paginacion.pagina} de{' '}
-                    {paginacion.totalPaginas || 1}
-                    {' · '}
-                    {paginacion.total} usuarios
-                  </span>
-
-                  <button
-                    type="button"
-                    className="btn btn-claro"
-                    disabled={
-                      pagina >= paginacion.totalPaginas ||
-                      hayOperacion
-                    }
-                    onClick={() => {
-                      setPagina((actual) => actual + 1)
-                      setUsuarioSeleccionado('')
-                      setUsuariosDisponibles([])
-                      setCargandoUsuarios(true)
-                    }}
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </>
-            ) : null}
-
-            {seleccionado && !cargandoUsuarios && (
-              <div className="panel">
-                <p>
-                  Vas a asignar a{' '}
-                  <b>
-                    {seleccionado.nombres}{' '}
-                    {seleccionado.apellidos}
-                  </b>{' '}
-                  como oficinista de tu cooperativa.
-                </p>
-
-                <button
-                  type="button"
-                  className="btn btn-oscuro"
-                  disabled={hayOperacion}
-                  onClick={asignarUsuario}
-                >
-                  {asignando
-                    ? 'Asignando...'
-                    : 'Confirmar asignación'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Listado de oficinistas registrados */}
         {cargando ? (
-          <p className="muted">
-            Cargando oficinistas...
-          </p>
+          <p className="muted">Cargando oficinistas...</p>
         ) : oficinistas.length === 0 ? (
           <div className="vacio">
-            <b>Aún no tienes oficinistas registrados.</b>
+            <b>No hay oficinistas registrados.</b>
+            <p>Utiliza Crear oficinista o Asignar existente.</p>
           </div>
         ) : (
           <div className="tabla-wrap">
@@ -665,87 +428,474 @@ export default function TabOficinistas() {
                   <th>Oficinista</th>
                   <th>Correo</th>
                   <th>Teléfono</th>
+                  <th>Verificación</th>
                   <th>Estado</th>
                   <th>Acción</th>
                 </tr>
               </thead>
 
               <tbody>
-                {oficinistas.map((oficinista) => (
-                  <tr
-                    key={oficinista.usuario_id}
-                    className={
-                      oficinista.activo ? '' : 'inactiva'
-                    }
-                  >
-                    <td>
-                      <b>
-                        {oficinista.usuarios.nombres}{' '}
-                        {oficinista.usuarios.apellidos}
-                      </b>
-                    </td>
+                {oficinistas.map((oficinista) => {
+                  const usuario = oficinista.usuarios
+                  const verificado = Boolean(
+                    usuario.correo_verificado_en
+                  )
 
-                    <td>
-                      {oficinista.usuarios.correo}
-                    </td>
+                  return (
+                    <tr
+                      key={oficinista.usuario_id}
+                      className={
+                        oficinista.activo ? '' : 'inactiva'
+                      }
+                    >
+                      <td>
+                        <b>
+                          {usuario.nombres} {usuario.apellidos}
+                        </b>
+                      </td>
 
-                    <td>
-                      {oficinista.usuarios.telefono}
-                    </td>
+                      <td>{usuario.correo}</td>
+                      <td>{usuario.telefono}</td>
 
-                    <td>
-                      <span
-                        className={
-                          'badge ' +
-                          (oficinista.activo
-                            ? 'verde'
-                            : 'gris')
-                        }
-                      >
-                        {oficinista.activo
-                          ? 'Activo'
-                          : 'Inactivo'}
-                      </span>
-
-                      {!oficinista.usuarios.correo_verificado_en && (
-                        <span className="muted">
-                          {' '}· Correo pendiente
+                      <td>
+                        <span
+                          className={
+                            'badge ' +
+                            (verificado ? 'verde' : 'gris')
+                          }
+                        >
+                          {verificado
+                            ? 'Verificado'
+                            : 'Pendiente'}
                         </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td>
-                      <button
-                        type="button"
-                        className={
-                          'btn ' +
-                          (oficinista.activo
-                            ? 'btn-claro'
-                            : 'btn-oscuro')
-                        }
-                        disabled={
-                          hayOperacion ||
-                          !oficinista.usuarios.activo ||
-                          !oficinista.usuarios.correo_verificado_en
-                        }
-                        onClick={() =>
-                          cambiarEstado(oficinista)
-                        }
-                      >
-                        {procesando === oficinista.usuario_id
-                          ? 'Guardando...'
-                          : oficinista.activo
+                      <td>
+                        <span
+                          className={
+                            'badge ' +
+                            (oficinista.activo
+                              ? 'verde'
+                              : 'gris')
+                          }
+                        >
+                          {oficinista.activo
+                            ? 'Activo'
+                            : 'Inactivo'}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className={
+                            'btn ' +
+                            (oficinista.activo
+                              ? 'btn-claro'
+                              : 'btn-oscuro')
+                          }
+                          disabled={
+                            !usuario.activo ||
+                            !verificado
+                          }
+                          onClick={() => abrirEstado(oficinista)}
+                        >
+                          {oficinista.activo
                             ? 'Desactivar'
                             : 'Activar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* MODAL CREAR */}
+      {modal === 'crear' && (
+        <Modal
+          titulo="Crear nuevo oficinista"
+          descripcion="Registra una cuenta para el personal de tu cooperativa."
+          onCerrar={cerrarModal}
+          bloqueado={procesando}
+        >
+          {errorModal && (
+            <div className="aviso-hoja mal" role="alert">
+              {errorModal}
+            </div>
+          )}
+
+          <form onSubmit={registrarNuevo}>
+            <div className="of-form-grid">
+              <div className="of-campo">
+                <label htmlFor="of-nombres">Nombres</label>
+                <input
+                  id="of-nombres"
+                  name="nombres"
+                  required
+                  maxLength={100}
+                  autoComplete="given-name"
+                  value={nuevoOficinista.nombres}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+              </div>
+
+              <div className="of-campo">
+                <label htmlFor="of-apellidos">Apellidos</label>
+                <input
+                  id="of-apellidos"
+                  name="apellidos"
+                  required
+                  maxLength={100}
+                  autoComplete="family-name"
+                  value={nuevoOficinista.apellidos}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+              </div>
+
+              <div className="of-campo of-campo--completo">
+                <label htmlFor="of-correo">
+                  Correo electrónico
+                </label>
+                <input
+                  id="of-correo"
+                  name="correo"
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
+                  value={nuevoOficinista.correo}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+              </div>
+
+              <div className="of-campo">
+                <label htmlFor="of-cedula">Cédula</label>
+                <input
+                  id="of-cedula"
+                  name="numero_documento"
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  title="Ingresa exactamente 10 dígitos"
+                  required
+                  maxLength={10}
+                  value={nuevoOficinista.numero_documento}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+              </div>
+
+              <div className="of-campo">
+                <label htmlFor="of-telefono">Celular</label>
+                <input
+                  id="of-telefono"
+                  name="telefono"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="09[0-9]{8}"
+                  title="Debe comenzar con 09 y tener 10 dígitos"
+                  required
+                  maxLength={10}
+                  autoComplete="tel"
+                  value={nuevoOficinista.telefono}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+              </div>
+
+              <div className="of-campo of-campo--completo">
+                <label htmlFor="of-clave">
+                  Contraseña inicial
+                </label>
+                <input
+                  id="of-clave"
+                  name="clave"
+                  type="password"
+                  minLength={12}
+                  required
+                  autoComplete="new-password"
+                  value={nuevoOficinista.clave}
+                  onChange={actualizarCampo}
+                  disabled={procesando}
+                />
+                <small className="muted">
+                  Mínimo 12 caracteres y máximo 72 bytes.
+                  La persona deberá verificar su correo.
+                </small>
+              </div>
+            </div>
+
+            <div className="of-modal-pie">
+              <button
+                type="button"
+                className="btn btn-claro"
+                onClick={cerrarModal}
+                disabled={procesando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className="btn btn-oscuro"
+                disabled={procesando}
+              >
+                {procesando
+                  ? 'Registrando...'
+                  : 'Registrar oficinista'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* MODAL ASIGNAR */}
+      {modal === 'asignar' && (
+        <Modal
+          titulo="Asignar usuario existente"
+          descripcion="Busca una cuenta disponible y asígnala como oficinista."
+          onCerrar={cerrarModal}
+          bloqueado={procesando}
+          ancho="amplio"
+        >
+          {errorModal && (
+            <div className="aviso-hoja mal" role="alert">
+              {errorModal}
+            </div>
+          )}
+
+          <div className="of-campo">
+            <label htmlFor="of-buscar">
+              Buscar usuario
+            </label>
+            <input
+              id="of-buscar"
+              type="search"
+              placeholder="Nombre, apellido, correo o documento"
+              maxLength={100}
+              value={busqueda}
+              disabled={procesando}
+              onChange={(evento) => {
+                setBusqueda(evento.target.value)
+                setPagina(1)
+                setUsuarioSeleccionado(null)
+                setUsuariosDisponibles([])
+                setCargandoUsuarios(true)
+              }}
+            />
+          </div>
+
+          {cargandoUsuarios ? (
+            <p className="muted">Buscando usuarios...</p>
+          ) : !errorModal && usuariosDisponibles.length === 0 ? (
+            <div className="vacio">
+              No se encontraron usuarios disponibles.
+            </div>
+          ) : (
+            <div className="tabla-wrap">
+              <table className="tabla">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Correo</th>
+                    <th>Documento</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {usuariosDisponibles.map((usuario) => (
+                    <tr key={usuario.id}>
+                      <td>
+                        <b>
+                          {usuario.nombres} {usuario.apellidos}
+                        </b>
+                      </td>
+                      <td>{usuario.correo}</td>
+                      <td>{usuario.numero_documento}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className={
+                            'btn ' +
+                            (usuarioSeleccionado?.id === usuario.id
+                              ? 'btn-oscuro'
+                              : 'btn-claro')
+                          }
+                          disabled={procesando}
+                          onClick={() =>
+                            setUsuarioSeleccionado(usuario)
+                          }
+                        >
+                          {usuarioSeleccionado?.id === usuario.id
+                            ? 'Seleccionado'
+                            : 'Seleccionar'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!errorModal && (
+            <div className="of-paginacion">
+              <button
+                type="button"
+                className="btn btn-claro"
+                disabled={
+                  pagina <= 1 ||
+                  cargandoUsuarios ||
+                  procesando
+                }
+                onClick={() => {
+                  setPagina((actual) => actual - 1)
+                  setUsuarioSeleccionado(null)
+                  setUsuariosDisponibles([])
+                  setCargandoUsuarios(true)
+                }}
+              >
+                Anterior
+              </button>
+
+              <span className="muted">
+                Página {paginacion.pagina} de{' '}
+                {paginacion.totalPaginas || 1}
+                {' · '}
+                {paginacion.total} usuarios
+              </span>
+
+              <button
+                type="button"
+                className="btn btn-claro"
+                disabled={
+                  pagina >= paginacion.totalPaginas ||
+                  cargandoUsuarios ||
+                  procesando
+                }
+                onClick={() => {
+                  setPagina((actual) => actual + 1)
+                  setUsuarioSeleccionado(null)
+                  setUsuariosDisponibles([])
+                  setCargandoUsuarios(true)
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+
+          {usuarioSeleccionado && (
+            <div className="of-seleccion">
+              <strong>
+                {usuarioSeleccionado.nombres}{' '}
+                {usuarioSeleccionado.apellidos}
+              </strong>
+              <p className="muted">
+                Se asignará como oficinista de tu cooperativa.
+              </p>
+            </div>
+          )}
+
+          <div className="of-modal-pie">
+            <button
+              type="button"
+              className="btn btn-claro"
+              disabled={procesando}
+              onClick={cerrarModal}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-oscuro"
+              disabled={
+                !usuarioSeleccionado ||
+                procesando ||
+                cargandoUsuarios
+              }
+              onClick={asignarExistente}
+            >
+              {procesando
+                ? 'Asignando...'
+                : 'Confirmar asignación'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL CAMBIAR ESTADO */}
+      {modal === 'estado' && oficinistaEstado && (
+        <Modal
+          titulo={
+            oficinistaEstado.activo
+              ? 'Desactivar oficinista'
+              : 'Activar oficinista'
+          }
+          descripcion="Confirma el cambio de estado del personal."
+          onCerrar={cerrarModal}
+          bloqueado={procesando}
+        >
+          {errorModal && (
+            <div className="aviso-hoja mal" role="alert">
+              {errorModal}
+            </div>
+          )}
+
+          <p>
+            ¿Deseas{' '}
+            <strong>
+              {oficinistaEstado.activo
+                ? 'desactivar'
+                : 'activar'}
+            </strong>{' '}
+            a{' '}
+            <strong>
+              {oficinistaEstado.usuarios.nombres}{' '}
+              {oficinistaEstado.usuarios.apellidos}
+            </strong>
+            ?
+          </p>
+
+          <p className="muted">
+            {oficinistaEstado.activo
+              ? 'La persona dejará de tener activa su asignación como oficinista.'
+              : 'La asignación como oficinista volverá a estar activa.'}
+          </p>
+
+          <div className="of-modal-pie">
+            <button
+              type="button"
+              className="btn btn-claro"
+              disabled={procesando}
+              onClick={cerrarModal}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-oscuro"
+              disabled={procesando}
+              onClick={confirmarEstado}
+            >
+              {procesando
+                ? 'Guardando...'
+                : oficinistaEstado.activo
+                  ? 'Confirmar desactivación'
+                  : 'Confirmar activación'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </section>
   )
 }
