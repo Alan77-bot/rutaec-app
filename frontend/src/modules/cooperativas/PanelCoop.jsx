@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { obtenerCooperativas } from './services/cooperativas.service'
 import TabOficinistas from './TabOficinistas'
+import TabFlota from './TabFlota'
 import BusArt from '../../components/BusArt'
 import { TIPOS_BUS, generarHoja } from '../../data/mock'
 import { addDays, DIAS, fechaCorta, hoy, parse } from '../../data/fechas'
@@ -392,12 +393,7 @@ export default function PanelCoop() {
         />
       )}
 
-      {tab === 'buses' && (
-        <TabBuses
-          coop={coop}
-          misBuses={misBuses}
-        />
-      )}
+      {tab === 'buses' && <TabFlota />}
 
       {tab === 'oficinistas' && <TabOficinistas />}
     </div>
