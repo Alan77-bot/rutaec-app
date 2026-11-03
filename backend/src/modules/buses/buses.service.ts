@@ -1,4 +1,4 @@
-﻿import { prisma } from "../../lib/prisma.js";
+import { prisma } from "../../lib/prisma.js";
 
 export async function listarBusesPorCooperativa(cooperativaId: string) {
   return prisma.buses.findMany({
@@ -84,4 +84,20 @@ export async function registrarBus(datos: DatosRegistroBus) {
   });
 
   return { bus };
+}
+
+
+export async function listarGruposBuses(cooperativaId: string) {
+  return prisma.grupos_buses.findMany({
+    where: {
+      cooperativa_id: cooperativaId,
+      activo: true,
+    },
+    select: {
+      id: true,
+      nombre: true,
+      tipo: true,
+    },
+    orderBy: { nombre: "asc" },
+  });
 }

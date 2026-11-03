@@ -1,6 +1,6 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { autenticar } from "../../middlewares/autenticacion.js";
-import { obtenerBuses, crearBus } from "./buses.controller.js";
+import { obtenerBuses, crearBus, obtenerGruposBuses } from "./buses.controller.js";
 
 const router = Router();
 
@@ -9,6 +9,7 @@ const origenPermitido = new URL(
 ).origin;
 
 router.get("/", ...autenticar, obtenerBuses);
+router.get("/grupos", ...autenticar, obtenerGruposBuses);
 
 router.post(
   "/",
