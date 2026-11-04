@@ -14,6 +14,8 @@ services:
     volumes:
       - rutaec_postgres18_data:/var/lib/postgresql
       - ./database/init/rutaec_schema.sql:/docker-entrypoint-initdb.d/01-rutaec-schema.sql:ro
+      - ./database/init/rutaec_catalogo.sql:/docker-entrypoint-initdb.d/02-rutaec-catalogo.sql:ro
+      - ./database/init/rutaec_configuracion.sql:/docker-entrypoint-initdb.d/03-rutaec-configuracion.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -31,10 +33,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=rutaec
       COMPROBANTES_DIR: /var/lib/rutaec/comprobantes
+      PERSONALIZACION_DIR: /var/lib/rutaec/personalizacion
+      DOCUMENTOS_DIR: /var/lib/rutaec/documentos
     ports:
       - "3000:3000"
     volumes:
       - rutaec_comprobantes_data:/var/lib/rutaec/comprobantes
+      - rutaec_personalizacion_data:/var/lib/rutaec/personalizacion
+      - rutaec_documentos_data:/var/lib/rutaec/documentos
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,3 +59,5 @@ volumes:
   rutaec_postgres_data:
   rutaec_postgres18_data:
   rutaec_comprobantes_data:
+  rutaec_personalizacion_data:
+  rutaec_documentos_data:
