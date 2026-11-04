@@ -1,5 +1,4 @@
-﻿import { useEffect } from "react";
-
+import Dialogo from '../../components/ui/Dialogo'
 export default function ModalAsientos({
   titulo,
   descripcion,
@@ -8,25 +7,10 @@ export default function ModalAsientos({
   acciones,
   ancho = 560,
 }) {
-  useEffect(() => {
-    const cerrarConEscape = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    document.addEventListener("keydown", cerrarConEscape);
-
-    return () => {
-      document.removeEventListener("keydown", cerrarConEscape);
-    };
-  }, [onClose]);
-
-  return (
-    <div
-      role="presentation"
-      onMouseDown={(e) => {
+return (
+    <Dialogo overlayProps={{"role": "presentation", "onMouseDown": (e) => {
         if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
+      }, "style": {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
@@ -36,13 +20,7 @@ export default function ModalAsientos({
         alignItems: "center",
         justifyContent: "center",
         padding: 16,
-      }}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={titulo}
-        style={{
+      }}} panelProps={{"className": "asientos-modal", "role": "dialog", "aria-modal": "true", "aria-label": titulo, "style": {
           width: "100%",
           maxWidth: ancho,
           maxHeight: "85vh",
@@ -51,8 +29,7 @@ export default function ModalAsientos({
           borderRadius: 18,
           boxShadow: "0 24px 70px rgba(0,0,0,.2)",
           color: "#17243a",
-        }}
-      >
+        }}}>
         <header
           style={{
             padding: 22,
@@ -77,7 +54,8 @@ export default function ModalAsientos({
             aria-label="Cerrar"
             style={{
               border: 0,
-              background: "#f1f5f9",
+              background: "color-mix(in srgb, var(--coop-primario, #16324F) 10%, white)",
+              color: "var(--coop-primario, #16324F)",
               borderRadius: 9,
               width: 36,
               height: 36,
@@ -105,7 +83,6 @@ export default function ModalAsientos({
             {acciones}
           </footer>
         )}
-      </section>
-    </div>
+      </Dialogo>
   );
 }

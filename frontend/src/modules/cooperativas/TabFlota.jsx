@@ -1,4 +1,5 @@
-﻿
+import Dialogo from '../../components/ui/Dialogo'
+
 import { useEffect, useState } from "react";
 import { busesService } from "./services/buses.service";
 
@@ -568,19 +569,9 @@ export default function TabFlota({ onTotalBusesChange }) {
 
       {/* MODAL: INFORMACIÓN COMPLETA DEL BUS */}
       {busDetalle && (
-        <div
-          style={overlayStyle}
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"style": overlayStyle, "onMouseDown": (e) => {
             if (e.target === e.currentTarget) cerrarDetalle();
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-detalle-bus"
-            className="panel"
-            style={modalStyle}
-          >
+          }}} panelProps={{"role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-detalle-bus", "className": "panel", "style": modalStyle}}>
             <div
               style={{
                 display: "flex",
@@ -835,31 +826,20 @@ export default function TabFlota({ onTotalBusesChange }) {
                 Editar vehículo
               </button>
             </div>
-          </div>
-        </div>
+          </Dialogo>
       )}
 
       {/* MODAL: ACTIVAR / DESACTIVAR */}
       {busConfirmandoEstado && (
-        <div
-          style={overlayStyle}
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"style": overlayStyle, "onMouseDown": (e) => {
             if (e.target === e.currentTarget) {
               cerrarConfirmacionEstado();
             }
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-confirmar-estado"
-            className="panel"
-            style={{
+          }}} panelProps={{"role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-confirmar-estado", "className": "panel", "style": {
               ...modalStyle,
               maxWidth: 460,
               textAlign: "center",
-            }}
-          >
+            }}}>
             <div
               style={{
                 width: 66,
@@ -1036,28 +1016,17 @@ export default function TabFlota({ onTotalBusesChange }) {
                 </button>
               )}
             </div>
-          </div>
-        </div>
+          </Dialogo>
       )}
 
       {/* MODAL: REGISTRAR / EDITAR */}
       {mostrarFormulario && (
-        <div
-          style={overlayStyle}
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"style": overlayStyle, "onMouseDown": (e) => {
             if (e.target === e.currentTarget) cerrarFormulario();
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-registro-bus"
-            className="panel"
-            style={{
+          }}} panelProps={{"role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-registro-bus", "className": "panel", "style": {
               ...modalStyle,
               maxWidth: 650,
-            }}
-          >
+            }}}>
             <div
               style={{
                 display: "flex",
@@ -1358,8 +1327,7 @@ export default function TabFlota({ onTotalBusesChange }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </Dialogo>
       )}
     </section>
   );

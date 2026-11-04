@@ -1,0 +1,79 @@
+/* Interfaz compartida por roles; la marca se hereda de cada cooperativa. */
+#root .pagina { background: #f7f9fc; min-height: 70vh; }
+#root .pagina > .contenedor { padding-top: 32px; padding-bottom: 48px; }
+#root .seccion-cab.izq { margin-bottom: 28px; }
+#root .seccion-cab.izq h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.2; color: var(--ui-texto); margin-bottom: 10px; }
+#root .seccion-cab.izq p { max-width: 780px; color: #586b7c; font-size: 1rem; line-height: 1.7; }
+#root .ui-eyebrow { display: block; color: var(--ui-marca); font-size: .69rem; font-weight: 800; letter-spacing: .11em; margin-bottom: 8px; }
+#root .ui-eyebrow { color: #53657a; border-left: 3px solid var(--ui-marca); padding-left: 9px; }
+#root .navegacion-panel { margin-bottom: 30px; }
+#root .navegacion-panel-cab { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+#root .navegacion-panel h2 { font-size: 1.15rem; color: var(--ui-texto); margin: 0; }
+#root .buscar-seccion { display: grid; gap: 6px; font-size: .78rem; font-weight: 600; color: var(--ui-suave); width: min(100%, 300px); }
+#root .navegacion-panel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+#root .navegacion-tarea { display: flex; align-items: center; gap: 12px; text-align: left; padding: 17px; background: white; border: 1px solid var(--ui-borde); color: var(--ui-texto); cursor: pointer; transition: border-color .18s, box-shadow .18s, transform .18s; min-width: 0; }
+#root .navegacion-tarea:hover { border-color: var(--ui-marca); box-shadow: var(--ui-sombra); transform: translateY(-2px); }
+#root .navegacion-tarea.seleccionada { background: color-mix(in srgb, var(--ui-marca) 7%, white); border-color: var(--ui-marca); box-shadow: inset 3px 0 var(--ui-marca); }
+#root .tarea-simbolo { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--ui-marca) 10%, white); color: var(--ui-marca); font-size: 1.2rem; flex-shrink: 0; }
+#root .navegacion-tarea > span:nth-child(2) { flex: 1; min-width: 0; }
+#root .navegacion-tarea strong { display: block; font-size: .87rem; line-height: 1.4; }
+#root .navegacion-tarea small { display: block; color: #5c6b7d; font-size: .75rem; font-weight: 400; margin-top: 3px; line-height: 1.5; }
+#root .navegacion-tarea > span:last-child { color: var(--ui-marca); }
+#root .resumen-panel { display: flex; gap: 12px; flex-wrap: wrap; margin: -8px 0 28px; }
+#root .resumen-panel span { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ui-borde); border-radius: 9px; padding: 9px 13px; background: white; font-size: .8rem; color: #586b7c; }
+#root .resumen-panel strong { color: var(--ui-texto); }
+#root .pagina :is(.panel,.tabla-wrap,.gm-card) { margin-bottom: 20px; }
+#root .pagina .tabla-wrap { border: 1px solid var(--ui-borde); border-radius: 14px; background: white; overflow-x: auto; }
+#root .pagina :is(.panel,.gm-card) > :is(h2,h3,h4) { color: var(--ui-texto); margin-bottom: 10px; }
+#root .pagina :is(.panel,.gm-card) > p { line-height: 1.7; }
+#root .pagina .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 24px; }
+#root .pagina .tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--ui-borde); padding-bottom: 10px; margin-bottom: 24px; }
+#root .pagina .tabs button { border: 1px solid transparent; background: transparent; color: #586b7c; }
+#root .pagina .tabs button.on { background: white; border-color: var(--ui-marca); color: var(--ui-texto); }
+#root .ventanilla-mejorada .panel { padding: 24px; }
+#root .ventanilla-mejorada form { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+#root .ventanilla-mejorada label { display: grid; gap: 8px; flex: 1; min-width: 170px; font-size: .85rem; font-weight: 600; }
+#root .ventanilla-mejorada label input { width: 100%; }
+#root .metricas-operacion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0 12px; }
+#root .metricas-operacion article { display: grid; gap: 9px; background: white; border: 1px solid var(--ui-borde); border-radius: 14px; padding: 22px; }
+#root .metricas-operacion span { font-size: .8rem; color: #586b7c; }
+#root .metricas-operacion strong { font-size: 1.7rem; color: var(--ui-texto); }
+#root .metricas-operacion :is(small,a) { font-size: .75rem; color: #586b7c; }
+#root .nota-contexto { font-size: .8rem; color: #586b7c; line-height: 1.7; margin-bottom: 22px; }
+#root .comprador-verificado { padding: 14px; border-radius: 10px; background: #edf8f1; color: #18643c; margin-top: 18px; }
+#root .estado-vacio { padding: 32px 24px; text-align: center; border: 1px dashed var(--ui-borde); border-radius: 12px; margin-top: 20px; background: #f7f9fc; }
+#root .estado-vacio p { margin: 8px 0 0; color: #586b7c; }
+@media (max-width: 650px) {
+  #root .buscar-seccion { width: 100%; }
+  #root :is(.navegacion-panel-grid,.metricas-operacion) { grid-template-columns: 1fr; }
+  #root .navegacion-tarea { padding: 14px; }
+  #root .ventanilla-mejorada form > button { width: 100%; }
+}
+
+#root .navegacion-compacta { padding: 18px; border: 1px solid var(--ui-borde); border-radius: 14px; background: white; }
+#root .navegacion-compacta .navegacion-panel-cab { align-items: center; margin-bottom: 14px; }
+#root .navegacion-compacta .navegacion-panel-cab h2 { font-size: .9rem; }
+#root .navegacion-compacta .navegacion-panel-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+#root .navegacion-compacta .navegacion-tarea { padding: 9px 13px; border-radius: 10px; box-shadow: none; gap: 8px; }
+#root .navegacion-compacta .tarea-simbolo { width: 25px; height: 25px; border-radius: 7px; font-size: 1rem; }
+#root .navegacion-compacta .navegacion-tarea.seleccionada { border-color: var(--ui-texto); background: var(--ui-texto); color: white; }
+#root .navegacion-compacta .navegacion-tarea.seleccionada .tarea-simbolo { background: #ffffff20; color: white; }
+#root .cabecera-acciones { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+#root .barra-filtros { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; padding: 18px; background: white; border: 1px solid var(--ui-borde); border-radius: 12px; margin: 20px 0; }
+#root .barra-filtros label { display: grid; gap: 7px; font-size: .8rem; font-weight: 600; color: #586b7c; min-width: 180px; }
+#root .barra-filtros label:first-child { flex: 1; }
+#root .reservas-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 18px; margin-top: 20px; }
+#root .reserva-tarjeta { padding: 22px; display: grid; gap: 18px; margin: 0; }
+#root .reserva-tarjeta .cabecera-acciones { margin: 0; }
+#root .reserva-importe { font-size: 1.7rem; color: var(--ui-texto); }
+#root .reserva-tarjeta .btn { text-align: center; }
+#root .hist-item { border: 1px solid var(--ui-borde); border-radius: 14px; background: white; transition: box-shadow .15s, border-color .15s; }
+#root .hist-item:hover { border-color: var(--ui-marca); box-shadow: var(--ui-sombra); }
+#root .solo-lectores { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+#root .estado-vacio .btn { margin-top: 14px; }
+@media (max-width: 650px) {
+  #root .navegacion-compacta .navegacion-panel-cab { align-items: stretch; flex-direction: column; }
+  #root .navegacion-compacta .navegacion-panel-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #root .navegacion-compacta .navegacion-tarea strong { font-size: .76rem; }
+  #root .barra-filtros label { width: 100%; min-width: 0; }
+}
