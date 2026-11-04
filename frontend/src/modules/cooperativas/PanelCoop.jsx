@@ -5,6 +5,7 @@ import { busesService } from './services/buses.service'
 import TabOficinistas from './TabOficinistas'
 import TabFlota from './TabFlota'
 import TabAsientos from './TabAsientos'
+import TabPersonalizacion from './TabPersonalizacion'
 import BusArt from '../../components/BusArt'
 import { TIPOS_BUS, generarHoja } from '../../data/mock'
 import { addDays, DIAS, fechaCorta, hoy, parse } from '../../data/fechas'
@@ -396,6 +397,12 @@ export default function PanelCoop() {
         >
           Oficinistas
         </button>
+        <button
+          className={tab === 'personalizacion' ? 'on' : ''}
+          onClick={() => setTab('personalizacion')}
+        >
+          Personalización
+        </button>
       </div>
 
       {tab === 'hoja' && (
@@ -427,6 +434,8 @@ export default function PanelCoop() {
       {tab === 'asientos' && <TabAsientos cooperativaId={coop.id} />}
 
       {tab === 'oficinistas' && <TabOficinistas />}
+
+      {tab === 'personalizacion' && <TabPersonalizacion coop={coop} />}
     </div>
   )
 }
