@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import apiRoutes from "./routes/index.js";
+import personalizacionRoutes from "./modules/cooperativas/personalizacion.routes.js";
 
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(
   })
 );
 
+app.use('/api/cooperativas', personalizacionRoutes);
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
