@@ -1,4 +1,8 @@
-﻿
+import {
+  obtenerAsientosBus,
+  guardarAsientosBus,
+} from "./asientos.controller.js";
+
 import { Router } from "express";
 import type {
   Request,
@@ -124,4 +128,21 @@ router.patch(
   cambiarEstadoDeBus
 );
 
+
+// ========================================
+// DISTRIBUCION DE ASIENTOS
+// ========================================
+
+router.get(
+  "/:id/asientos",
+  ...autenticar,
+  obtenerAsientosBus
+);
+
+router.put(
+  "/:id/asientos",
+  validarOrigen,
+  ...autenticar,
+  guardarAsientosBus
+);
 export default router;
