@@ -31,6 +31,19 @@ import Viajes from "./modules/horarios/Viajes";
 
 import RecuperarContrasena from "./modules/usuarios/RecuperarContrasena";
 import RestablecerContrasena from "./modules/usuarios/RestablecerContrasena";
+import { esPersonal, inicioPorRol } from './data/acceso';
+import SelectorCooperativa from './components/SelectorCooperativa';
+import CorreoLocal from './modules/usuarios/CorreoLocal';
+
+function Inicio() {
+  const { sesion } = useApp();
+  return esPersonal(sesion?.rol) ? <Navigate to={inicioPorRol(sesion.rol)} replace /> : <Home />;
+}
+
+function BusquedaPermitida() {
+  const { sesion } = useApp();
+  return ['admin', 'cooperativa'].includes(sesion?.rol) ? <Navigate to={inicioPorRol(sesion.rol)} replace /> : <Resultados />;
+}
 
 function Protegida({ roles, children }) {
   const { sesion, cargando } = useApp();
@@ -56,7 +69,7 @@ function Protegida({ roles, children }) {
 }
 
 export default function ViajaYaRoutes() {
-  const { aviso, cargando, errorRed, reintentar } = useApp();
+  const { aviso, cargando, errorRed, reintentar, sesion } = useApp();
   const loc = useLocation();
 
   useEffect(() => {
@@ -82,15 +95,17 @@ export default function ViajaYaRoutes() {
   return (
     <>
       <Navbar />
+      {!esPersonal(sesion?.rol) && ['/', '/buscar'].includes(loc.pathname) && <SelectorCooperativa />}
 
       <main key={loc.pathname} className="pagina">
         <Routes>
           <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Inicio />} />
           <Route path="/ingresar" element={<Login />} />
+          <Route path="/correo-local" element={<CorreoLocal />} />
           <Route path="/perfil" element={<Protegida roles={["admin", "cooperativa", "oficinista", "usuario"]}><Perfil /></Protegida>} />
 
-          <Route path="/buscar" element={<Resultados />} />
+          <Route path="/buscar" element={<BusquedaPermitida />} />
           <Route path="/descuentos" element={<Protegida roles={["usuario"]}><Descuentos /></Protegida>} />
           <Route path="/mis-reservas" element={<Protegida roles={["usuario", "oficinista"]}><MisReservas /></Protegida>} />
           <Route path="/reserva/:id" element={<Protegida roles={["usuario", "oficinista"]}><DetalleReserva /></Protegida>} />

@@ -20,17 +20,17 @@ interface ResultadoBusqueda {
  * "cargando" se deduce: mientras el ultimo resultado guardado no corresponda a
  * la busqueda actual, la pantalla esta esperando respuesta.
  */
-export function useBusquedaViajes({ origen, destino, fecha }: ParametrosBusqueda) {
+export function useBusquedaViajes({ origen, destino, fecha, cooperativa }: ParametrosBusqueda) {
   const [intento, setIntento] = useState(0);
   const [resultado, setResultado] = useState<ResultadoBusqueda | null>(null);
 
-  const clave = `${origen}|${destino}|${fecha}|${intento}`;
+  const clave = `${origen}|${destino}|${fecha}|${cooperativa || ""}|${intento}`;
 
   useEffect(() => {
     const control = new AbortController();
 
     reservasService
-      .buscarViajes({ origen, destino, fecha }, control.signal)
+      .buscarViajes({ origen, destino, fecha, cooperativa }, control.signal)
       .then((datos) => {
         setResultado({
           clave,
@@ -52,7 +52,7 @@ export function useBusquedaViajes({ origen, destino, fecha }: ParametrosBusqueda
       });
 
     return () => control.abort();
-  }, [clave, origen, destino, fecha]);
+  }, [clave, origen, destino, fecha, cooperativa]);
 
   const reintentar = useCallback(() => setIntento((n) => n + 1), []);
 

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import Dialogo from '../../components/ui/Dialogo'
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { rutasService } from '../rutas/services/rutas.service'
@@ -25,7 +27,7 @@ const textoDias = (dias) =>
     ? 'Todos los días'
     : dias.map((d) => DIAS.find((x) => x.n === d)?.corto).join(', ')
 
-export default function Frecuencias() {
+export default function Frecuencias({ integrada = false, onTotalChange }) {
   const { sesion, ejecutar } = useApp()
   const esCoop = sesion?.rol === 'cooperativa'
 
@@ -45,6 +47,9 @@ export default function Frecuencias() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
   const [form, setForm] = useState(formVacio)
+  const [mostrarFormulario, setMostrarFormulario] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const Titulo = integrada ? 'h2' : 'h1'
 
   const cargar = useCallback(async () => {
     try {
@@ -87,6 +92,8 @@ export default function Frecuencias() {
     (r) => r.cooperativa_id === form.cooperativa_id && r.activa
   )
 
+  useEffect(() => { onTotalChange?.(visibles.length) }, [visibles.length, onTotalChange])
+
   const alternarDia = (n) =>
     setForm((f) => ({
       ...f,
@@ -95,6 +102,8 @@ export default function Frecuencias() {
 
   const guardar = async (e) => {
     e.preventDefault()
+    if (guardando) return
+    setGuardando(true)
     const entrada = {
       ...(esCoop ? {} : { cooperativa_id: form.cooperativa_id }),
       codigo: form.codigo.trim(),
@@ -104,10 +113,12 @@ export default function Frecuencias() {
       dias: [...form.dias].sort((a, b) => a - b),
     }
     const r = await ejecutar(
-      () => horariosService.crearFrecuencia(entrada),
+      () => form.id ? horariosService.actualizarFrecuencia(form.id, entrada) : horariosService.crearFrecuencia(entrada),
       'Frecuencia registrada.'
     )
+    setGuardando(false)
     if (r.ok) {
+      setMostrarFormulario(false)
       setForm(formVacio())
       await cargar()
     }
@@ -132,15 +143,16 @@ export default function Frecuencias() {
   if (cargando) return <div className="splash" role="status">Cargando frecuencias...</div>
 
   return (
-    <div className="contenedor">
+    <div className={integrada ? "gestion-frecuencias" : "contenedor gestion-frecuencias"}>
       <div className="seccion-cab izq">
-        <h1>Frecuencias</h1>
-        <p>Horas de salida y días de operación de cada ruta.</p>
+        <Titulo>Frecuencias</Titulo>
+        <p>Horas de salida y días de operación de las rutas registradas en tu cooperativa.</p>
+        <div className="acciones"><button type="button" className="btn btn-oscuro" onClick={() => { setForm(formVacio()); setMostrarFormulario(true) }}>Nueva frecuencia</button><Link className="btn btn-claro" to="/rutas">Gestionar rutas</Link></div>
       </div>
 
       {error && <p role="alert">{error}</p>}
 
-      <div className="dos-col">
+      <div>
         <div className="tabla-wrap">
           <table className="tabla">
             <thead>
@@ -175,10 +187,12 @@ export default function Frecuencias() {
                       type="button"
                       className={'switch' + (f.activa ? ' on' : '')}
                       onClick={() => alternar(f)}
+                      disabled={guardando}
                       aria-label={f.activa ? 'Desactivar frecuencia' : 'Activar frecuencia'}
                     >
                       <i />
                     </button>
+                    <button className="btn btn-claro" onClick={() => { setForm({ ...f }); setMostrarFormulario(true) }}>Editar</button>
                   </td>
                 </tr>
               ))}
@@ -186,8 +200,13 @@ export default function Frecuencias() {
           </table>
         </div>
 
-        <form className="panel" onSubmit={guardar}>
-          <h4>Nueva frecuencia</h4>
+        <section className="panel" style={{ marginTop: 20 }}><p>Las frecuencias utilizan una ruta existente y una resolución registrada.</p>
+          {esCoop && !rutasDeCoop.length && <p role="status">Primero crea o activa una ruta de tu cooperativa en la pestaña Rutas.</p>}
+          {form.cooperativa_id && !resoluciones.length && <p role="status">Registra primero el documento en la pestaña Resoluciones del panel de tu cooperativa.</p>}
+        </section>
+        {mostrarFormulario && <Dialogo overlayProps={{ onMouseDown: e => { if (e.target === e.currentTarget && !guardando) setMostrarFormulario(false) } }} panelProps={{ 'aria-labelledby': 'titulo-nueva-frecuencia' }}>
+        <header className="modal-header"><div><h2 id="titulo-nueva-frecuencia">{form.id ? "Editar frecuencia" : "Nueva frecuencia"}</h2><p>Selecciona una ruta y su resolución.</p></div><button type="button" aria-label="Cerrar" disabled={guardando} onClick={() => setMostrarFormulario(false)}>×</button></header>
+        <form onSubmit={guardar}><fieldset disabled={guardando} className="rutas-formulario">
 
           {!esCoop && (
             <label>
@@ -275,10 +294,11 @@ export default function Frecuencias() {
             ))}
           </div>
 
-          <button className="btn btn-oscuro" disabled={form.dias.length === 0}>
-            Registrar frecuencia
+          <button className="btn btn-oscuro" disabled={guardando || form.dias.length === 0 || !rutasDeCoop.length || !resoluciones.length}>
+            {guardando ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Registrar frecuencia'}
           </button>
-        </form>
+          <button className="btn btn-claro" type="button" disabled={guardando} onClick={() => setMostrarFormulario(false)}>Cancelar</button>
+        </fieldset></form></Dialogo>}
       </div>
     </div>
   )

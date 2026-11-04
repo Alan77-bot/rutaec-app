@@ -76,6 +76,7 @@ function cuerpoHtml(boletos: BoletoCorreo[]): { asunto: string; html: string } {
 }
 
 async function enviar(opciones: { para: string; asunto: string; html: string; adjuntos: { nombre: string; contenido: Buffer }[] }): Promise<string> {
+  if (process.env.NODE_ENV === 'development' && /@example\.(com|invalid)$/i.test(opciones.para)) return 'DEMO_LOCAL_SIN_ENVIO';
   const { transporte, usuario } = obtenerTransporte();
   const resultado = await transporte.sendMail({ from: { name: "RutaEC", address: usuario }, to: opciones.para, subject: opciones.asunto, html: opciones.html, attachments: opciones.adjuntos.map(a => ({ filename:a.nombre,content:a.contenido })) });
   if (!resultado.accepted.length) throw new Error("Correo no aceptado");
@@ -132,6 +133,18 @@ async function procesarEvento(evento: EventoPendiente): Promise<void> {
     clave
   );
 
+  // Aviso dentro de la aplicación para el comprador (una sola vez por compra).
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO rutaec.notificaciones(usuario_id, cooperativa_id, evento_id, tipo, titulo, mensaje, destino_interno, clave_deduplicacion)
+     VALUES ($1::uuid, $2::uuid, $3::uuid, 'BOLETOS_EMITIDOS', 'Tus boletos están listos',
+             'Tu pago fue confirmado. Ya puedes descargar tus boletos.', '/mis-viajes', $4)
+     ON CONFLICT (clave_deduplicacion) DO NOTHING`,
+    boletos[0].comprador_id,
+    evento.cooperativa_id,
+    evento.id,
+    `boletos-aviso:${evento.entidad_id}`
+  );
+
   if (envio[0].estado !== "ENVIADO") {
     try {
       const adjuntos = await Promise.all(
@@ -162,17 +175,7 @@ async function procesarEvento(evento: EventoPendiente): Promise<void> {
     }
   }
 
-  // Aviso dentro de la aplicación para el comprador (una sola vez por compra).
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO rutaec.notificaciones(usuario_id, cooperativa_id, evento_id, tipo, titulo, mensaje, destino_interno, clave_deduplicacion)
-     VALUES ($1::uuid, $2::uuid, $3::uuid, 'BOLETOS_EMITIDOS', 'Tus boletos están listos',
-             'Tu pago fue confirmado. Ya puedes descargar tus boletos.', '/mis-viajes', $4)
-     ON CONFLICT (clave_deduplicacion) DO NOTHING`,
-    boletos[0].comprador_id,
-    evento.cooperativa_id,
-    evento.id,
-    `boletos-aviso:${evento.entidad_id}`
-  );
+
 
   await prisma.$executeRawUnsafe(
     `UPDATE rutaec.eventos_salida SET estado = 'COMPLETADO', procesado_en = clock_timestamp(), ultimo_error = NULL

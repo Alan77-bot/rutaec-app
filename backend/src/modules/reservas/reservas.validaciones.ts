@@ -36,6 +36,9 @@ export function validarBusqueda(query: Record<string, unknown>): ResultadoValida
   const origen = texto(query.origen);
   const destino = texto(query.destino);
   const fecha = texto(query.fecha);
+  if (query.cooperativa !== undefined && (typeof query.cooperativa !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query.cooperativa))) {
+    return { ok: false, falla: { error: 'La cooperativa seleccionada no es válida', code: 'PARAMETROS_INVALIDOS' } };
+  }
 
   if (!origen || !destino || !fecha) {
     return {
@@ -87,7 +90,7 @@ export function validarBusqueda(query: Record<string, unknown>): ResultadoValida
     };
   }
 
-  return { ok: true, datos: { origen, destino, fecha } };
+  return { ok: true, datos: { origen, destino, fecha, ...(query.cooperativa ? { cooperativa: query.cooperativa as string } : {}) } };
 }
 
 const FORMATO_UUID =

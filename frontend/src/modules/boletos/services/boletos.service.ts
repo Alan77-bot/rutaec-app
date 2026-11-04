@@ -1,4 +1,9 @@
 export interface DatosBoleto {
+  color_primario?: string | null;
+  color_secundario?: string | null;
+  logo_archivo_id?: string | null;
+  correo?: string | null;
+  telefono?: string | null;
   cooperativa: string;
   pasajero: { nombres?: string; apellidos?: string };
   asiento: { numero?: string; piso?: number; categoria?: string };
@@ -20,6 +25,7 @@ export interface Boleto {
   estado: "EMITIDO" | "ANULADO";
   emitidoEn: string;
   compraId: string;
+  cooperativaId: string;
   qr?: string;
   datos: DatosBoleto;
 }

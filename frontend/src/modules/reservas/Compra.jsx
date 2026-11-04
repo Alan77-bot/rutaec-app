@@ -1,4 +1,4 @@
-﻿import { useCallback, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import CoopLogo from '../../components/CoopLogo'
@@ -13,6 +13,7 @@ import { urlResultados } from './reservas.enlaces'
 import { DESCUENTOS, cedulaValida } from '../../data/viajes'
 import { fechaLarga } from '../../data/fechas'
 import CrearReserva from './CrearReserva'
+import { usePersonalizacion } from '../../context/PersonalizacionContext'
 
 const PASOS = ['Asientos', 'Pasajeros', 'Pago']
 
@@ -33,13 +34,14 @@ export default function Compra() {
   const { viajeId } = useParams()
   const [q, setQ] = useSearchParams()
   const { sesion, avisar } = useApp()
+  const { cooperativaId, seleccionarCooperativa } = usePersonalizacion()
 
   const origen = q.get('origen') || ''
   const destino = q.get('destino') || ''
   const fecha = q.get('fecha') || ''
   const n = Math.max(1, Number(q.get('n')) || 1)
   const ventanilla = sesion?.rol === 'oficinista'
-  const volver = urlResultados({ origen, destino, fecha, pasajeros: n })
+  const volver = urlResultados({ origen, destino, fecha, pasajeros: n, cooperativa: cooperativaId || undefined })
 
   const [paso, setPaso] = useState(0)
   const [elegidos, setElegidos] = useState([])
@@ -71,6 +73,10 @@ export default function Compra() {
   )
 
   const [pasajeros, setPasajeros] = useState([])
+  const cooperativaViaje = disponibilidad?.viaje?.coop?.id
+  useEffect(() => {
+    if (sesion?.rol === 'usuario' && cooperativaViaje && cooperativaViaje !== cooperativaId) seleccionarCooperativa(cooperativaViaje)
+  }, [cooperativaViaje, cooperativaId, sesion?.rol])
   const [errores, setErrores] = useState({})
 
   const asientos = useMemo(() => disponibilidad?.asientos ?? [], [disponibilidad])

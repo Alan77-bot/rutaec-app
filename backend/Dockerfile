@@ -20,6 +20,7 @@ RUN mkdir -p src/generated/prisma
 RUN npx prisma generate
 
 COPY src ./src
+COPY scripts ./scripts
 
 EXPOSE 3000
 

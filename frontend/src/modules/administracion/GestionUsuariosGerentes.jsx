@@ -1,5 +1,7 @@
-﻿import { useEffect, useState } from 'react'
+import Dialogo from '../../components/ui/Dialogo'
+import { useEffect, useState } from 'react'
 import { administracionService } from './services/administracion.service'
+import { obtenerCooperativas } from '../cooperativas/services/cooperativas.service'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -822,18 +824,9 @@ const usuariosFiltrados = usuarios.filter((u) => {
       </div>
 
       {modal && (
-        <div
-          className="gm-overlay"
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"className": "gm-overlay", "onMouseDown": (e) => {
             if (e.target === e.currentTarget) cerrar()
-          }}
-        >
-          <div
-            className="gm-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="gm-modal-titulo"
-          >
+          }}} panelProps={{"className": "gm-modal", "role": "dialog", "aria-modal": "true", "aria-labelledby": "gm-modal-titulo"}}>
             <div className="gm-modal-cabecera">
               <div>
                 <h3 id="gm-modal-titulo">
@@ -1445,8 +1438,7 @@ const usuariosFiltrados = usuarios.filter((u) => {
                 </div>
               </>
             )}
-          </div>
-        </div>
+          </Dialogo>
       )}
     </div>
   )

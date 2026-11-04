@@ -54,9 +54,13 @@ export default function Boleto() {
 
       {d.modo_demo && <p className="auth-aviso" role="status">BOLETO DE DEMOSTRACION - SIN COBRO REAL</p>}
       <a className="btn btn-claro" href={`/api/boletos/recibos/${boleto.compraId}`} download>Descargar comprobante de pago</a>
-      <article className={'boleto entra' + (valido ? '' : ' pendiente')}>
+      <article className={'boleto entra' + (valido ? '' : ' pendiente')} style={{ '--pino': d.color_primario || '#1b3f68', '--acento': d.color_primario || '#1b3f68' }}>
         <div className="boleto-izq">
-          <div className="boleto-marca">{d.cooperativa}</div>
+          <div className="boleto-marca" style={{ color: d.color_primario }}>
+            {d.logo_archivo_id && <img className="boleto-logo" src={`/api/cooperativas/${boleto.cooperativaId}/personalizacion/imagenes/${d.logo_archivo_id}`} alt={`Logo de ${d.cooperativa}`} />}
+            {d.cooperativa}
+          </div>
+          <p className="muted">{[d.telefono, d.correo].filter(Boolean).join(' · ')}</p>
           <div className="ruta">
             <div><small>Origen</small><b>{d.origen}</b></div>
             <span>→</span>
@@ -74,7 +78,7 @@ export default function Boleto() {
             <div><b>{nombre}</b><span>Asiento {d.asiento.numero}</span></div>
           </div>
         </div>
-        <div className="boleto-der">
+        <div className="boleto-der" style={{ color: d.color_secundario || '#ffffff' }}>
           {boleto.qr && <CodigoQr token={boleto.qr} anulado={!valido} />}
           <b>{boleto.codigo.slice(0, 8).toUpperCase()}</b>
           <small>{valido ? 'Escanea al subir' : 'Boleto anulado'}</small>

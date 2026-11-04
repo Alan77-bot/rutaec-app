@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { usuariosService } from './services/usuarios.service'
 
 export default function VerificarCorreo({
@@ -129,6 +130,7 @@ export default function VerificarCorreo({
       aria-busy={ocupado}
       noValidate
     >
+      {import.meta.env.DEV && <p><Link to="/correo-local" target="_blank">Consultar correo local de desarrollo</Link></p>}
       <h2>Verificar correo</h2>
 
       <p className="muted">

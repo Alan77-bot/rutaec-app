@@ -22,6 +22,7 @@ export interface ViajeApi {
   cierre_ventas: string;
   cupos_disponibles: number;
   cooperativa: {
+    logo?: string | null;
     id: string;
     nombre: string;
     color_primario: string;
@@ -89,6 +90,7 @@ export interface ParametrosDisponibilidad {
 }
 
 export interface ParametrosBusqueda {
+  cooperativa?: string;
   origen: string;
   destino: string;
   fecha: string;
@@ -146,10 +148,11 @@ async function solicitar<T>(ruta: string, signal?: AbortSignal): Promise<T> {
 
 export const reservasService = {
   async buscarViajes(
-    { origen, destino, fecha }: ParametrosBusqueda,
+    { origen, destino, fecha, cooperativa }: ParametrosBusqueda,
     signal?: AbortSignal
   ): Promise<ViajeApi[]> {
     const consulta = new URLSearchParams({ origen, destino, fecha });
+    if (cooperativa) consulta.set("cooperativa", cooperativa);
     const respuesta = await solicitar<{ data: ViajeApi[] }>(
       `/viajes?${consulta.toString()}`,
       signal
@@ -158,9 +161,9 @@ export const reservasService = {
     return respuesta.data;
   },
 
-  async listarCiudades(signal?: AbortSignal): Promise<CiudadDisponible[]> {
+  async listarCiudades(signal?: AbortSignal, cooperativa?: string): Promise<CiudadDisponible[]> {
     const respuesta = await solicitar<{ data: CiudadDisponible[] }>(
-      "/ciudades",
+      '/ciudades' + (cooperativa ? '?' + new URLSearchParams({ cooperativa }) : ''),
       signal
     );
 

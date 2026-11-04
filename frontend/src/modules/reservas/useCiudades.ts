@@ -10,14 +10,14 @@ interface ResultadoCiudades {
  * Nombres de las ciudades por las que pasa algun viaje disponible, ordenados.
  * Llenan los selectores de origen y destino con datos reales de RutaEC.
  */
-export function useCiudades() {
+export function useCiudades(cooperativa?: string) {
   const [resultado, setResultado] = useState<ResultadoCiudades | null>(null);
 
   useEffect(() => {
     const control = new AbortController();
 
     reservasService
-      .listarCiudades(control.signal)
+      .listarCiudades(control.signal, cooperativa)
       .then((datos) => {
         setResultado({ ciudades: datos.map((c) => c.nombre), error: null });
       })
@@ -34,7 +34,7 @@ export function useCiudades() {
       });
 
     return () => control.abort();
-  }, []);
+  }, [cooperativa]);
 
   return {
     ciudades: resultado?.ciudades ?? [],

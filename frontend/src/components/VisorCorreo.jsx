@@ -1,3 +1,4 @@
+import Dialogo from './ui/Dialogo'
 import { Link } from 'react-router-dom'
 import Icon from './Icon'
 
@@ -26,8 +27,7 @@ export function CuerpoCorreo({ cuerpo = [], onNavegar }) {
 export default function VisorCorreo({ correo, onCerrar, nombreApp }) {
   if (!correo) return null
   return (
-    <div className="modal-fondo" onClick={onCerrar}>
-      <div className="modal modal-correo" onClick={(e) => e.stopPropagation()}>
+    <Dialogo overlayProps={{"className": "modal-fondo", "onClick": onCerrar}} panelProps={{"className": "modal modal-correo", "onClick": (e) => e.stopPropagation()}}>
         <button className="modal-x" onClick={onCerrar} aria-label="Cerrar"><Icon n="x" size={16} /></button>
         <div className="mail-cab">
           <h3>{correo.asunto}</h3>
@@ -36,7 +36,6 @@ export default function VisorCorreo({ correo, onCerrar, nombreApp }) {
           <p className="muted">{new Date(correo.hora).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}</p>
         </div>
         <CuerpoCorreo cuerpo={correo.cuerpo} onNavegar={onCerrar} />
-      </div>
-    </div>
+      </Dialogo>
   )
 }

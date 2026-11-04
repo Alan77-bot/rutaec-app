@@ -4,9 +4,12 @@ import { useApp } from '../context/AppContext'
 import Icon from './Icon'
 import VisorCorreo from './VisorCorreo'
 import { ROLES } from '../data/usuarios'
+import { usePersonalizacion } from '../context/PersonalizacionContext'
+import { esPersonal, inicioPorRol } from '../data/acceso'
 
 export default function Navbar() {
   const { sesion, cerrarSesion, config, correos, marcarLeidos } = useApp()
+  const { cooperativa } = usePersonalizacion()
   const [abierto, setAbierto] = useState(false)
   const [menu, setMenu] = useState(false)
   const [scroll, setScroll] = useState(false)
@@ -55,27 +58,26 @@ export default function Navbar() {
     <header className={'navbar' + (scroll ? ' sombra' : '')}>
       <div className="navbar-in">
         <Link to="/" className="marca">
-          {config.logo ? <img src={config.logo} alt="" className="marca-logo" /> : <span className="marca-logo-app" aria-hidden="true" />}
-          <span>{config.nombre}</span>
+          {(cooperativa?.logo || config.logo) ? <img src={cooperativa?.logo || config.logo} alt="" className="marca-logo" /> : <span className="marca-logo-app" aria-hidden="true" />}
+          <span className="marca-nombre" title={cooperativa?.nombre || config.nombre}>{cooperativa?.nombre || config.nombre}</span>
         </Link>
 
-        <button className="burger" onClick={() => setMenu(!menu)} aria-label="Menú"><Icon n={menu ? 'x' : 'route'} /></button>
+        <button className="burger" onClick={() => setMenu(!menu)} aria-label="Menú" aria-expanded={menu}><Icon n={menu ? 'x' : 'route'} /></button>
 
         <nav className={'links' + (menu ? ' abierto' : '')} onClick={() => setMenu(false)}>
-          <NavLink to="/" end>Inicio</NavLink>
+          <NavLink to={inicioPorRol(sesion?.rol)} end>{sesion?.rol === 'admin' ? 'Administración' : sesion?.rol === 'cooperativa' ? 'Mi cooperativa' : sesion?.rol === 'oficinista' ? 'Ventanilla' : 'Buscar viajes'}</NavLink>
           {sesion && <NavLink to="/perfil">Mi perfil</NavLink>}
+          {sesion?.rol === "usuario" && <NavLink to="/descuentos">Descuentos</NavLink>}
+          {["cooperativa","oficinista"].includes(sesion?.rol) && <NavLink to="/revisiones">Revisiones</NavLink>}
           {(!sesion || sesion.rol === 'usuario') && <NavLink to="/mis-viajes">Mis viajes</NavLink>}
           {['admin','cooperativa'].includes(sesion?.rol) && <NavLink to="/cancelacion-viajes">Cancelar viajes</NavLink>}
-          {sesion?.rol === 'oficinista' && <NavLink to="/oficinista">Ventanilla</NavLink>}
           {['admin','cooperativa','oficinista'].includes(sesion?.rol) && <NavLink to="/reporte-operativo">Reportes</NavLink>}
-          {sesion?.rol === 'cooperativa' && <NavLink to="/cooperativa">Mi cooperativa</NavLink>}
-          {sesion?.rol === 'admin' && <NavLink to="/admin">AdministraciÃ³n</NavLink>}
           {sesion && ["usuario", "oficinista"].includes(sesion.rol) && <NavLink to="/mis-reservas">Reservas</NavLink>}
         </nav>
 
         <div className="nav-der">
           <div className="campana-wrap">
-            <button className="campana" onClick={alternar} aria-label="Notificaciones">
+            <button className="campana" onClick={alternar} aria-label="Notificaciones" aria-expanded={abierto}>
               <Icon n="bell" size={18} />
               {noLeidos > 0 && <i>{noLeidos}</i>}
             </button>

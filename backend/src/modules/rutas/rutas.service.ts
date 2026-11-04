@@ -15,9 +15,9 @@ export async function listarTerminales() {
   });
 }
 
-export async function listarRutas(rutaId?: string) {
+export async function listarRutas(rutaId?: string, cooperativaId?: string) {
   const rutas = await prisma.rutas.findMany({
-    where: rutaId ? { id: rutaId } : {},
+    where: { ...(rutaId ? { id: rutaId } : {}), ...(cooperativaId ? { cooperativa_id: cooperativaId } : {}) },
     include: {
       cooperativas: { select: { nombre_comercial: true } },
       paradas_ruta: {
@@ -187,6 +187,9 @@ function mismaCooperativa(a: string | null, b: string): boolean {
 }
 
 export async function crearRuta(datos: unknown, actor?: ActorRutas) {
+  if (!actor || actor.rol !== 'cooperativa' || !actor.coopId) {
+    throw new ErrorRutas(403, 'Solo el gerente puede crear rutas para su cooperativa');
+  }
   // Para el rol cooperativa la cooperativa sale de la sesion, nunca del cuerpo.
   if (actor?.rol === "cooperativa") {
     if (!actor.coopId) {
@@ -247,6 +250,9 @@ export async function actualizarRuta(
   datos: unknown,
   actor?: ActorRutas
 ) {
+  if (!actor || actor.rol !== 'cooperativa' || !actor.coopId) {
+    throw new ErrorRutas(403, 'Solo el gerente puede modificar rutas de su cooperativa');
+  }
   if (!UUID.test(rutaId)) {
     throw new ErrorRutas(400, "El identificador de la ruta no es valido");
   }

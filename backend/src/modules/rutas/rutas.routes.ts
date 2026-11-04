@@ -11,9 +11,9 @@ import {
 
 const router = Router();
 
-const soloGestion = [...autenticar, autorizarRoles("admin", "cooperativa")];
+const soloGestion = [...autenticar, autorizarRoles("cooperativa")];
 
-router.get("/", obtenerRutas);
+router.get("/", ...autenticar, autorizarRoles("admin", "cooperativa"), obtenerRutas);
 router.get("/ciudades", obtenerCiudades);
 router.get("/terminales", obtenerTerminales);
 router.post("/", ...soloGestion, registrarRuta);

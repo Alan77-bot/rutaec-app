@@ -6,6 +6,7 @@ import { prisma } from "../../lib/prisma.js";
 export type ClienteBd = Pick<PrismaClient, "$queryRaw">;
 
 export type BusquedaViajes = {
+  cooperativa?: string;
   origen: string;
   destino: string;
   fecha: string;
@@ -82,7 +83,8 @@ const COLUMNAS_VIAJE = Prisma.sql`
     'id', c.id,
     'nombre', c.nombre_comercial,
     'color_primario', c.color_primario,
-    'color_secundario', c.color_secundario
+    'color_secundario', c.color_secundario,
+    'logo', CASE WHEN c.logo_archivo_id IS NOT NULL THEN '/api/cooperativas/' || c.id::text || '/personalizacion/imagenes/' || c.logo_archivo_id::text END
   ) AS cooperativa,
   jsonb_build_object(
     'id', b.id,
@@ -152,13 +154,14 @@ const UNIONES_VIAJE = Prisma.sql`
  * destino, con las paradas intermedias en orden y sus horas.
  */
 export async function buscarViajes(
-  { origen, destino, fecha }: BusquedaViajes,
+  { origen, destino, fecha, cooperativa }: BusquedaViajes,
   bd: ClienteBd = prisma
 ): Promise<ViajeEncontrado[]> {
   return bd.$queryRaw<ViajeEncontrado[]>`
     SELECT ${COLUMNAS_VIAJE}
     ${UNIONES_VIAJE}
     WHERE ${VIAJE_VENDIBLE}
+      ${cooperativa ? Prisma.sql`AND c.id = ${cooperativa}::uuid` : Prisma.empty}
       AND lower(co.nombre) = lower(${origen})
       AND lower(cd.nombre) = lower(${destino})
       AND (po.salida AT TIME ZONE ${ZONA_HORARIA})::date = ${fecha}::date
@@ -201,7 +204,7 @@ export type CiudadDisponible = {
  * Sirve para llenar los selectores de origen y destino sin ofrecer ciudades
  * sin servicio.
  */
-export async function listarCiudadesDisponibles(): Promise<CiudadDisponible[]> {
+export async function listarCiudadesDisponibles(cooperativa?: string): Promise<CiudadDisponible[]> {
   return prisma.$queryRaw<CiudadDisponible[]>`
     SELECT DISTINCT ci.nombre AS nombre, ci.provincia AS provincia
     FROM rutaec.viajes v
@@ -211,27 +214,32 @@ export async function listarCiudadesDisponibles(): Promise<CiudadDisponible[]> {
     JOIN rutaec.terminales te ON te.id = pv.terminal_id
     JOIN rutaec.ciudades ci ON ci.id = te.ciudad_id
     WHERE ${VIAJE_VENDIBLE}
+      ${cooperativa ? Prisma.sql`AND c.id = ${cooperativa}::uuid` : Prisma.empty}
     ORDER BY ci.nombre
   `;
 }
 
-export async function consultarPortada(origen:string,fecha:string){
+export async function consultarPortada(origen:string,fecha:string,cooperativa?:string){
+  const filtro = cooperativa ? Prisma.sql`AND c.id = ${cooperativa}::uuid` : Prisma.empty;
   const [ciudades,cooperativas,resumen,destinos]=await Promise.all([
-    listarCiudadesDisponibles(),
-    prisma.$queryRaw<{id:string;nombre:string;color:string}[]>`
-      SELECT DISTINCT c.id,c.nombre_comercial AS nombre,c.color_primario AS color
+    listarCiudadesDisponibles(cooperativa),
+    prisma.$queryRaw<{id:string;nombre:string;color:string;logo:string|null;fotografia:string|null;correo:string;telefono:string}[]>`
+      SELECT DISTINCT c.id,c.nombre_comercial AS nombre,c.color_primario AS color,
+        CASE WHEN c.logo_archivo_id IS NOT NULL THEN '/api/cooperativas/' || c.id::text || '/personalizacion/imagenes/' || c.logo_archivo_id::text END AS logo,
+        CASE WHEN c.redes_sociales->>'portada_archivo_id' IS NOT NULL THEN '/api/cooperativas/' || c.id::text || '/personalizacion/imagenes/' || (c.redes_sociales->>'portada_archivo_id') END AS fotografia,
+        c.correo, c.telefono
       FROM rutaec.viajes v JOIN rutaec.cooperativas c ON c.id=v.cooperativa_id
-      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE}
+      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE} ${filtro}
       ORDER BY nombre`,
     prisma.$queryRaw<{frecuencias:number}[]>`
       SELECT count(DISTINCT v.frecuencia_id)::int AS frecuencias
       FROM rutaec.viajes v JOIN rutaec.cooperativas c ON c.id=v.cooperativa_id
-      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE}`,
+      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE} ${filtro}`,
     prisma.$queryRaw<{ciudad:string;precio:string;moneda:string}[]>`
       SELECT cd.nombre AS ciudad,min(t.importe)::text AS precio,t.moneda
       ${UNIONES_VIAJE}
       JOIN rutaec.tarifas_viaje t ON t.viaje_id=v.id AND t.origen_orden=po.orden AND t.destino_orden=pd.orden
-      WHERE ${VIAJE_VENDIBLE} AND lower(co.nombre)=lower(${origen})
+      WHERE ${VIAJE_VENDIBLE} ${filtro} AND lower(co.nombre)=lower(${origen})
         AND (po.salida AT TIME ZONE ${ZONA_HORARIA})::date=${fecha}::date
         AND t.vigente_desde<=${fecha}::date AND (t.vigente_hasta IS NULL OR t.vigente_hasta>=${fecha}::date)
       GROUP BY cd.nombre,t.moneda ORDER BY cd.nombre LIMIT 30`

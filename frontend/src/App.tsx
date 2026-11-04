@@ -1,6 +1,7 @@
 
 import ViajaYaRoutes from "./ViajaYaRoutes";
+import { PersonalizacionProvider } from "./context/PersonalizacionContext";
 
 export default function App() {
-  return <ViajaYaRoutes />;
+  return <PersonalizacionProvider><ViajaYaRoutes /></PersonalizacionProvider>;
 }

@@ -1,3 +1,4 @@
+import Dialogo from '../../components/ui/Dialogo'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { oficinistasService } from './services/oficinistas.service'
@@ -108,30 +109,16 @@ function Modal({
   }, [])
 
   return (
-    <div
-      className="of-modal-fondo"
-      onMouseDown={(evento) => {
+    <Dialogo overlayProps={{"className": "of-modal-fondo", "onMouseDown": (evento) => {
         if (
           evento.target === evento.currentTarget &&
           !bloqueado
         ) {
           onCerrar()
         }
-      }}
-    >
-      <div
-        ref={dialogoRef}
-        className={`of-modal of-modal--${ancho}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-oficinistas-titulo"
-        aria-describedby={
-          descripcion
+      }}} panelProps={{"ref": dialogoRef, "className": `of-modal of-modal--${ancho}`, "role": "dialog", "aria-modal": "true", "aria-labelledby": "modal-oficinistas-titulo", "aria-describedby": descripcion
             ? 'modal-oficinistas-descripcion'
-            : undefined
-        }
-        tabIndex={-1}
-      >
+            : undefined, "tabIndex": -1}}>
         <div className="of-modal-cabecera">
           <div>
             <h3 id="modal-oficinistas-titulo">{titulo}</h3>
@@ -160,8 +147,7 @@ function Modal({
         <div className="of-modal-contenido">
           {children}
         </div>
-      </div>
-    </div>
+      </Dialogo>
   )
 }
 

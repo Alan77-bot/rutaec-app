@@ -9,6 +9,8 @@ import "./styles/estilos.css";
 import "./styles/estilos2.css";
 
 import App from "./App";
+import "./styles/sistema-ui.css";
+import "./styles/espacios.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

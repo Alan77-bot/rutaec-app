@@ -40,6 +40,9 @@ export type DatosEmision = {
   cooperativa: string;
   color_primario?: string | null;
   color_secundario?: string | null;
+  logo_archivo_id?: string | null;
+  correo?: string | null;
+  telefono?: string | null;
   pasajero: { nombres?: string; apellidos?: string; [clave: string]: unknown };
   asiento: { numero?: string; piso?: number; categoria?: string; [clave: string]: unknown };
   origen: string;
@@ -63,7 +66,12 @@ const COLUMNAS = `
   c.comprador_id::text  AS comprador_id,
   c.cooperativa_id::text AS cooperativa_id,
   b.qr_token::text      AS qr_token,
-  b.datos_emision       AS datos_emision
+  b.datos_emision || COALESCE((
+    SELECT jsonb_build_object('color_primario', co.color_primario,
+      'color_secundario', co.color_secundario, 'logo_archivo_id', co.logo_archivo_id,
+      'correo', co.correo, 'telefono', co.telefono)
+    FROM rutaec.cooperativas co WHERE co.id = c.cooperativa_id
+  ), '{}'::jsonb) AS datos_emision
 `;
 
 // Lo que ve el cliente en pantalla: nunca incluye el token del QR de otros.
@@ -74,6 +82,7 @@ function paraCliente(fila: FilaBoleto, incluirQr: boolean) {
     estado: fila.estado,
     emitidoEn: fila.emitido_en,
     compraId: fila.compra_id,
+    cooperativaId: fila.cooperativa_id,
     qr: incluirQr ? fila.qr_token : undefined,
     datos: fila.datos_emision,
   };
