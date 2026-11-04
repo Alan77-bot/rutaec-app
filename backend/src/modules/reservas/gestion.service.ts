@@ -56,7 +56,7 @@ export async function crearReserva(s: SesionAutenticada, entrada: Record<string,
   const huella = createHash("sha256").update(JSON.stringify({ comprador, viaje: entrada.viajeId, origen, destino, pasajeros })).digest("hex");
   const clave = `reserva-solicitud:${s.id}:${entrada.claveIdempotencia}`;
   const id = await prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${clave}, 0))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${clave}, 0))::text`;
     await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`;
     const previa = await tx.eventos_salida.findUnique({ where: { clave_deduplicacion: clave } });
     if (previa) {
@@ -67,6 +67,23 @@ export async function crearReserva(s: SesionAutenticada, entrada: Record<string,
     const viaje = await buscarViajePorId(entrada.viajeId as string, origen, destino, tx);
     if (!viaje) throw new ErrorReserva(409, "El viaje o tramo ya no está disponible.");
     if (s.rol === "oficinista" && viaje.cooperativa.id !== s.coopId) throw new ErrorReserva(403, "Solo puedes vender viajes de tu cooperativa.");
+    // Todas las reservas del viaje comparten estos candados aunque tengan claves
+    // de idempotencia distintas. El orden evita ciclos al pedir varios asientos.
+    const asientosIds = pasajeros.map(p => p.asientoId);
+    const bloqueados = await tx.$queryRaw<{id:string}[]>`
+      SELECT id FROM rutaec.asientos_viaje
+      WHERE viaje_id=${viaje.viaje_id}::uuid AND id=ANY(${asientosIds}::uuid[])
+      ORDER BY id FOR UPDATE`;
+    if (bloqueados.length !== asientosIds.length) throw new ErrorReserva(409, "Uno de los asientos no pertenece al viaje.");
+    const conflictos = await tx.$queryRaw<{id:string}[]>`
+      SELECT d.id FROM rutaec.detalle_compra d
+      JOIN rutaec.compras c ON c.id=d.compra_id
+      WHERE d.viaje_id=${viaje.viaje_id}::uuid AND d.asiento_id=ANY(${asientosIds}::uuid[])
+        AND d.tramo && int4range(${viaje.origen_orden}::integer,${viaje.destino_orden}::integer,'[)')
+        AND (d.estado='CONFIRMADO' OR (d.estado='RETENIDO' AND
+          (c.estado='EN_REVISION' OR (c.estado='RESERVADA' AND c.vence_en>clock_timestamp()))))
+      LIMIT 1`;
+    if (conflictos.length) throw new ErrorReserva(409, "El asiento ya no está disponible para ese tramo. Elige otro asiento.");
     const items = [];
     for (const p of pasajeros) {
       const pasajero = await tx.pasajeros.upsert({
@@ -81,9 +98,9 @@ export async function crearReserva(s: SesionAutenticada, entrada: Record<string,
       items.push({ pasajero_id: pasajero.id, asiento_id: p.asientoId, tarifa_id: tarifa.id, validacion_id: p.validacionId });
     }
     const [r] = await tx.$queryRaw<{ id: string }[]>`SELECT rutaec.reservar_compra(${comprador}::uuid, ${viaje.viaje_id}::uuid, ${JSON.stringify(items)}::jsonb)::text AS id`;
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('RESERVA_SOLICITADA', ${r.id}::uuid, ${viaje.cooperativa.id}::uuid, ${clave}, ${JSON.stringify({ huella, compra_id: r.id })}::jsonb)`;
+    await tx.$queryRaw`SELECT rutaec.encolar_evento('RESERVA_SOLICITADA', ${r.id}::uuid, ${viaje.cooperativa.id}::uuid, ${clave}, ${JSON.stringify({ huella, compra_id: r.id })}::jsonb)::text`;
     return r.id;
-  });
+  }, { isolationLevel: "ReadCommitted" });
   return detalleReserva(s, id);
 }
 export async function cancelarReserva(s: SesionAutenticada, id: string, motivo: unknown) {
