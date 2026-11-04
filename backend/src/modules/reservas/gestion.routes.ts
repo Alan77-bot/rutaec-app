@@ -18,6 +18,9 @@ router.use((e: unknown, _req: import("express").Request, res: import("express").
   if (e instanceof ErrorReserva) { res.status(e.estado).json({ error: e.message }); return; }
   const meta = e as { code?: string; meta?: { code?: string } };
   const code = meta.meta?.code ?? meta.code;
+  // Registrar solo diagnóstico técnico; nunca el cuerpo, la cookie o los datos del pasajero.
+  const causa=(e as {meta?:{driverAdapterError?:{cause?:{kind?:string;type?:string}}}}).meta?.driverAdapterError?.cause;
+  console.error('[reservas] Error al completar la operación', { code, causa:causa?.kind, tipoDato:causa?.type, nombre: e instanceof Error ? e.name : 'Error desconocido', stack: e instanceof Error ? e.stack?.split('\n').filter(l => /^\s+at /.test(l)).slice(0,6).join('\n') : undefined });
   res.status(["23P01", "23505", "P2002", "P2010", "P0001"].includes(code ?? "") ? 409 : 500).json({ error: "No se pudo completar la reserva. Actualiza la disponibilidad y revisa los datos." });
 });
 export default router;
