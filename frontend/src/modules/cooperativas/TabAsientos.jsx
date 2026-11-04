@@ -18,20 +18,20 @@ const estilo = {
     marginBottom: 18,
   },
   boton: {
-    border: "1px solid #cbd5e1",
+    border: "1px solid var(--coop-primario, #16324F)",
     borderRadius: 10,
     background: "#fff",
-    color: "#17243a",
+    color: "var(--coop-primario, #16324F)",
     padding: "11px 15px",
     cursor: "pointer",
     fontWeight: 700,
     fontFamily: "inherit",
   },
   principal: {
-    border: "1px solid #e88932",
+    border: "1px solid var(--coop-primario, #16324F)",
     borderRadius: 10,
-    background: "#e88932",
-    color: "#fff",
+    background: "var(--coop-primario, #16324F)",
+    color: "var(--coop-secundario, #FFFFFF)",
     padding: "11px 16px",
     cursor: "pointer",
     fontWeight: 800,
@@ -519,6 +519,7 @@ export default function TabAsientos({ cooperativaId }) {
       String(a.numero) === String(seleccion.numero)
         ? {
             ...a,
+            categoria: seleccion.categoria,
             preferencial: seleccion.preferencial,
             accesible: seleccion.accesible,
             activo: seleccion.activo,
@@ -650,7 +651,7 @@ export default function TabAsientos({ cooperativaId }) {
   );
 
   return (
-    <section style={{
+    <section className="asientos-editor" style={{
       maxWidth: 1200,
       margin: "0 auto",
       padding: "24px 12px 60px",
@@ -665,7 +666,7 @@ export default function TabAsientos({ cooperativaId }) {
         marginBottom: 22,
       }}>
         <div>
-          <small style={{ color: "#b66d25", fontWeight: 800 }}>
+          <small style={{ color: "var(--coop-primario, #16324F)", fontWeight: 800 }}>
             GESTIÓN DE FLOTA
           </small>
           <h2 style={{ fontSize: 28, margin: "7px 0" }}>
@@ -843,8 +844,9 @@ export default function TabAsientos({ cooperativaId }) {
                   onClick={() => setPisoActivo(c.piso)}
                   style={{
                     ...estilo.boton,
-                    background: pisoActivo === c.piso ? "#fff0df" : "#fff",
-                    borderColor: pisoActivo === c.piso ? "#e88932" : "#cbd5e1",
+                    background: pisoActivo === c.piso ? "var(--coop-primario, #16324F)" : "#fff",
+                    color: pisoActivo === c.piso ? "var(--coop-secundario, #FFFFFF)" : "var(--coop-primario, #16324F)",
+                    borderColor: "var(--coop-primario, #16324F)",
                   }}
                 >
                   Piso {c.piso} · {asientos.filter((a) => Number(a.piso) === c.piso).length} asientos
@@ -1329,6 +1331,7 @@ export default function TabAsientos({ cooperativaId }) {
             </>
           }
         >
+          <label>Categoría<select style={estilo.input} value={seleccion.categoria} onChange={e => setSeleccion(s => ({ ...s, categoria: e.target.value }))}><option value="NORMAL">Normal</option><option value="VIP">VIP</option></select></label>
           {[
             ["preferencial", "Preferencial"],
             ["accesible", "Accesible"],
