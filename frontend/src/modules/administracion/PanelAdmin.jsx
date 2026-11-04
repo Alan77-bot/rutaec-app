@@ -1,8 +1,12 @@
+import NavegacionPanel from '../../components/ui/NavegacionPanel'
+import { apartadosAdmin } from '../../data/apartados'
+import Dialogo from '../../components/ui/Dialogo'
 import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { ROLES } from '../../data/usuarios'
 import CoopLogo from '../../components/CoopLogo'
 import GestionUsuariosGerentes from './GestionUsuariosGerentes'
+import GestionCatalogo from '../../components/GestionCatalogo'
 import {
   obtenerCooperativas,
   cambiarEstadoCooperativa,
@@ -266,13 +270,7 @@ const [errorEliminar, setErrorEliminar] = useState('')
 
 {/* MODAL DE REGISTRO */}
 {mostrarRegistro && (
-  <div className="modal-overlay">
-    <section
-      className="modal-contenido modal-cooperativa"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-registro-coop"
-    >
+  <Dialogo overlayProps={{"className": "modal-overlay"}} panelProps={{"className": "modal-contenido modal-cooperativa", "role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-registro-coop"}}>
       <button
         type="button"
         className="modal-x"
@@ -290,19 +288,12 @@ const [errorEliminar, setErrorEliminar] = useState('')
           setMostrarRegistro(false)
         }}
       />
-    </section>
-  </div>
+    </Dialogo>
 )}
 
 {/* MODAL DE EDICIÓN */}
 {cooperativaEditar && (
-  <div className="modal-overlay">
-    <section
-      className="modal-contenido modal-cooperativa"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-edicion-coop"
-    >
+  <Dialogo overlayProps={{"className": "modal-overlay"}} panelProps={{"className": "modal-contenido modal-cooperativa", "role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-edicion-coop"}}>
       <button
         type="button"
         className="modal-x"
@@ -322,24 +313,14 @@ const [errorEliminar, setErrorEliminar] = useState('')
           setCooperativaEditar(null)
         }}
       />
-    </section>
-  </div>
+    </Dialogo>
 )}
 
 
       {cooperativaVer && (
-        <div
-          className="modal-overlay"
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"className": "modal-overlay", "onMouseDown": (e) => {
             if (e.target === e.currentTarget) setCooperativaVer(null)
-          }}
-        >
-          <section
-            className="modal-contenido modal-cooperativa"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-detalles-coop"
-          >
+          }}} panelProps={{"className": "modal-contenido modal-cooperativa", "role": "dialog", "aria-modal": "true", "aria-labelledby": "titulo-detalles-coop"}}>
             <header className="modal-header">
               <div>
                 <span className="modal-etiqueta">INFORMACIÓN GENERAL</span>
@@ -443,25 +424,15 @@ const [errorEliminar, setErrorEliminar] = useState('')
                 Cerrar
               </button>
             </footer>
-          </section>
-        </div>
+          </Dialogo>
       )}
 
       {confirmacionEstado && (
-        <div
-          className="modal-overlay"
-          onMouseDown={(e) => {
+        <Dialogo overlayProps={{"className": "modal-overlay", "onMouseDown": (e) => {
             if (e.target === e.currentTarget && !cambiandoEstado) {
               setConfirmacionEstado(null)
             }
-          }}
-        >
-          <section
-            className="modal-contenido modal-confirmacion"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="titulo-confirmacion-coop"
-          >
+          }}} panelProps={{"className": "modal-contenido modal-confirmacion", "role": "alertdialog", "aria-modal": "true", "aria-labelledby": "titulo-confirmacion-coop"}}>
             <div className="modal-alerta-icono">
               {confirmacionEstado.nuevoEstado ? '✓' : '!'}
             </div>
@@ -500,19 +471,11 @@ const [errorEliminar, setErrorEliminar] = useState('')
                     : 'Sí, desactivar'}
               </button>
             </footer>
-          </section>
-        </div>
+          </Dialogo>
       )}
       {/* MODAL PARA ELIMINAR COOPERATIVA */}
 {cooperativaEliminar && (
-  <div className="modal-overlay">
-    <section
-      className="modal-contenido modal-cooperativa"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="titulo-eliminar-coop"
-      aria-describedby="descripcion-eliminar-coop"
-    >
+  <Dialogo overlayProps={{"className": "modal-overlay"}} panelProps={{"className": "modal-contenido modal-cooperativa", "role": "alertdialog", "aria-modal": "true", "aria-labelledby": "titulo-eliminar-coop", "aria-describedby": "descripcion-eliminar-coop"}}>
       <button
         type="button"
         className="modal-x"
@@ -563,8 +526,7 @@ const [errorEliminar, setErrorEliminar] = useState('')
           {eliminando ? 'Eliminando...' : 'Eliminar definitivamente'}
         </button>
       </div>
-    </section>
-  </div>
+    </Dialogo>
 )}
     </>
   )
@@ -699,14 +661,12 @@ export default function PanelAdmin() {
         <h1>Administración</h1>
         <p>Cooperativas, usuarios y apariencia de la aplicación.</p>
       </div>
-      <div className="tabs">
-        <button className={tab === 'coops' ? 'on' : ''} onClick={() => setTab('coops')}>Cooperativas</button>
-        <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>Usuarios</button>
-        <button className={tab === 'config' ? 'on' : ''} onClick={() => setTab('config')}>Configuración</button>
-      </div>
+      <NavegacionPanel opciones={apartadosAdmin} activa={tab} onChange={setTab} />
+      {tab === 'terminales' && <GestionCatalogo recurso="terminales" />}
       {tab === 'coops' && <Cooperativas />}
       {tab === 'users' && <GestionUsuariosGerentes />}
       {tab === 'config' && <Configuracion />}
+      {tab === 'politicas' && <GestionCatalogo recurso="politicas" />}
     </div>
   )
 }
