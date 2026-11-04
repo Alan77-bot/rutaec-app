@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Icon from '../components/Icon'
 import Reveal, { Contador } from '../components/Reveal'
-import { precioTramo } from '../data/viajes'
 import CoopLogo from '../components/CoopLogo'
 import { addDays, hoy } from '../data/fechas'
 
@@ -11,37 +10,22 @@ const DESTINOS = [
   { ciudad: 'Latacunga', foto: '/img/latacunga.png', nota: 'Puerta al Cotopaxi' },
   { ciudad: 'Riobamba', foto: '/img/riobamba.jpg', nota: 'Sultana de los Andes' },
   { ciudad: 'Quito', foto: '/img/quito-aerea.jpg', nota: 'Capital andina' },
-  { ciudad: 'Guayaquil', foto: '/img/guayaquil.jpg', nota: 'Perla del PacÃ­fico' },
+  { ciudad: 'Guayaquil', foto: '/img/guayaquil.jpg', nota: 'Perla del Pacífico' },
   { ciudad: 'Cuenca', foto: '/img/cuenca.jpg', nota: 'Ciudad patrimonio' },
   { ciudad: 'Loja', foto: '/img/loja.jpg', nota: 'Capital musical del Ecuador' },
 ]
 
-// Precio mÃ¡s bajo entre las frecuencias activas que unen origen y destino.
-function precioDesde(frecuencias, o, d) {
-  const lista = frecuencias
-    .filter((f) => f.activa && f.tipo !== 'tour')
-    .map((f) => {
-      const i = f.paradas.indexOf(o)
-      const j = f.paradas.indexOf(d)
-      if (i < 0 || j <= i) return null
-      if (f.tipo === 'directa' && !(i === 0 && j === f.paradas.length - 1)) return null
-      return precioTramo(f, o, d)
-    })
-    .filter(Boolean)
-  return lista.length ? Math.min(...lista) : null
-}
-
 const VENTAJAS = [
-  { i: 'search', t: 'Todas las cooperativas', p: 'Compara horarios, buses y precios de varias cooperativas en una sola bÃºsqueda.' },
+  { i: 'search', t: 'Todas las cooperativas', p: 'Compara horarios, buses y precios de varias cooperativas en una sola búsqueda.' },
   { i: 'route', t: 'Compra entre paradas', p: 'Sube en Latacunga y baja en Riobamba aunque el bus vaya de Quito a Loja.' },
-  { i: 'ticket', t: 'Elige tu asiento', p: 'Mapa del bus con ventana, pasillo y VIP, segÃºn el tipo de bus.' },
+  { i: 'ticket', t: 'Elige tu asiento', p: 'Mapa del bus con ventana, pasillo y VIP, según el tipo de bus.' },
   { i: 'shield', t: 'Pago verificado', p: 'Sube tu comprobante y el oficinista de la cooperativa lo valida.' },
-  { i: 'qr', t: 'Boleto con QR', p: 'Lo ves cuando quieras en tu cuenta y tambiÃ©n en tu wallet.' },
-  { i: 'mail', t: 'Te avisamos por correo', p: 'Reserva, comprobante, aprobaciÃ³n y boleto: cada paso llega a tu bandeja.' },
+  { i: 'qr', t: 'Boleto con QR', p: 'Lo ves cuando quieras en tu cuenta y también en tu wallet.' },
+  { i: 'mail', t: 'Te avisamos por correo', p: 'Reserva, comprobante, aprobación y boleto: cada paso llega a tu bandeja.' },
 ]
 
 
-// Una sola fila que se desliza con flechas, arrastre o automÃ¡ticamente.
+// Una sola fila que se desliza con flechas, arrastre o automáticamente.
 function Carrusel({ children }) {
   const pista = useRef(null)
   const pausa = useRef(false)
@@ -77,16 +61,37 @@ function Carrusel({ children }) {
 }
 
 export default function Home() {
-  const { cooperativas, config, frecuencias, ciudades } = useApp()
+  const { config } = useApp()
   const nav = useNavigate()
   const [origen, setOrigen] = useState('Ambato')
   const [destino, setDestino] = useState('Quito')
   const [fecha, setFecha] = useState(addDays(hoy(), 1))
   const [n, setN] = useState(1)
 
+  const [portada,setPortada]=useState(null)
+  const [error,setError]=useState('')
+  const [cargando,setCargando]=useState(true)
+  const [version,setVersion]=useState(0)
+  useEffect(()=>{
+    if(!fecha)return
+    const control=new AbortController();setCargando(true);setError('')
+    fetch('/api/reservas/portada?'+new URLSearchParams({origen,fecha}),{signal:control.signal}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.error??'No se pudo cargar la portada.');return b.data}).then(d=>{
+      setPortada(d)
+      const nombres=d.ciudades.map(c=>c.nombre)
+      const nuevoOrigen=nombres.includes(origen)?origen:nombres[0]??''
+      if(nuevoOrigen!==origen)setOrigen(nuevoOrigen)
+      setDestino(actual=>nombres.includes(actual)&&actual!==nuevoOrigen?actual:nombres.find(c=>c!==nuevoOrigen)??'')
+    }).catch(e=>{if(e.name!=='AbortError'){setError(e.message);setPortada(null)}}).finally(()=>{if(!control.signal.aborted)setCargando(false)})
+    return()=>control.abort()
+  },[origen,fecha,version])
+  const ciudades=portada?.ciudades.map(c=>c.nombre)??[]
+  const cooperativas=portada?.cooperativas??[]
+  const destinos=cargando?[]:(portada?.destinos??[]).map(d=>({...d,...(DESTINOS.find(f=>f.ciudad===d.ciudad)??{foto:'/img/bus-azul.jpg',nota:'Viajes disponibles'})}))
+
   const buscar = (e) => {
     e.preventDefault()
-    nav(`/buscar?origen=${origen}&destino=${destino}&fecha=${fecha}&n=${n}`)
+    if(!origen||!destino||origen===destino)return
+    nav('/buscar?'+new URLSearchParams({origen,destino,fecha,n:String(n)}))
   }
   const cambiar = () => {
     setOrigen(destino)
@@ -98,29 +103,32 @@ export default function Home() {
       <section className="hero" style={{ backgroundImage: 'url(/img/bus-azul.jpg)' }}>
         <div className="hero-velo" />
         <div className="hero-in">
-          <p className="etiqueta pop" style={{ animationDelay: '.05s' }}>Pasajes interprovinciales Â· Ecuador</p>
+          <p className="etiqueta pop" style={{ animationDelay: '.05s' }}>Pasajes interprovinciales · Ecuador</p>
           <h1 className="pop" style={{ animationDelay: '.15s' }}>Viaja entre provincias sin hacer fila en el terminal.</h1>
-          <p className="hero-sub pop" style={{ animationDelay: '.28s' }}>Elige tu asiento, paga con transferencia y recibe tu boleto con cÃ³digo QR.</p>
+          <p className="hero-sub pop" style={{ animationDelay: '.28s' }}>Elige tu asiento, paga con transferencia y recibe tu boleto con código QR.</p>
           <div className="hero-stats pop" style={{ animationDelay: '.4s' }}>
-            <div><b><Contador hasta={cooperativas.length} /></b><span>cooperativas</span></div>
-            <div><b><Contador hasta={frecuencias.length} /></b><span>frecuencias</span></div>
-            <div><b><Contador hasta={ciudades.length} /></b><span>ciudades</span></div>
+            <div><b>{portada?<Contador hasta={cooperativas.length} />:'—'}</b><span>cooperativas</span></div>
+            <div><b>{portada?<Contador hasta={portada.frecuencias} />:'—'}</b><span>frecuencias</span></div>
+            <div><b>{portada?<Contador hasta={ciudades.length} />:'—'}</b><span>ciudades</span></div>
           </div>
         </div>
       </section>
 
       <div className="buscador-wrap">
+        {cargando&&<p role="status">Cargando viajes disponibles…</p>}
+        {error&&<p role="alert">{error} <button className="btn-link" onClick={()=>setVersion(v=>v+1)}>Reintentar</button></p>}
+        {!cargando&&!error&&!ciudades.length&&<p>No hay viajes publicados con ventas abiertas.</p>}
         <form className="buscador" onSubmit={buscar}>
           <label>
             <span><Icon n="pin" size={14} /> Origen</span>
-            <select value={origen} onChange={(e) => setOrigen(e.target.value)}>
+            <select required disabled={cargando||!ciudades.length} value={origen} onChange={(e) => setOrigen(e.target.value)}>
               {ciudades.map((c) => <option key={c}>{c}</option>)}
             </select>
           </label>
           <button type="button" className="swap" onClick={cambiar} aria-label="Invertir origen y destino"><Icon n="swap" size={18} /></button>
           <label>
             <span><Icon n="pin" size={14} /> Destino</span>
-            <select value={destino} onChange={(e) => setDestino(e.target.value)}>
+            <select required disabled={cargando||!ciudades.length} value={destino} onChange={(e) => setDestino(e.target.value)}>
               {ciudades.map((c) => <option key={c}>{c}</option>)}
             </select>
           </label>
@@ -132,34 +140,35 @@ export default function Home() {
             <span><Icon n="users" size={14} /> Pasajeros</span>
             <input type="number" min="1" max="6" value={n} onChange={(e) => setN(e.target.value)} />
           </label>
-          <button className="btn btn-acento btn-lg" type="submit"><Icon n="search" size={18} /> Buscar</button>
+          <button className="btn btn-acento btn-lg" type="submit" disabled={cargando||!origen||!destino||origen===destino}><Icon n="search" size={18} /> Buscar</button>
         </form>
       </div>
 
       <section className="seccion">
         <div className="contenedor">
           <Reveal className="seccion-cab">
-            <h2>Destinos con salida desde Ambato</h2>
-            <p>Precio por pasajero, segÃºn la frecuencia mÃ¡s econÃ³mica.</p>
+            <h2>Destinos con salida desde {origen || 'tu ciudad'}</h2>
+            <p>Precio por pasajero para la fecha seleccionada, con las tarifas publicadas.</p>
           </Reveal>
           <Reveal>
-            <Carrusel>
-              {DESTINOS.map((d) => (
+            {!cargando&&!error&&!destinos.length&&<p>No hay destinos publicados desde este origen para esa fecha.</p>}
+            {destinos.length>0&&<Carrusel>
+              {destinos.map((d) => (
                 <Link
                   key={d.ciudad}
                   className="destino"
-                  to={`/buscar?origen=Ambato&destino=${d.ciudad}&fecha=${addDays(hoy(), 1)}&n=1`}
+                  to={'/buscar?'+new URLSearchParams({origen,destino:d.ciudad,fecha,n:'1'})}
                 >
                   <img src={d.foto} alt={`Vista de ${d.ciudad}`} loading="lazy" draggable="false" />
                   <div className="destino-info">
                     <small>{d.nota}</small>
                     <strong>{d.ciudad}</strong>
-                    <span>desde <b>${(precioDesde(frecuencias, 'Ambato', d.ciudad) ?? 0).toFixed(2)}</b></span>
+                    <span>desde <b>{d.moneda} {Number(d.precio).toFixed(2)}</b></span>
                   </div>
                   <i><Icon n="arrow" size={18} /></i>
                 </Link>
               ))}
-            </Carrusel>
+            </Carrusel>}
           </Reveal>
         </div>
       </section>
@@ -167,14 +176,14 @@ export default function Home() {
       <section className="seccion crema">
         <div className="contenedor">
           <Reveal className="seccion-cab">
-            <h2>Tres tipos de bus, tÃº eliges</h2>
-            <p>Cada cooperativa define sus asientos; tÃº ves cuÃ¡l te conviene antes de pagar.</p>
+            <h2>Tres tipos de bus, tú eliges</h2>
+            <p>Cada cooperativa define sus asientos; tú ves cuál te conviene antes de pagar.</p>
           </Reveal>
           <div className="tres-tipos">
             {[
               ['/img/bus-normal.jpg', 'Bus normal', 'Rutas con paradas intermedias, ideal para tramos cortos y medianos.'],
-              ['/img/bus-azul.jpg', 'Bus de 2 pisos', 'Salidas directas y rÃ¡pidas, con asientos VIP en el piso inferior.'],
-              ['/img/chiva.jpg', 'Chiva turÃ­stica', 'Paseos y tours cortos, como la vuelta por BaÃ±os. No hace rutas interprovinciales.'],
+              ['/img/bus-azul.jpg', 'Bus de 2 pisos', 'Salidas directas y rápidas, con asientos VIP en el piso inferior.'],
+              ['/img/chiva.jpg', 'Chiva turística', 'Paseos y tours cortos, como la vuelta por Baños. No hace rutas interprovinciales.'],
             ].map(([foto, nombre, txt], i) => (
               <Reveal key={nombre} delay={i * 110} as="article" className="tipo">
                 <div className="tipo-foto"><img src={foto} alt={nombre} loading="lazy" /></div>
@@ -189,23 +198,13 @@ export default function Home() {
       <section className="seccion">
         <div className="contenedor">
           <Reveal className="tours">
-            <div className="tours-foto"><img src="/img/chiva.jpg" alt="Chiva turÃ­stica en Guayaquil" loading="lazy" /></div>
+            <div className="tours-foto"><img src="/img/chiva.jpg" alt="Chiva turística en Guayaquil" loading="lazy" /></div>
             <div className="tours-info">
               <p className="etiqueta oscuro">Turismo</p>
               <h2>Tours en chiva por todo el Ecuador</h2>
-              <p className="muted">Las chivas son para pasear por la ciudad, no para viajar entre provincias. Reserva tu cupo igual que un pasaje.</p>
+              <p className="muted">Las chivas son para pasear por la ciudad, no para viajar entre provincias. Consulta la disponibilidad con la cooperativa.</p>
               <div className="tours-lista">
-                {frecuencias.filter((f) => f.tipo === 'tour').map((t) => (
-                  <Link key={t.id} to={`/comprar/${t.id}_${addDays(hoy(), 1)}?origen=${t.paradas[0]}&destino=${t.paradas[1]}&n=1`} className="tour-item">
-                    <div>
-                      <b>{t.titulo}</b>
-                      <em className="tour-ciudad">{t.ciudad}</em>
-                      <small>{t.detalle}</small>
-                      <small>Sale {t.hora} Â· {t.duracion}</small>
-                    </div>
-                    <span>${t.precio.toFixed(2)}<Icon n="arrow" size={16} /></span>
-                  </Link>
-                ))}
+                <p>Consulta los servicios turísticos directamente con cada cooperativa.</p>
               </div>
             </div>
           </Reveal>
@@ -232,8 +231,8 @@ export default function Home() {
       <Reveal as="section" className="banda" style={{ backgroundImage: 'url(/img/quito.jpg)' }}>
         <div className="banda-velo" />
         <div className="banda-in">
-          <h2>Â¿Tienes una cooperativa de transporte?</h2>
-          <p>Administra tus buses, tus frecuencias y la hoja de ruta, y vende en lÃ­nea y en ventanilla desde un solo lugar.</p>
+          <h2>¿Tienes una cooperativa de transporte?</h2>
+          <p>Administra tus buses, tus frecuencias y la hoja de ruta, y vende en línea y en ventanilla desde un solo lugar.</p>
           <Link to="/ingresar" className="btn btn-acento btn-lg">Ingresar al panel <Icon n="arrow" size={18} /></Link>
         </div>
       </Reveal>
@@ -244,7 +243,7 @@ export default function Home() {
             <h2>Cooperativas en {config.nombre}</h2>
           </Reveal>
           <div className="coops">
-            {cooperativas.filter((c) => c.activa).map((c, i) => (
+            {cooperativas.map((c, i) => (
               <Reveal key={c.id} delay={i * 80} className="coop-chip" style={{ '--c': c.color }}>
                 <CoopLogo coop={c} size={52} />
                 <div><b>{c.nombre}</b><small>{c.ciudad}</small></div>
