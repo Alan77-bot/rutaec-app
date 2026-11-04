@@ -40,6 +40,37 @@ async function solicitar(ruta, opciones = {}) {
 // ========================================
 
 export const busesService = {
+
+  // Consultar distribución de asientos
+  async consultarAsientos(id, cooperativaId) {
+    const query = cooperativaId
+      ? `?cooperativaId=${encodeURIComponent(cooperativaId)}`
+      : "";
+
+    const resultado = await solicitar(
+      `/${encodeURIComponent(id)}/asientos${query}`
+    );
+
+    return resultado?.datos;
+  },
+
+  // Guardar distribución de asientos
+  async guardarAsientos(id, asientos, cooperativaId) {
+    const query = cooperativaId
+      ? `?cooperativaId=${encodeURIComponent(cooperativaId)}`
+      : "";
+
+    const resultado = await solicitar(
+      `/${encodeURIComponent(id)}/asientos${query}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ asientos }),
+      }
+    );
+
+    return resultado?.datos;
+  },
+
   // Consultar buses de la cooperativa
   async listar() {
     const resultado = await solicitar("/");
