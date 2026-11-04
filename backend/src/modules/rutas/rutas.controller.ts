@@ -46,7 +46,12 @@ export async function obtenerRutas(
   res: Response
 ): Promise<void> {
   try {
-    const rutas = await listarRutas();
+    const actor = actorDesdeSesion(res);
+    if (actor.rol === 'cooperativa' && !actor.coopId) {
+      res.status(403).json({ error: 'Tu cuenta no tiene una cooperativa asignada' });
+      return;
+    }
+    const rutas = await listarRutas(undefined, actor.rol === 'cooperativa' ? actor.coopId ?? undefined : undefined);
     res.status(200).json({ total: rutas.length, datos: rutas });
   } catch (error) {
     console.error("Error al consultar rutas:", error);
