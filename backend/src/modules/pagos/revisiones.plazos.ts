@@ -42,9 +42,9 @@ export async function aplicarPlazosRevision(id:string){
         // No afirmar que entró dinero ni cancelar un cobro. Se libera la reserva y se concilia manualmente.
         if(['RESERVADA','EN_REVISION'].includes(c.estado))await tx.compras.update({where:{id:c.id},data:{estado:'INCIDENCIA',motivo:`${motivo} Continúa por incidencia; el asiento deja de estar retenido.`,finalizada_en:ahora}});
         await tx.incidencias.create({data:{compra_id:c.id,cooperativa_id:r.cooperativa_id,pago_id:r.pago_id,tipo:'OTRO',descripcion:`${motivo} Comprobar el banco y ofrecer nueva reserva con aceptación o gestionar devolución. No se confirma un asiento por esta incidencia.`}});
-        await tx.$queryRaw`SELECT rutaec.encolar_evento('REVISION_PLAZO_VENCIDO',${r.id}::uuid,${r.cooperativa_id}::uuid,${claveVencida},${JSON.stringify({compra_id:c.id,motivo})}::jsonb)`;
+        await tx.$executeRaw`SELECT rutaec.encolar_evento('REVISION_PLAZO_VENCIDO',${r.id}::uuid,${r.cooperativa_id}::uuid,${claveVencida},${JSON.stringify({compra_id:c.id,motivo})}::jsonb)`;
       }else{
-        await tx.$queryRaw`SELECT rutaec.encolar_evento('DESCUENTO_PLAZO_VENCIDO',${r.validacion_id}::uuid,${r.cooperativa_id}::uuid,${claveVencida},${JSON.stringify({motivo})}::jsonb)`;
+        await tx.$executeRaw`SELECT rutaec.encolar_evento('DESCUENTO_PLAZO_VENCIDO',${r.validacion_id}::uuid,${r.cooperativa_id}::uuid,${claveVencida},${JSON.stringify({motivo})}::jsonb)`;
       }
       await tx.revisiones.update({where:{id},data:{alertado_en:ahora}});
     }
@@ -52,7 +52,7 @@ export async function aplicarPlazosRevision(id:string){
     const abandono=r.asignado_a&&(!persona||(plazos.asignacionVenceEn&&new Date(plazos.asignacionVenceEn)<=ahora));
     if(abandono){
       await tx.revisiones.update({where:{id},data:{asignado_a:null,tomado_en:null,estado:correccion?'CORRECCION':'PENDIENTE'}});
-      await tx.$queryRaw`SELECT rutaec.encolar_evento('REVISION_ASIGNACION_RECUPERADA',${id}::uuid,${r.cooperativa_id}::uuid,${`revision-liberada:${id}:${r.tomado_en?.toISOString()??r.asignado_a}`},${JSON.stringify({revision_id:id,revisor_anterior:r.asignado_a,actor:'SISTEMA',motivo:'Asignación vencida o personal desactivado. Se libera solo la asignación; no se rechaza el pago.'})}::jsonb)`;
+      await tx.$executeRaw`SELECT rutaec.encolar_evento('REVISION_ASIGNACION_RECUPERADA',${id}::uuid,${r.cooperativa_id}::uuid,${`revision-liberada:${id}:${r.tomado_en?.toISOString()??r.asignado_a}`},${JSON.stringify({revision_id:id,revisor_anterior:r.asignado_a,actor:'SISTEMA',motivo:'Asignación vencida o personal desactivado. Se libera solo la asignación; no se rechaza el pago.'})}::jsonb)`;
     }
     return plazos;
   });
