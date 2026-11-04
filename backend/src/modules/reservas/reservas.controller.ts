@@ -28,9 +28,14 @@ export async function obtenerViajes(req: Request, res: Response): Promise<void> 
   }
 }
 
-export async function obtenerCiudades(_req: Request, res: Response): Promise<void> {
+export async function obtenerCiudades(req: Request, res: Response): Promise<void> {
+  const cooperativa = req.query.cooperativa;
+  if (cooperativa !== undefined && (typeof cooperativa !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cooperativa))) {
+    enviarError(res, 400, 'La cooperativa seleccionada no es válida', 'PARAMETROS_INVALIDOS');
+    return;
+  }
   try {
-    const ciudades = await listarCiudadesDisponibles();
+    const ciudades = await listarCiudadesDisponibles(cooperativa);
 
     enviarExito(res, ciudades);
   } catch (error) {

@@ -13,7 +13,7 @@ const router = Router();
 router.get('/portada',async(req,res)=>{
   const validacion=validarBusqueda({...req.query,destino:'__destino_portada__'});
   if(!validacion.ok){res.status(400).json(validacion.falla);return;}
-  try{res.json({data:await consultarPortada(validacion.datos.origen,validacion.datos.fecha)});}
+  try{res.json({data:await consultarPortada(validacion.datos.origen,validacion.datos.fecha,validacion.datos.cooperativa)});}
   catch{res.status(500).json({error:'No se pudo cargar la información de viajes.'});}
 });
 
