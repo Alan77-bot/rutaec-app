@@ -88,7 +88,7 @@ router.post('/cancelaciones/viajes/:id',async(req,res)=>{
       }
       await tx.compras.update({where:{id:c.id},data:{estado:'CANCELADA',motivo:`Viaje cancelado: ${motivo}`,finalizada_en:new Date()}});
       await tx.boletos.updateMany({where:{compra_id:c.id,estado:'EMITIDO'},data:{estado:'ANULADO',anulado_en:new Date(),motivo_anulacion:motivo}});
-      await tx.$queryRaw`SELECT rutaec.encolar_evento('VIAJE_CANCELADO',${c.id}::uuid,${v.cooperativa_id}::uuid,${`viaje-cancelado:${id}:${c.id}`},${JSON.stringify({compra_id:c.id,motivo})}::jsonb)`;
+      await tx.$executeRaw`SELECT rutaec.encolar_evento('VIAJE_CANCELADO',${c.id}::uuid,${v.cooperativa_id}::uuid,${`viaje-cancelado:${id}:${c.id}`},${JSON.stringify({compra_id:c.id,motivo})}::jsonb)`;
     }
     await tx.agenda_bus.update({where:{id:v.agenda_id},data:{activa:false}});
     return {compras:compras.length,repetida:false};

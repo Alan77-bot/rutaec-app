@@ -21,7 +21,7 @@ router.post('/',async(req,res)=>{
     const anterior=await tx.incidencias.findFirst({where:{compra_id:compraId,tipo,estado:{in:['ABIERTA','EN_ATENCION']}}});if(anterior)return anterior;
     const pago=await tx.pagos.findFirst({where:{compra_id:compraId,estado:{in:['APROBADO','RECIBIDO_INCIDENCIA']}},orderBy:{recibido_en:'desc'}});
     const i=await tx.incidencias.create({data:{compra_id:compraId,cooperativa_id:compra.cooperativa_id,pago_id:pago?.id,tipo,descripcion,creado_por:s.id}});
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('INCIDENCIA_RECIBIDA',${i.id}::uuid,${compra.cooperativa_id}::uuid,${'incidencia:'+i.id},${JSON.stringify({compra_id:compraId})}::jsonb)`;
+    await tx.$executeRaw`SELECT rutaec.encolar_evento('INCIDENCIA_RECIBIDA',${i.id}::uuid,${compra.cooperativa_id}::uuid,${'incidencia:'+i.id},${JSON.stringify({compra_id:compraId})}::jsonb)`;
     return i;
   });res.status(201).json({datos,mensaje:'Solicitud registrada para revisión manual; no se ha devuelto dinero ni reasignado asientos.'});
 });
@@ -62,7 +62,7 @@ router.post('/:id/resolver',async(req,res)=>{
       }
       await tx.incidencias.update({where:{id},data:{estado:'RESUELTA',resolucion,resuelto_en:new Date(),asignado_a:s.id}});
     }
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('INCIDENCIA_RESUELTA',${id}::uuid,${i.cooperativa_id}::uuid,${'incidencia-decision:'+id+':'+decision},${JSON.stringify({compra_id:i.compra_id,decision})}::jsonb)`;
+    await tx.$executeRaw`SELECT rutaec.encolar_evento('INCIDENCIA_RESUELTA',${id}::uuid,${i.cooperativa_id}::uuid,${'incidencia-decision:'+id+':'+decision},${JSON.stringify({compra_id:i.compra_id,decision})}::jsonb)`;
   });res.json({mensaje:'Decisión registrada. Un reembolso aprobado no significa que ya se haya devuelto el dinero.'});
 });
 router.post('/reembolsos/:id/realizado',async(req,res)=>{
@@ -72,7 +72,7 @@ router.post('/reembolsos/:id/realizado',async(req,res)=>{
   await prisma.$transaction(async tx=>{
     await tx.$queryRaw`SELECT set_config('app.usuario_id',${s.id},true)`;
     const resultado=await tx.reembolsos.updateMany({where:{id,estado:'APROBADO'},data:{estado:'REALIZADO',referencia,realizado_en:new Date(),gestionado_por:s.id}});if(resultado.count!==1)throw new ErrorIncidencia(409,'El reembolso ya se procesó o no está aprobado.');
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('REEMBOLSO_REALIZADO',${r.incidencia_id}::uuid,${r.incidencias.cooperativa_id}::uuid,${'reembolso:'+id},${JSON.stringify({compra_id:r.incidencias.compra_id})}::jsonb)`;
+    await tx.$executeRaw`SELECT rutaec.encolar_evento('REEMBOLSO_REALIZADO',${r.incidencia_id}::uuid,${r.incidencias.cooperativa_id}::uuid,${'reembolso:'+id},${JSON.stringify({compra_id:r.incidencias.compra_id})}::jsonb)`;
   });res.json({mensaje:'Devolución confirmada con referencia. No se efectuó una transferencia automática desde RutaEC.'});
 });
 router.use((e:unknown,_req:import('express').Request,res:import('express').Response,_next:import('express').NextFunction)=>{res.status(e instanceof ErrorIncidencia?e.estado:409).json({error:e instanceof ErrorIncidencia?e.message:'No se pudo completar la incidencia. Actualiza y revisa los datos.'});});

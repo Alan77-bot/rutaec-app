@@ -2,6 +2,7 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { prisma } from "../../lib/prisma.js";
 import { autenticar } from "../../middlewares/autenticacion.js";
+import { bloquearOcupacionCompra } from './ocupacion-compra.js';
 
 const router = Router();
 router.post('/tarjeta-demo', ...autenticar, rateLimit({ windowMs: 60000, limit: 10, legacyHeaders: false, standardHeaders: true }), async (req, res) => {
@@ -23,13 +24,14 @@ router.post('/tarjeta-demo', ...autenticar, rateLimit({ windowMs: 60000, limit: 
   // de pasarela: esta transición es exclusiva del modo de demostración local.
   const pago = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`;
+    if(!await bloquearOcupacionCompra(tx,compraId))throw new Error('El asiento ya no está disponible. Actualiza tu reserva.');
     const [fila] = await tx.$queryRaw<{ id: string }[]>`SELECT rutaec.crear_intento_tarjeta(${compraId}::uuid, 'DEMO_SIN_COBRO', ${claveIdempotencia}::uuid)::text AS id`;
     const actual = await tx.pagos.findUniqueOrThrow({ where: { id: fila.id } });
     if (actual.estado !== 'PENDIENTE') return actual;
     if (resultado === 'RECHAZADO') return tx.pagos.update({ where: { id: actual.id }, data: { estado: 'FALLIDO', motivo: 'RECHAZO SIMULADO; NO HUBO COBRO' } });
     const confirmado = await tx.pagos.update({ where: { id: actual.id }, data: { estado: 'APROBADO', importe_recibido: compra.total, moneda_recibida: compra.moneda, recibido_en: new Date(), aprobado_en: new Date(), motivo: 'DEMOSTRACION; SIN COBRO REAL' } });
     await tx.compras.update({ where: { id: compraId }, data: { estado: 'CONFIRMADA', confirmada_en: new Date() } });
-    await tx.$queryRaw`SELECT rutaec.emitir_boletos(${compraId}::uuid)`;
+    await tx.$executeRaw`SELECT rutaec.emitir_boletos(${compraId}::uuid)`;
     await tx.$executeRaw`UPDATE rutaec.boletos SET datos_emision = datos_emision || '{"modo_demo":true}'::jsonb WHERE compra_id = ${compraId}::uuid`;
     return confirmado;
   });

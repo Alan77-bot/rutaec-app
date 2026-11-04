@@ -89,7 +89,7 @@ export async function cambiarClavePerfil(id: string, token: unknown, entrada: un
     comprobarSinCambios(actual, anterior);
     await tx.usuarios.update({ where: { id }, data: { password_hash: hash, actualizado_en: new Date() } });
     await revocarPendientes(tx, id);
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('CUENTA_CLAVE_CAMBIADA', ${id}::uuid, NULL::uuid, ${`clave-perfil:${id}:${randomInt(0, 2147483647)}`})`;
+    await tx.$executeRaw`SELECT rutaec.encolar_evento('CUENTA_CLAVE_CAMBIADA', ${id}::uuid, NULL::uuid, ${`clave-perfil:${id}:${randomInt(0, 2147483647)}`})`;
   });
   return { mensaje: "Contraseña actualizada. Inicia sesión nuevamente." };
 }
@@ -134,7 +134,7 @@ export async function confirmarCorreoPerfil(id: string, token: unknown, entrada:
       if (consumido.count !== 1) throw error("El código venció o ya fue utilizado.");
       await tx.usuarios.update({ where: { id }, data: { correo: registro.nuevo_correo, correo_verificado_en: ahora, actualizado_en: ahora } });
       await revocarPendientes(tx, id);
-      await tx.$queryRaw`SELECT rutaec.encolar_evento('CUENTA_CORREO_CAMBIADO', ${id}::uuid, NULL::uuid, ${`correo-perfil:${registro.id}`}, ${JSON.stringify({ correo_anterior: anterior.correo })}::jsonb)`;
+      await tx.$executeRaw`SELECT rutaec.encolar_evento('CUENTA_CORREO_CAMBIADO', ${id}::uuid, NULL::uuid, ${`correo-perfil:${registro.id}`}, ${JSON.stringify({ correo_anterior: anterior.correo })}::jsonb)`;
     });
   } catch (e) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") throw error("No se puede utilizar ese correo. Solicita un código para otro.", 409);

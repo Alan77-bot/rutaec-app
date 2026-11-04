@@ -280,7 +280,7 @@ export async function restablecerContrasena(entrada: unknown) {
     });
 
     // Invalida las sesiones y los demás tokens pendientes de la cuenta.
-    await tx.$queryRaw`SELECT rutaec.encolar_evento('CUENTA_CLAVE_CAMBIADA', ${usuario.id}::uuid, NULL::uuid, ${`clave-recuperada:${registro.id}`})`;
+    await tx.$executeRaw`SELECT rutaec.encolar_evento('CUENTA_CLAVE_CAMBIADA', ${usuario.id}::uuid, NULL::uuid, ${`clave-recuperada:${registro.id}`})`;
     await tx.tokens_acceso.updateMany({
       where: {
         usuario_id: usuario.id,

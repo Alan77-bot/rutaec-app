@@ -34,7 +34,7 @@ router.post('/comprobante', raw({ type: 'multipart/form-data', limit: '6mb' }), 
   await writeFile(destino, bytes, { flag: 'wx', mode: 0o600 });
   try {
     const resultado = await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencia},0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencia},0))`;
       await tx.$queryRaw`SELECT set_config('app.usuario_id', ${s.id}, true)`;
       const previo = await tx.pagos.findUnique({ where: { clave_idempotencia: idempotencia } });
       if (previo) {
