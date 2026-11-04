@@ -214,3 +214,27 @@ export async function listarCiudadesDisponibles(): Promise<CiudadDisponible[]> {
     ORDER BY ci.nombre
   `;
 }
+
+export async function consultarPortada(origen:string,fecha:string){
+  const [ciudades,cooperativas,resumen,destinos]=await Promise.all([
+    listarCiudadesDisponibles(),
+    prisma.$queryRaw<{id:string;nombre:string;color:string}[]>`
+      SELECT DISTINCT c.id,c.nombre_comercial AS nombre,c.color_primario AS color
+      FROM rutaec.viajes v JOIN rutaec.cooperativas c ON c.id=v.cooperativa_id
+      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE}
+      ORDER BY nombre`,
+    prisma.$queryRaw<{frecuencias:number}[]>`
+      SELECT count(DISTINCT v.frecuencia_id)::int AS frecuencias
+      FROM rutaec.viajes v JOIN rutaec.cooperativas c ON c.id=v.cooperativa_id
+      JOIN rutaec.frecuencias fr ON fr.id=v.frecuencia_id WHERE ${VIAJE_VENDIBLE}`,
+    prisma.$queryRaw<{ciudad:string;precio:string;moneda:string}[]>`
+      SELECT cd.nombre AS ciudad,min(t.importe)::text AS precio,t.moneda
+      ${UNIONES_VIAJE}
+      JOIN rutaec.tarifas_viaje t ON t.viaje_id=v.id AND t.origen_orden=po.orden AND t.destino_orden=pd.orden
+      WHERE ${VIAJE_VENDIBLE} AND lower(co.nombre)=lower(${origen})
+        AND (po.salida AT TIME ZONE ${ZONA_HORARIA})::date=${fecha}::date
+        AND t.vigente_desde<=${fecha}::date AND (t.vigente_hasta IS NULL OR t.vigente_hasta>=${fecha}::date)
+      GROUP BY cd.nombre,t.moneda ORDER BY cd.nombre LIMIT 30`
+  ]);
+  return {ciudades,cooperativas,frecuencias:resumen[0]?.frecuencias??0,destinos};
+}
