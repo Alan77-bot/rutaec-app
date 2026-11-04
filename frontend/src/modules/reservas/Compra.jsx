@@ -1,0 +1,345 @@
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useApp } from '../../context/AppContext'
+import CoopLogo from '../../components/CoopLogo'
+import MapaAsientos from './MapaAsientos'
+import { useDisponibilidad } from './useDisponibilidad'
+import {
+  ESTILO_ACCESIBLE,
+  ESTILO_PREFERENCIAL,
+  ESTILO_RETENIDO,
+} from './asientos.estilos'
+import { urlResultados } from './reservas.enlaces'
+import { DESCUENTOS, cedulaValida } from '../../data/viajes'
+import { fechaLarga } from '../../data/fechas'
+import CrearReserva from './CrearReserva'
+import { usePersonalizacion } from '../../context/PersonalizacionContext'
+
+const PASOS = ['Asientos', 'Pasajeros', 'Pago']
+
+const dinero = (valor) => `$${valor.toFixed(2)}`
+const conDescuento = (precio, descuento) => precio * (1 - DESCUENTOS[descuento].pct)
+
+function Aviso({ titulo, texto, children }) {
+  return (
+    <div className="contenedor vacio">
+      <b>{titulo}</b>
+      {texto && <p>{texto}</p>}
+      {children}
+    </div>
+  )
+}
+
+export default function Compra() {
+  const { viajeId } = useParams()
+  const [q, setQ] = useSearchParams()
+  const { sesion, avisar } = useApp()
+  const { cooperativaId, seleccionarCooperativa } = usePersonalizacion()
+
+  const origen = q.get('origen') || ''
+  const destino = q.get('destino') || ''
+  const fecha = q.get('fecha') || ''
+  const n = Math.max(1, Number(q.get('n')) || 1)
+  const ventanilla = sesion?.rol === 'oficinista'
+  const volver = urlResultados({ origen, destino, fecha, pasajeros: n, cooperativa: cooperativaId || undefined })
+
+  const [paso, setPaso] = useState(0)
+  const [elegidos, setElegidos] = useState([])
+  const [comprobando, setComprobando] = useState(false)
+
+  // Si otra persona toma un asiento que elegiste mientras decides, se te quita de
+  // la seleccion y se te avisa. Solo aplica al paso de asientos.
+  const alActualizar = useCallback(
+    (datos) => {
+      if (paso !== 0) return
+      const libres = new Set(datos.asientos.filter((a) => a.estado === 'LIBRE').map((a) => a.id))
+      const perdidos = elegidos.filter((id) => !libres.has(id))
+      if (perdidos.length === 0) return
+
+      const numeros = perdidos.map((id) => datos.asientos.find((a) => a.id === id)?.numero).filter(Boolean)
+      setElegidos(elegidos.filter((id) => libres.has(id)))
+      avisar(
+        numeros.length === 1
+          ? `El asiento ${numeros[0]} ya no está disponible: lo tomó otra persona. Elige otro.`
+          : `Los asientos ${numeros.join(', ')} ya no están disponibles: los tomó otra persona. Elige otros.`
+      )
+    },
+    [paso, elegidos, avisar]
+  )
+
+  const { disponibilidad, cargando, error, recargar, refrescar } = useDisponibilidad(
+    { viajeId, origen, destino },
+    { alActualizar }
+  )
+
+  const [pasajeros, setPasajeros] = useState([])
+  const cooperativaViaje = disponibilidad?.viaje?.coop?.id
+  useEffect(() => {
+    if (sesion?.rol === 'usuario' && cooperativaViaje && cooperativaViaje !== cooperativaId) seleccionarCooperativa(cooperativaViaje)
+  }, [cooperativaViaje, cooperativaId, sesion?.rol])
+  const [errores, setErrores] = useState({})
+
+  const asientos = useMemo(() => disponibilidad?.asientos ?? [], [disponibilidad])
+  const porId = useMemo(() => new Map(asientos.map((a) => [a.id, a])), [asientos])
+
+  if (!origen || !destino) {
+    return (
+      <Aviso titulo="Faltan los datos de tu búsqueda." texto="Vuelve a buscar el viaje para elegir tus asientos.">
+        <Link className="btn btn-oscuro" to="/buscar">Buscar viajes</Link>
+      </Aviso>
+    )
+  }
+
+  if (cargando) return <Aviso titulo="Cargando los asientos…" />
+
+  if (error?.estado === 404) {
+    return (
+      <Aviso titulo="Este viaje ya no está disponible." texto="Pudo haberse cerrado la venta o cambiado el recorrido.">
+        <Link className="btn btn-oscuro" to={volver}>Volver a los resultados</Link>
+      </Aviso>
+    )
+  }
+
+  if (error) {
+    return (
+      <Aviso titulo={error.message}>
+        {(error.estado === 0 || error.estado >= 500) && (
+          <button className="btn btn-oscuro" onClick={recargar}>Reintentar</button>
+        )}
+      </Aviso>
+    )
+  }
+
+  const { viaje } = disponibilidad
+  const coop = viaje.coop
+  const precioNormal = viaje.precio
+  const precioVip = viaje.precioVip
+  const { recorrido } = disponibilidad
+  const subidas = recorrido.filter((p) => p.permite_subida && p.orden < recorrido.at(-1).orden)
+  const bajadas = recorrido.filter((p) => p.permite_bajada && p.orden > viaje.origenOrden)
+  const hayAccesibles = asientos.some((a) => a.accesible)
+  const hayPreferenciales = asientos.some((a) => a.preferencial && !a.accesible)
+
+  // Cambia donde sube o baja el pasajero. Los asientos ocupados dependen del
+  // tramo, asi que la seleccion se limpia y se vuelve a consultar.
+  const cambiarTramo = (ordenSube, ordenBaja) => {
+    const sube = disponibilidad.recorrido.find((p) => p.orden === ordenSube)
+    const baja = disponibilidad.recorrido.find((p) => p.orden === ordenBaja)
+    if (!sube || !baja || sube.orden >= baja.orden) return
+
+    setElegidos([])
+    setQ(new URLSearchParams({ origen: sube.ciudad, destino: baja.ciudad, fecha, n: String(n) }), { replace: true })
+  }
+
+  const clickAsiento = (a) => {
+    setElegidos((actuales) => {
+      if (actuales.includes(a.id)) return actuales.filter((x) => x !== a.id)
+      if (actuales.length >= n) {
+        avisar(`Solo viajas con ${n} pasajero${n > 1 ? 's' : ''}. Quita un asiento para cambiar.`)
+        return actuales
+      }
+      return [...actuales, a.id]
+    })
+  }
+
+  const asientoNoDisponible = (a) => {
+    avisar(
+      a.estado === 'RETENIDO'
+        ? `El asiento ${a.numero} lo acaba de reservar otra persona.`
+        : `El asiento ${a.numero} no está disponible.`
+    )
+  }
+
+  // Antes de pasar a los datos de los pasajeros se consulta de nuevo al servidor:
+  // el mapa puede tener unos segundos de retraso y otra persona pudo tomar un asiento.
+  const irAPasajeros = async () => {
+    if (elegidos.length !== n) return avisar(`Elige ${n} asiento${n > 1 ? 's' : ''} para continuar.`)
+
+    setComprobando(true)
+    try {
+      const datos = await refrescar()
+      const frescos = new Map(datos.asientos.map((a) => [a.id, a]))
+
+      // Si alguno ya no esta libre, el refresco ya lo quito de la seleccion y aviso.
+      if (!elegidos.every((id) => frescos.get(id)?.estado === 'LIBRE')) return
+
+      setPasajeros(
+        elegidos.map((id, i) => {
+          const a = frescos.get(id)
+          return {
+            nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
+            cedula: '',
+            correo: i === 0 ? sesion?.correo || '' : '',
+            descuento: 'ninguno',
+            categoria: a.categoria,
+            asiento: a.numero,
+            asientoId: id,
+            precio: a.precio ?? 0,
+          }
+        })
+      )
+      setPaso(1)
+    } catch (fallo) {
+      if (fallo?.estado === 404) recargar()
+      else avisar('No pudimos confirmar la disponibilidad de tus asientos. Inténtalo de nuevo.')
+    } finally {
+      setComprobando(false)
+    }
+  }
+
+  const cambiarPas = (i, campo, valor) =>
+    setPasajeros((ps) => ps.map((p, k) => (k === i ? { ...p, [campo]: valor } : p)))
+
+  const validarPasajeros = () => {
+    const err = {}
+    pasajeros.forEach((p, i) => {
+      if (p.nombre.trim().length < 3) err[`n${i}`] = 'Escribe el nombre completo'
+      if (p.tipoDocumento === 'PASAPORTE' ? !/^[A-Z0-9]{4,20}$/i.test(p.cedula) : !cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
+      if (!/^\S+@\S+\.\S+$/.test(p.correo)) err[`m${i}`] = 'Correo no válido'
+    })
+    setErrores(err)
+    if (Object.keys(err).length) return avisar('Revisa los datos marcados en rojo.')
+    setPaso(2)
+  }
+
+  const total = pasajeros.reduce((suma, p) => suma + conDescuento(p.precio, p.descuento), 0)
+  const totalElegidos = elegidos.reduce((suma, id) => suma + (porId.get(id)?.precio ?? 0), 0)
+
+  const lineas =
+    paso === 0
+      ? elegidos.map((id) => {
+          const a = porId.get(id)
+          return { asiento: a.numero, descuento: 'ninguno', precio: a.precio ?? 0 }
+        })
+      : pasajeros
+
+  return (
+    <div className="contenedor compra">
+      <Link to={volver} className="volver">← Volver a resultados</Link>
+      <div className="compra-cab">
+        <CoopLogo coop={coop} size={64} />
+        <div>
+          <h1>{origen} → {destino}</h1>
+          <p>{fecha && `${fechaLarga(fecha)} · `}{viaje.horaSalida} · {coop.nombre} N.º {viaje.bus.numero}</p>
+        </div>
+      </div>
+
+      <ol className="pasos">
+        {PASOS.map((p, i) => (
+          <li key={p} className={i === paso ? 'activo' : i < paso ? 'hecho' : ''}><b>{i < paso ? '✓' : i + 1}</b>{p}</li>
+        ))}
+      </ol>
+
+      <div className="compra-grid">
+        <section className="panel">
+          {paso === 0 && (
+            <>
+              <h3>Elige {n} asiento{n > 1 ? 's' : ''}</h3>
+              {(subidas.length > 1 || bajadas.length > 1) && (
+                <div className="ruta-sel" style={{ marginBottom: 14 }}>
+                  <select
+                    aria-label="Dónde subes"
+                    style={{ flex: '1 1 140px', minWidth: 0 }}
+                    value={viaje.origenOrden}
+                    onChange={(e) => {
+                      const sube = Number(e.target.value)
+                      const baja = sube < viaje.destinoOrden ? viaje.destinoOrden : bajadas.find((p) => p.orden > sube)?.orden
+                      if (baja) cambiarTramo(sube, baja)
+                    }}
+                  >
+                    {subidas.map((p) => <option key={p.orden} value={p.orden}>Subes en {p.ciudad}</option>)}
+                  </select>
+                  <select
+                    aria-label="Dónde bajas"
+                    style={{ flex: '1 1 140px', minWidth: 0 }}
+                    value={viaje.destinoOrden}
+                    onChange={(e) => cambiarTramo(viaje.origenOrden, Number(e.target.value))}
+                  >
+                    {bajadas.map((p) => <option key={p.orden} value={p.orden}>Bajas en {p.ciudad}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="leyenda">
+                <span><i className="asiento normal" />Normal{precioNormal !== null && ` · ${dinero(precioNormal)}`}</span>
+                <span><i className="asiento vip" />VIP{precioVip !== null && ` · ${dinero(precioVip)}`}</span>
+                <span><i className="asiento ocupado" />Ocupado</span>
+                <span><i className="asiento ocupado" style={ESTILO_RETENIDO} />Reservado por otra persona</span>
+                {hayAccesibles && <span><i className="asiento" style={ESTILO_ACCESIBLE} />Accesible</span>}
+                {hayPreferenciales && <span><i className="asiento" style={ESTILO_PREFERENCIAL} />Preferencial</span>}
+                <span><i className="asiento sel" />Tuyo</span>
+              </div>
+              <MapaAsientos
+                asientos={asientos}
+                elegidos={elegidos}
+                onElegir={clickAsiento}
+                onNoDisponible={asientoNoDisponible}
+              />
+              <p className="muted" role="status" aria-live="polite" style={{ marginBottom: 10 }}>
+                Elegiste {elegidos.length} de {n} asiento{n > 1 ? 's' : ''}.
+              </p>
+              <button className="btn btn-acento btn-lg" onClick={irAPasajeros} disabled={comprobando}>
+                {comprobando ? 'Comprobando disponibilidad…' : 'Continuar'}
+              </button>
+            </>
+          )}
+
+          {paso === 1 && (
+            <>
+              <h3>Datos de los pasajeros</h3>
+              {pasajeros.map((p, i) => (
+                <fieldset key={p.asientoId} className="pasajero">
+                  <legend>Asiento {p.asiento} {p.categoria === 'VIP' && <em>VIP</em>}</legend>
+                  <label className={errores[`n${i}`] ? 'err' : ''}>Nombre completo
+                    <input value={p.nombre} onChange={(e) => cambiarPas(i, 'nombre', e.target.value)} />
+                    {errores[`n${i}`] && <small>{errores[`n${i}`]}</small>}
+                  </label>
+                  <label>Tipo de documento<select value={p.tipoDocumento??'CEDULA'} onChange={e=>cambiarPas(i,'tipoDocumento',e.target.value)}><option value="CEDULA">Cédula ecuatoriana</option><option value="PASAPORTE">Pasaporte</option></select></label>
+                  <label className={errores[`c${i}`] ? 'err' : ''}>Número de documento
+                    <input value={p.cedula} inputMode={p.tipoDocumento === "PASAPORTE" ? "text" : "numeric"} maxLength={p.tipoDocumento === "PASAPORTE" ? 20 : 10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
+                    {errores[`c${i}`] && <small>{errores[`c${i}`]}</small>}
+                  </label>
+                  <label className={errores[`m${i}`] ? 'err' : ''}>Correo
+                    <input value={p.correo} onChange={(e) => cambiarPas(i, 'correo', e.target.value)} />
+                    {errores[`m${i}`] && <small>{errores[`m${i}`]}</small>}
+                  </label>
+                  <p className="ayuda">Solo se aplican descuentos con validación documental aprobada. El importe final lo calcula el servidor.</p>
+                </fieldset>
+              ))}
+              <div className="acciones">
+                <button className="btn btn-claro" onClick={() => setPaso(0)}>Atrás</button>
+                <button className="btn btn-acento btn-lg" onClick={validarPasajeros}>Ir al pago</button>
+              </div>
+            </>
+          )}
+
+          {paso === 2 && <CrearReserva pasajeros={pasajeros} viajeId={viajeId} origen={origen} destino={destino} cooperativaId={coop.id} />}
+        </section>
+
+        <aside className="resumen">
+          <h4>Resumen</h4>
+          <p className="muted">{viaje.tipoViaje === 'directa' ? 'Viaje directo' : 'Viaje con paradas'} · {viaje.duracion}</p>
+          <ol style={{ listStyle: 'none', padding: 0, margin: '0 0 12px', display: 'grid', gap: 4, fontSize: '.9rem' }}>
+            {viaje.paradas.map((p) => (
+              <li key={p.orden} style={{ display: 'flex', gap: 10 }}>
+                <b style={{ minWidth: 44 }}>{p.hora}</b>
+                <span>{p.terminal}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="muted">
+            {disponibilidad.resumen.libres} de {disponibilidad.resumen.total} asientos libres
+            {disponibilidad.resumen.retenidos > 0 && ` · ${disponibilidad.resumen.retenidos} reservados por otras personas`}
+          </p>
+          {lineas.map((p) => (
+            <div key={p.asiento} className="linea-r">
+              <span>Asiento {p.asiento}{p.descuento !== 'ninguno' ? ` · ${DESCUENTOS[p.descuento].nombre}` : ''}</span>
+              <b>{dinero(conDescuento(p.precio, p.descuento))}</b>
+            </div>
+          ))}
+          {paso === 0 && elegidos.length === 0 && <p className="vacio-sm">Aún no eliges asientos.</p>}
+          <div className="linea-r total"><span>Total</span><b>{dinero(paso === 0 ? totalElegidos : total)}</b></div>
+        </aside>
+      </div>
+    </div>
+  )
+}

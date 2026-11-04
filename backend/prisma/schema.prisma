@@ -1,0 +1,932 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["rutaec"]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agenda_bus {
+  id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String                    @db.Uuid
+  bus_id         String                    @db.Uuid
+  tipo           String
+  inicio         DateTime                  @db.Timestamptz(6)
+  fin            DateTime                  @db.Timestamptz(6)
+  activa         Boolean                   @default(true)
+  motivo         String?
+  periodo        Unsupported("tstzrange")? @default(dbgenerated("tstzrange(inicio, fin, '[)'::text)"))
+  buses          buses                     @relation(fields: [bus_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  cooperativas   cooperativas              @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  viajes         viajes?
+
+  @@unique([id, bus_id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model archivos {
+  id                                                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propietario_id                                      String                @db.Uuid
+  cooperativa_id                                      String?               @db.Uuid
+  objeto_clave                                        String                @unique
+  finalidad                                           String
+  nombre_original                                     String
+  mime_type                                           String
+  tamano_bytes                                        BigInt
+  sha256                                              String                @db.Char(64)
+  estado                                              String                @default("PENDIENTE")
+  privado                                             Boolean               @default(true)
+  creado_en                                           DateTime              @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  eliminado_en                                        DateTime?             @db.Timestamptz(6)
+  cooperativas_archivos_cooperativa_idTocooperativas  cooperativas?         @relation("archivos_cooperativa_idTocooperativas", fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios                                            usuarios              @relation(fields: [propietario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  boletos                                             boletos[]
+  comprobantes_pago                                   comprobantes_pago?
+  cooperativas_cooperativas_logo_archivo_idToarchivos cooperativas[]        @relation("cooperativas_logo_archivo_idToarchivos")
+  documentos_pasajero                                 documentos_pasajero[]
+  envios_correo                                       envios_correo[]
+  resoluciones                                        resoluciones[]
+
+  @@index([propietario_id], map: "archivos_propietario_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model asientos_bus {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bus_id       String  @db.Uuid
+  numero       String
+  piso         Int     @db.SmallInt
+  fila         Int     @db.SmallInt
+  columna      Int     @db.SmallInt
+  categoria    String
+  preferencial Boolean @default(false)
+  accesible    Boolean @default(false)
+  activo       Boolean @default(true)
+  buses        buses   @relation(fields: [bus_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([bus_id, numero])
+  @@unique([bus_id, piso, fila, columna])
+  @@unique([id, bus_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model asientos_viaje {
+  viaje_id       String           @db.Uuid
+  id             String           @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numero         String
+  piso           Int              @db.SmallInt
+  fila           Int              @db.SmallInt
+  columna        Int              @db.SmallInt
+  categoria      String
+  accesible      Boolean          @default(false)
+  preferencial   Boolean          @default(false)
+  vendible       Boolean          @default(true)
+  viajes         viajes           @relation(fields: [viaje_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detalle_compra detalle_compra[]
+
+  @@id([viaje_id, id])
+  @@unique([viaje_id, numero])
+  @@unique([viaje_id, piso, fila, columna])
+  @@schema("rutaec")
+}
+
+model auditoria {
+  id              BigInt        @id @default(autoincrement())
+  actor_id        String?       @db.Uuid
+  cooperativa_id  String?       @db.Uuid
+  entidad         String
+  entidad_id      String?       @db.Uuid
+  accion          String
+  estado_anterior String?
+  estado_nuevo    String?
+  correlacion_id  String?       @db.Uuid
+  creado_en       DateTime      @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  usuarios        usuarios?     @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cooperativas    cooperativas? @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cooperativa_id, creado_en(sort: Desc)], map: "auditoria_fecha_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model boletos {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  detalle_id       String         @unique @db.Uuid
+  compra_id        String         @db.Uuid
+  codigo           String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  qr_token         String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  estado           String         @default("EMITIDO")
+  datos_emision    Json
+  pdf_archivo_id   String?        @db.Uuid
+  emitido_en       DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  anulado_en       DateTime?      @db.Timestamptz(6)
+  motivo_anulacion String?
+  detalle_compra   detalle_compra @relation(fields: [detalle_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  archivos         archivos?      @relation(fields: [pdf_archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+model bus_comodidades {
+  bus_id      String      @db.Uuid
+  comodidad   String
+  buses       buses       @relation(fields: [bus_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  comodidades comodidades @relation(fields: [comodidad], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([bus_id, comodidad])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model buses {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id   String            @db.Uuid
+  grupo_id         String            @db.Uuid
+  placa            String            @unique
+  numero_unidad    String
+  color            String
+  marca_chasis     String
+  marca_carroceria String
+  anio             Int?              @db.SmallInt
+  pisos            Int               @db.SmallInt
+  capacidad        Int               @db.SmallInt
+  imagen_url       String?
+  estado           String            @default("ACTIVO")
+  agenda_bus       agenda_bus[]
+  asientos_bus     asientos_bus[]
+  bus_comodidades  bus_comodidades[]
+  cooperativas     cooperativas      @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grupos_buses     grupos_buses      @relation(fields: [grupo_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cooperativa_id, numero_unidad])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+model ciudades {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pais       String       @default("EC") @db.Char(2)
+  provincia  String
+  nombre     String
+  terminales terminales[]
+
+  @@unique([pais, provincia, nombre])
+  @@schema("rutaec")
+}
+
+model comodidades {
+  codigo          String            @id
+  nombre          String
+  bus_comodidades bus_comodidades[]
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model compras {
+  id                                                                       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                                                                   String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  comprador_id                                                             String           @db.Uuid
+  cooperativa_id                                                           String           @db.Uuid
+  viaje_id                                                                 String           @db.Uuid
+  creado_por                                                               String           @db.Uuid
+  canal                                                                    String
+  estado                                                                   String           @default("BORRADOR")
+  correo_destino                                                           String
+  moneda                                                                   String           @default("USD") @db.Char(3)
+  total                                                                    Decimal          @default(0) @db.Decimal(12, 2)
+  creada_en                                                                DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  reservada_en                                                             DateTime?        @db.Timestamptz(6)
+  vence_en                                                                 DateTime?        @db.Timestamptz(6)
+  confirmada_en                                                            DateTime?        @db.Timestamptz(6)
+  finalizada_en                                                            DateTime?        @db.Timestamptz(6)
+  motivo                                                                   String?
+  usuarios_compras_comprador_idTousuarios                                  usuarios         @relation("compras_comprador_idTousuarios", fields: [comprador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_compras_creado_porTousuarios                                    usuarios         @relation("compras_creado_porTousuarios", fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  viajes                                                                   viajes           @relation(fields: [viaje_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  detalle_compra_detalle_compra_compra_id_comprador_idTocompras            detalle_compra[] @relation("detalle_compra_compra_id_comprador_idTocompras")
+  detalle_compra_detalle_compra_compra_id_viaje_id_cooperativa_idTocompras detalle_compra[] @relation("detalle_compra_compra_id_viaje_id_cooperativa_idTocompras")
+  envios_correo                                                            envios_correo[]
+  incidencias                                                              incidencias[]
+  pagos                                                                    pagos[]
+
+  @@unique([id, comprador_id])
+  @@unique([id, cooperativa_id])
+  @@unique([id, viaje_id, cooperativa_id])
+  @@index([comprador_id, creada_en(sort: Desc)], map: "compras_cliente_idx")
+  @@index([cooperativa_id, creada_en(sort: Desc)], map: "compras_cooperativa_idx")
+  @@index([vence_en], map: "compras_vencimiento_idx", where: raw("(estado = 'RESERVADA'::text)"))
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model comprobantes_pago {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pago_id           String   @db.Uuid
+  archivo_id        String   @unique @db.Uuid
+  numero_referencia String
+  fecha_operacion   DateTime @db.Date
+  importe_declarado Decimal  @db.Decimal(12, 2)
+  recibido_en       DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  archivos          archivos @relation(fields: [archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos             pagos    @relation(fields: [pago_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cooperativas {
+  id                                              String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ruc                                             String                   @unique @db.Char(13)
+  razon_social                                    String
+  nombre_comercial                                String
+  color_primario                                  String                   @default("#16324F") @db.Char(7)
+  color_secundario                                String                   @default("#FFFFFF") @db.Char(7)
+  correo                                          String
+  telefono                                        String
+  direccion                                       String
+  sitio_web                                       String?
+  redes_sociales                                  Json                     @default("{}")
+  activa                                          Boolean                  @default(true)
+  creado_en                                       DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  actualizado_en                                  DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  logo_archivo_id                                 String?                  @db.Uuid
+  agenda_bus                                      agenda_bus[]
+  archivos_archivos_cooperativa_idTocooperativas  archivos[]               @relation("archivos_cooperativa_idTocooperativas")
+  auditoria                                       auditoria[]
+  buses                                           buses[]
+  archivos_cooperativas_logo_archivo_idToarchivos archivos?                @relation("cooperativas_logo_archivo_idToarchivos", fields: [logo_archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cuentas_bancarias                               cuentas_bancarias[]
+  eventos_salida                                  eventos_salida[]
+  frecuencias                                     frecuencias[]
+  grupos_buses                                    grupos_buses[]
+  hojas_ruta                                      hojas_ruta[]
+  miembros_cooperativa                            miembros_cooperativa[]
+  notificaciones                                  notificaciones[]
+  resoluciones                                    resoluciones[]
+  revisiones                                      revisiones[]
+  rutas                                           rutas[]
+  servicios_contratados                           servicios_contratados[]
+  validaciones_descuento                          validaciones_descuento[]
+  viajes                                          viajes[]
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cuentas_bancarias {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String       @db.Uuid
+  banco          String
+  tipo           String
+  numero         String
+  titular        String
+  activa         Boolean      @default(true)
+  cooperativas   cooperativas @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos          pagos[]
+
+  @@unique([cooperativa_id, banco, numero])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model detalle_compra {
+  id                                                                String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  compra_id                                                         String                    @db.Uuid
+  comprador_id                                                      String                    @db.Uuid
+  cooperativa_id                                                    String                    @db.Uuid
+  viaje_id                                                          String                    @db.Uuid
+  pasajero_id                                                       String                    @db.Uuid
+  asiento_id                                                        String                    @db.Uuid
+  origen_orden                                                      Int
+  destino_orden                                                     Int
+  categoria                                                         String
+  tarifa_id                                                         String                    @db.Uuid
+  validacion_descuento_id                                           String?                   @db.Uuid
+  pasajero_snapshot                                                 Json
+  asiento_snapshot                                                  Json
+  precio_base                                                       Decimal                   @db.Decimal(12, 2)
+  descuento                                                         Decimal                   @default(0) @db.Decimal(12, 2)
+  importe                                                           Decimal?                  @default(dbgenerated("(precio_base - descuento)")) @db.Decimal(12, 2)
+  tramo                                                             Unsupported("int4range")? @default(dbgenerated("int4range(origen_orden, destino_orden, '[)'::text)"))
+  estado                                                            String                    @default("RETENIDO")
+  boletos                                                           boletos?
+  compras_detalle_compra_compra_id_comprador_idTocompras            compras                   @relation("detalle_compra_compra_id_comprador_idTocompras", fields: [compra_id, comprador_id], references: [id, comprador_id], onDelete: NoAction, onUpdate: NoAction)
+  compras_detalle_compra_compra_id_viaje_id_cooperativa_idTocompras compras                   @relation("detalle_compra_compra_id_viaje_id_cooperativa_idTocompras", fields: [compra_id, viaje_id, cooperativa_id], references: [id, viaje_id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  pasajeros                                                         pasajeros                 @relation(fields: [pasajero_id, comprador_id], references: [id, comprador_id], onDelete: NoAction, onUpdate: NoAction)
+  tarifas_viaje                                                     tarifas_viaje             @relation(fields: [tarifa_id, viaje_id, origen_orden, destino_orden, categoria], references: [id, viaje_id, origen_orden, destino_orden, categoria], onDelete: NoAction, onUpdate: NoAction)
+  validaciones_descuento                                            validaciones_descuento?   @relation(fields: [validacion_descuento_id, pasajero_id, cooperativa_id], references: [id, pasajero_id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  asientos_viaje                                                    asientos_viaje            @relation(fields: [viaje_id, asiento_id], references: [viaje_id, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([compra_id, pasajero_id])
+  @@unique([id, compra_id])
+  @@index([viaje_id, estado], map: "detalle_viaje_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model dias_frecuencia {
+  frecuencia_id String      @db.Uuid
+  dia_iso       Int         @db.SmallInt
+  frecuencias   frecuencias @relation(fields: [frecuencia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([frecuencia_id, dia_iso])
+  @@schema("rutaec")
+}
+
+model documentos_pasajero {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pasajero_id            String                   @db.Uuid
+  archivo_id             String                   @db.Uuid
+  tipo                   String
+  vence_en               DateTime?                @db.Date
+  creado_en              DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  archivos               archivos                 @relation(fields: [archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pasajeros              pasajeros                @relation(fields: [pasajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  validaciones_descuento validaciones_descuento[]
+
+  @@unique([id, pasajero_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model envios_correo {
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evento_id           String         @db.Uuid
+  destinatario        String
+  plantilla           String
+  variables           Json           @default("{}")
+  compra_id           String?        @db.Uuid
+  adjunto_archivo_id  String?        @db.Uuid
+  clave_deduplicacion String         @unique
+  proveedor_id        String?
+  estado              String         @default("PENDIENTE")
+  intentos            Int            @default(0)
+  proximo_intento_en  DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  bloqueado_hasta     DateTime?      @db.Timestamptz(6)
+  creado_en           DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  enviado_en          DateTime?      @db.Timestamptz(6)
+  ultimo_error        String?
+  archivos            archivos?      @relation(fields: [adjunto_archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  compras             compras?       @relation(fields: [compra_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  eventos_salida      eventos_salida @relation(fields: [evento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([estado, proximo_intento_en], map: "correo_pendiente_idx")
+  @@schema("rutaec")
+}
+
+model eventos_proveedor {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pago_id           String    @db.Uuid
+  proveedor         String
+  evento_externo_id String
+  tipo              String
+  firma_verificada  Boolean   @default(false)
+  resumen           Json      @default("{}")
+  recibido_en       DateTime  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  procesado_en      DateTime? @db.Timestamptz(6)
+  pagos             pagos     @relation(fields: [pago_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([proveedor, evento_externo_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model eventos_salida {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo                String
+  entidad_id          String           @db.Uuid
+  cooperativa_id      String?          @db.Uuid
+  datos               Json             @default("{}")
+  clave_deduplicacion String           @unique
+  estado              String           @default("PENDIENTE")
+  intentos            Int              @default(0)
+  disponible_en       DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  bloqueado_hasta     DateTime?        @db.Timestamptz(6)
+  creado_en           DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  procesado_en        DateTime?        @db.Timestamptz(6)
+  ultimo_error        String?
+  envios_correo       envios_correo[]
+  cooperativas        cooperativas?    @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notificaciones      notificaciones[]
+
+  @@index([estado, disponible_en], map: "eventos_pendientes_idx")
+  @@schema("rutaec")
+}
+
+model frecuencias {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id  String            @db.Uuid
+  codigo          String
+  ruta_id         String            @db.Uuid
+  resolucion_id   String            @db.Uuid
+  hora_salida     DateTime          @db.Time(6)
+  zona_horaria    String            @default("America/Guayaquil")
+  activa          Boolean           @default(true)
+  dias_frecuencia dias_frecuencia[]
+  cooperativas    cooperativas      @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resoluciones    resoluciones      @relation(fields: [resolucion_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  rutas           rutas             @relation(fields: [ruta_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  viajes          viajes[]
+
+  @@unique([cooperativa_id, codigo])
+  @@unique([id, cooperativa_id])
+  @@unique([id, ruta_id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model grupos_buses {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String       @db.Uuid
+  nombre         String
+  tipo           String
+  activo         Boolean      @default(true)
+  buses          buses[]
+  cooperativas   cooperativas @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  hojas_ruta     hojas_ruta[]
+
+  @@unique([cooperativa_id, nombre])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+model historial_revisiones {
+  id          BigInt     @id @default(autoincrement())
+  revision_id String     @db.Uuid
+  actor_id    String     @db.Uuid
+  accion      String
+  motivo      String?
+  fecha       DateTime   @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  usuarios    usuarios   @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  revisiones  revisiones @relation(fields: [revision_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hojas_ruta {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String       @db.Uuid
+  grupo_id       String       @db.Uuid
+  fecha          DateTime     @db.Date
+  estado         String       @default("BORRADOR")
+  creado_por     String       @db.Uuid
+  cooperativas   cooperativas @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios       usuarios     @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grupos_buses   grupos_buses @relation(fields: [grupo_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  viajes         viajes[]
+
+  @@unique([grupo_id, fecha])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model incidencias {
+  id                                        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  compra_id                                 String       @db.Uuid
+  cooperativa_id                            String       @db.Uuid
+  pago_id                                   String?      @db.Uuid
+  tipo                                      String
+  descripcion                               String
+  estado                                    String       @default("ABIERTA")
+  creado_por                                String?      @db.Uuid
+  asignado_a                                String?      @db.Uuid
+  resolucion                                String?
+  creado_en                                 DateTime     @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  resuelto_en                               DateTime?    @db.Timestamptz(6)
+  usuarios_incidencias_asignado_aTousuarios usuarios?    @relation("incidencias_asignado_aTousuarios", fields: [asignado_a], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  compras                                   compras      @relation(fields: [compra_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_incidencias_creado_porTousuarios usuarios?    @relation("incidencias_creado_porTousuarios", fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos                                     pagos?       @relation(fields: [pago_id, compra_id], references: [id, compra_id], onDelete: NoAction, onUpdate: NoAction)
+  reembolsos                                reembolsos[]
+
+  @@index([cooperativa_id, estado, creado_en], map: "incidencias_pendientes_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model miembros_cooperativa {
+  cooperativa_id String       @db.Uuid
+  usuario_id     String       @db.Uuid
+  rol            String
+  activo         Boolean      @default(true)
+  asignado_en    DateTime     @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  cooperativas   cooperativas @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles          roles        @relation(fields: [rol], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+  usuarios       usuarios     @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  revisiones     revisiones[]
+
+  @@id([cooperativa_id, usuario_id])
+  @@index([usuario_id], map: "miembros_usuario_idx", where: raw("activo"))
+  @@schema("rutaec")
+}
+
+model notificaciones {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id          String          @db.Uuid
+  cooperativa_id      String?         @db.Uuid
+  evento_id           String?         @db.Uuid
+  tipo                String
+  titulo              String
+  mensaje             String
+  destino_interno     String?
+  clave_deduplicacion String          @unique
+  creada_en           DateTime        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  leida_en            DateTime?       @db.Timestamptz(6)
+  cooperativas        cooperativas?   @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  eventos_salida      eventos_salida? @relation(fields: [evento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios            usuarios        @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([usuario_id, creada_en(sort: Desc)], map: "notificaciones_usuario_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pagos {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  compra_id            String              @unique(map: "pago_abierto_uq", where: raw("(estado = ANY (ARRAY['PENDIENTE'::text, 'EN_REVISION'::text, 'CORRECCION'::text]))")) @db.Uuid
+  cooperativa_id       String              @db.Uuid
+  metodo               String
+  estado               String              @default("PENDIENTE")
+  importe              Decimal             @db.Decimal(12, 2)
+  moneda               String              @default("USD") @db.Char(3)
+  cuenta_bancaria_id   String?             @db.Uuid
+  proveedor            String?
+  referencia_proveedor String?
+  clave_idempotencia   String              @unique @db.Uuid
+  sandbox              Boolean             @default(true)
+  creado_en            DateTime            @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  recibido_en          DateTime?           @db.Timestamptz(6)
+  aprobado_en          DateTime?           @db.Timestamptz(6)
+  confirmado_por       String?             @db.Uuid
+  motivo               String?
+  importe_recibido     Decimal?            @db.Decimal(12, 2)
+  moneda_recibida      String?             @db.Char(3)
+  comprobantes_pago    comprobantes_pago[]
+  eventos_proveedor    eventos_proveedor[]
+  incidencias          incidencias[]
+  compras              compras             @relation(fields: [compra_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios             usuarios?           @relation(fields: [confirmado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cuentas_bancarias    cuentas_bancarias?  @relation(fields: [cuenta_bancaria_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  reembolsos           reembolsos[]
+  revisiones           revisiones?
+
+  @@unique([id, compra_id])
+  @@unique([id, cooperativa_id])
+  @@unique([proveedor, referencia_proveedor])
+  @@index([compra_id], map: "pagos_compra_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model paradas_ruta {
+  ruta_id              String     @db.Uuid
+  orden                Int
+  terminal_id          String     @db.Uuid
+  minutos_desde_origen Int
+  permite_subida       Boolean    @default(true)
+  permite_bajada       Boolean    @default(true)
+  rutas                rutas      @relation(fields: [ruta_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  terminales           terminales @relation(fields: [terminal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([ruta_id, orden])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model paradas_viaje {
+  viaje_id                                                          String          @db.Uuid
+  orden                                                             Int
+  terminal_id                                                       String          @db.Uuid
+  nombre_snapshot                                                   String
+  llegada                                                           DateTime        @db.Timestamptz(6)
+  salida                                                            DateTime        @db.Timestamptz(6)
+  permite_subida                                                    Boolean         @default(true)
+  permite_bajada                                                    Boolean         @default(true)
+  terminales                                                        terminales      @relation(fields: [terminal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  viajes                                                            viajes          @relation(fields: [viaje_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarifas_viaje_tarifas_viaje_viaje_id_destino_ordenToparadas_viaje tarifas_viaje[] @relation("tarifas_viaje_viaje_id_destino_ordenToparadas_viaje")
+  tarifas_viaje_tarifas_viaje_viaje_id_origen_ordenToparadas_viaje  tarifas_viaje[] @relation("tarifas_viaje_viaje_id_origen_ordenToparadas_viaje")
+
+  @@id([viaje_id, orden])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pasajeros {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  comprador_id           String                   @db.Uuid
+  nombres                String
+  apellidos              String
+  fecha_nacimiento       DateTime                 @db.Date
+  tipo_documento         String
+  pais_documento         String                   @default("EC") @db.Char(2)
+  numero_documento       String
+  detalle_compra         detalle_compra[]
+  documentos_pasajero    documentos_pasajero[]
+  usuarios               usuarios                 @relation(fields: [comprador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  validaciones_descuento validaciones_descuento[]
+
+  @@unique([comprador_id, pais_documento, tipo_documento, numero_documento])
+  @@unique([id, comprador_id])
+  @@index([comprador_id], map: "pasajeros_comprador_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model politicas_descuento {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                 String
+  version                Int
+  descripcion            String
+  porcentaje             Decimal                  @db.Decimal(5, 2)
+  edad_minima            Int?                     @db.SmallInt
+  edad_maxima            Int?                     @db.SmallInt
+  documento_requerido    String
+  fuente_normativa       String
+  vigente_desde          DateTime                 @db.Date
+  vigente_hasta          DateTime?                @db.Date
+  activa                 Boolean                  @default(true)
+  validaciones_descuento validaciones_descuento[]
+
+  @@unique([codigo, version])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reembolsos {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  incidencia_id  String      @db.Uuid
+  pago_id        String      @db.Uuid
+  importe        Decimal     @db.Decimal(12, 2)
+  estado         String      @default("SOLICITADO")
+  motivo         String
+  referencia     String?
+  gestionado_por String?     @db.Uuid
+  creado_en      DateTime    @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  realizado_en   DateTime?   @db.Timestamptz(6)
+  usuarios       usuarios?   @relation(fields: [gestionado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incidencias    incidencias @relation(fields: [incidencia_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos          pagos       @relation(fields: [pago_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model resoluciones {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String        @db.Uuid
+  numero         String
+  autoridad      String
+  fecha_emision  DateTime      @db.Date
+  vigente_desde  DateTime      @db.Date
+  vigente_hasta  DateTime?     @db.Date
+  archivo_id     String?       @db.Uuid
+  frecuencias    frecuencias[]
+  archivos       archivos?     @relation(fields: [archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cooperativas   cooperativas  @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cooperativa_id, numero])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model revisiones {
+  id                                                                      String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id                                                          String                  @db.Uuid
+  tipo                                                                    String
+  pago_id                                                                 String?                 @unique @db.Uuid
+  validacion_id                                                           String?                 @unique @db.Uuid
+  asignado_a                                                              String?                 @db.Uuid
+  estado                                                                  String                  @default("PENDIENTE")
+  creado_en                                                               DateTime                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  tomado_en                                                               DateTime?               @db.Timestamptz(6)
+  resuelto_en                                                             DateTime?               @db.Timestamptz(6)
+  alertado_en                                                             DateTime?               @db.Timestamptz(6)
+  motivo                                                                  String?
+  historial_revisiones                                                    historial_revisiones[]
+  miembros_cooperativa                                                    miembros_cooperativa?   @relation(fields: [cooperativa_id, asignado_a], references: [cooperativa_id, usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  cooperativas                                                            cooperativas            @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pagos                                                                   pagos?                  @relation(fields: [pago_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  validaciones_descuento_revisiones_validacion_idTovalidaciones_descuento validaciones_descuento? @relation("revisiones_validacion_idTovalidaciones_descuento", fields: [validacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cooperativa_id, estado, creado_en], map: "revisiones_bandeja_idx")
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model roles {
+  codigo               String                 @id
+  nombre               String
+  miembros_cooperativa miembros_cooperativa[]
+  roles_globales       roles_globales[]
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model roles_globales {
+  usuario_id String   @db.Uuid
+  rol        String
+  roles      roles    @relation(fields: [rol], references: [codigo], onDelete: NoAction, onUpdate: NoAction)
+  usuarios   usuarios @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([usuario_id, rol])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rutas {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String         @db.Uuid
+  nombre         String
+  version        Int            @default(1)
+  activa         Boolean        @default(true)
+  frecuencias    frecuencias[]
+  paradas_ruta   paradas_ruta[]
+  cooperativas   cooperativas   @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cooperativa_id, nombre, version])
+  @@unique([id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model servicios_contratados {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id String       @db.Uuid
+  nombre         String
+  descripcion    String?
+  inicio         DateTime     @db.Date
+  fin            DateTime?    @db.Date
+  importe        Decimal      @default(0) @db.Decimal(12, 2)
+  estado         String
+  cooperativas   cooperativas @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tarifas_viaje {
+  id                                                                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  viaje_id                                                          String           @db.Uuid
+  origen_orden                                                      Int
+  destino_orden                                                     Int
+  categoria                                                         String
+  importe                                                           Decimal          @db.Decimal(12, 2)
+  moneda                                                            String           @default("USD") @db.Char(3)
+  fuente_normativa                                                  String
+  vigente_desde                                                     DateTime         @db.Date
+  vigente_hasta                                                     DateTime?        @db.Date
+  detalle_compra                                                    detalle_compra[]
+  paradas_viaje_tarifas_viaje_viaje_id_destino_ordenToparadas_viaje paradas_viaje    @relation("tarifas_viaje_viaje_id_destino_ordenToparadas_viaje", fields: [viaje_id, destino_orden], references: [viaje_id, orden], onDelete: NoAction, onUpdate: NoAction)
+  viajes                                                            viajes           @relation(fields: [viaje_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paradas_viaje_tarifas_viaje_viaje_id_origen_ordenToparadas_viaje  paradas_viaje    @relation("tarifas_viaje_viaje_id_origen_ordenToparadas_viaje", fields: [viaje_id, origen_orden], references: [viaje_id, orden], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, viaje_id, origen_orden, destino_orden, categoria])
+  @@unique([viaje_id, origen_orden, destino_orden, categoria])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model terminales {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ciudad_id     String          @db.Uuid
+  nombre        String
+  direccion     String
+  latitud       Decimal?        @db.Decimal(9, 6)
+  longitud      Decimal?        @db.Decimal(9, 6)
+  paradas_ruta  paradas_ruta[]
+  paradas_viaje paradas_viaje[]
+  ciudades      ciudades        @relation(fields: [ciudad_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([ciudad_id, nombre])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tokens_acceso {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id   String    @db.Uuid
+  proposito    String
+  token_hash   String    @unique
+  nuevo_correo String?
+  creado_en    DateTime  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  vence_en     DateTime  @db.Timestamptz(6)
+  consumido_en DateTime? @db.Timestamptz(6)
+  revocado_en  DateTime? @db.Timestamptz(6)
+  usuarios     usuarios  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model usuarios {
+  id                                           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  correo                                       String
+  nombres                                      String
+  apellidos                                    String
+  tipo_documento                               String
+  pais_documento                               String                   @default("EC") @db.Char(2)
+  numero_documento                             String
+  telefono                                     String
+  password_hash                                String
+  correo_verificado_en                         DateTime?                @db.Timestamptz(6)
+  activo                                       Boolean                  @default(true)
+  creado_en                                    DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  actualizado_en                               DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  archivos                                     archivos[]
+  auditoria                                    auditoria[]
+  compras_compras_comprador_idTousuarios       compras[]                @relation("compras_comprador_idTousuarios")
+  compras_compras_creado_porTousuarios         compras[]                @relation("compras_creado_porTousuarios")
+  historial_revisiones                         historial_revisiones[]
+  hojas_ruta                                   hojas_ruta[]
+  incidencias_incidencias_asignado_aTousuarios incidencias[]            @relation("incidencias_asignado_aTousuarios")
+  incidencias_incidencias_creado_porTousuarios incidencias[]            @relation("incidencias_creado_porTousuarios")
+  miembros_cooperativa                         miembros_cooperativa[]
+  notificaciones                               notificaciones[]
+  pagos                                        pagos[]
+  pasajeros                                    pasajeros[]
+  reembolsos                                   reembolsos[]
+  roles_globales                               roles_globales[]
+  tokens_acceso                                tokens_acceso[]
+  validaciones_descuento                       validaciones_descuento[]
+
+  @@unique([pais_documento, tipo_documento, numero_documento])
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model validaciones_descuento {
+  id                                                          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pasajero_id                                                 String              @db.Uuid
+  cooperativa_id                                              String              @db.Uuid
+  politica_id                                                 String              @db.Uuid
+  documento_id                                                String              @db.Uuid
+  estado                                                      String              @default("PENDIENTE")
+  valido_desde                                                DateTime            @db.Date
+  valido_hasta                                                DateTime            @db.Date
+  revisado_por                                                String?             @db.Uuid
+  revisado_en                                                 DateTime?           @db.Timestamptz(6)
+  motivo                                                      String?
+  detalle_compra                                              detalle_compra[]
+  revisiones_revisiones_validacion_idTovalidaciones_descuento revisiones?         @relation("revisiones_validacion_idTovalidaciones_descuento")
+  cooperativas                                                cooperativas        @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documentos_pasajero                                         documentos_pasajero @relation(fields: [documento_id, pasajero_id], references: [id, pasajero_id], onDelete: NoAction, onUpdate: NoAction)
+  pasajeros                                                   pasajeros           @relation(fields: [pasajero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  politicas_descuento                                         politicas_descuento @relation(fields: [politica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios                                                    usuarios?           @relation(fields: [revisado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, cooperativa_id])
+  @@unique([id, pasajero_id, cooperativa_id])
+  @@schema("rutaec")
+}
+
+model versiones_esquema {
+  numero           Int      @id
+  entrega_objetivo String
+  descripcion      String
+  aplicada_en      DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+
+  @@schema("rutaec")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model viajes {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cooperativa_id     String           @db.Uuid
+  hoja_ruta_id       String           @db.Uuid
+  frecuencia_id      String           @db.Uuid
+  ruta_id            String           @db.Uuid
+  bus_id             String           @db.Uuid
+  agenda_id          String           @unique @db.Uuid
+  estado             String           @default("BORRADOR")
+  cierre_ventas      DateTime         @db.Timestamptz(6)
+  publicado_en       DateTime?        @db.Timestamptz(6)
+  motivo_cancelacion String?
+  asientos_viaje     asientos_viaje[]
+  compras            compras[]
+  paradas_viaje      paradas_viaje[]
+  tarifas_viaje      tarifas_viaje[]
+  agenda_bus         agenda_bus       @relation(fields: [agenda_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cooperativas       cooperativas     @relation(fields: [cooperativa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  frecuencias        frecuencias      @relation(fields: [frecuencia_id, ruta_id, cooperativa_id], references: [id, ruta_id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+  hojas_ruta         hojas_ruta       @relation(fields: [hoja_ruta_id, cooperativa_id], references: [id, cooperativa_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, cooperativa_id])
+  @@index([bus_id], map: "viajes_bus_idx")
+  @@index([cooperativa_id, estado, cierre_ventas], map: "viajes_cooperativa_idx")
+  @@schema("rutaec")
+}

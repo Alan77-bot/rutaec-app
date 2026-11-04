@@ -2,7 +2,7 @@
 # Variables de entorno
 .env
 .env.*
-!.env.example
+.env.example
 
 # Credenciales y secretos
 *.pem
@@ -58,3 +58,19 @@ desktop.ini
 # Datos locales de Docker y PostgreSQL
 postgres-data/
 docker-data/
+
+
+# Archivos auxiliares de herramientas
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+# Archivos temporales de Prisma
+backend/prisma/introspeccion.prisma
+backend/prisma/schema.backup
+backend/prisma/schema.sin-modelos.backup
+
+/frontend/viajaya-reference/
+
+backend/storage/

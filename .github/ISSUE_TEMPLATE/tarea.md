@@ -1,4 +1,3 @@
-
 ---
 name: "Tarea"
 about: "Registrar una tarea o funcionalidad de RutaEC"

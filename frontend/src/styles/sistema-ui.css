@@ -1,0 +1,82 @@
+/* Base visual única. Los colores de marca se heredan del contexto de cooperativa. */
+:root {
+  --ui-fuente: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: var(--ui-fuente);
+  --ui-marca: var(--coop-primario, var(--acento, #1b3f68));
+  --ui-sobre-marca: var(--coop-secundario, #ffffff);
+  --ui-texto: #203047;
+  --ui-suave: #64748b;
+  --ui-borde: #dce3ed;
+  --ui-superficie: #ffffff;
+  --ui-fondo: #f4f6fa;
+  --ui-radio: 12px;
+  --ui-sombra: 0 8px 28px rgba(21, 39, 67, .07);
+}
+/* Resolver las variables en el elemento que recibe los colores de cooperativa. */
+.tema-cooperativa { --ui-marca: var(--coop-primario); --ui-sobre-marca: var(--coop-secundario); }
+.rutas-formulario { border: 0; padding: 0; margin: 0; display: grid; gap: 16px; min-width: 0; }
+.rutas-formulario label { display: grid; gap: 6px; font-size: .9rem; font-weight: 600; }
+.rutas-formulario :is(input,select) { width: 100%; min-width: 0; }
+.ruta-parada { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--ui-borde); border-radius: 12px; }
+.gestion-rutas .tabla-wrap { overflow-x: auto; }
+.gestion-rutas td small { display: block; margin-top: 4px; color: var(--ui-suave); }
+html, body, #root { font-family: var(--ui-fuente); }
+#root :is(h1,h2,h3,h4,h5,h6,p,a,button,input,select,textarea,label,table,small,strong,b,span,div,section,article,dt,dd) { font-family: var(--ui-fuente) !important; }
+#root :is(h1,h2,h3,h4,h5,h6) { font-weight: 700; letter-spacing: -.02em; }
+#root :is(button,input,select,textarea) { font-size: .9rem; }
+#root :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),select,textarea) {
+  min-height: 44px; border: 1px solid var(--ui-borde) !important; border-radius: 10px !important;
+  padding: 10px 12px; background-color: var(--ui-superficie); color: var(--ui-texto);
+}
+#root :is(input,select,textarea):focus-visible { outline: 3px solid color-mix(in srgb, var(--ui-marca) 25%, transparent) !important; outline-offset: 2px; border-color: var(--ui-marca) !important; }
+#root :is(input[type=checkbox],input[type=radio]) { accent-color: var(--ui-marca); }
+#root :is(button,.btn) { border-radius: 10px; font-weight: 600; }
+#root :is(.btn,.gm-btn,.pc-boton-validar) { min-height: 44px; padding: 10px 16px; box-shadow: none; }
+#root :is(.btn-oscuro,.btn-acento,.btn-primary,.gm-btn.primario,.pc-boton-validar) { background: var(--ui-marca) !important; border-color: var(--ui-marca) !important; color: var(--ui-sobre-marca) !important; }
+#root :is(.btn-claro,.btn-secondary,.gm-btn:not(.primario):not(.peligro)) { background: white; border: 1px solid var(--ui-borde); color: var(--ui-marca); }
+#root :is(.btn-danger,.gm-btn.peligro,.pc-peligro) { background: #b42318; border-color: #b42318; color: white; }
+#root button:disabled { cursor: not-allowed; opacity: .5; }
+#root button:focus-visible, #root a:focus-visible { outline: 3px solid color-mix(in srgb, var(--ui-marca) 40%, transparent); outline-offset: 3px; }
+#root :is(.panel,.gm-card,.pc-tarjeta,.pc-preview-panel) { border: 1px solid var(--ui-borde); border-radius: var(--ui-radio); background: var(--ui-superficie); box-shadow: var(--ui-sombra); }
+#root table { width: 100%; border-collapse: collapse; text-align: left; font-size: .9rem; }
+#root table :is(th,td) { padding: 14px 16px !important; border-bottom: 1px solid var(--ui-borde) !important; vertical-align: middle; }
+#root table th { background: var(--ui-fondo) !important; color: var(--ui-suave) !important; font-size: .75rem !important; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+#root table td { color: var(--ui-texto); font-size: .9rem !important; }
+#root table tbody tr:hover { background: color-mix(in srgb, var(--ui-marca) 4%, white); }
+#root table tbody tr:last-child td { border-bottom: 0 !important; }
+#root :is(.tabs,.of-tabs) button { min-height: 44px; padding: 10px 16px; }
+#root :is(.tabs,.of-tabs) button.on, #root .gm-tab.activo { color: var(--ui-marca); border-color: var(--ui-marca); }
+
+/* Todos los módulos utilizan el mismo contenedor, fondo, encabezado y acciones. */
+#root .ui-dialogo-fondo {
+  position: fixed !important; inset: 0 !important; z-index: 9999 !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  padding: 24px !important; overflow-y: auto; background: rgba(15, 23, 42, .58) !important; backdrop-filter: blur(4px) !important;
+}
+#root .ui-dialogo {
+  position: relative; width: 100% !important; max-width: 680px !important; max-height: calc(100dvh - 48px) !important;
+  margin: auto !important; overflow: auto !important; padding: 24px !important; border: 1px solid var(--ui-borde) !important;
+  border-radius: 16px !important; background: white !important; color: var(--ui-texto) !important;
+  box-shadow: 0 24px 70px rgba(15,23,42,.25) !important; text-align: left;
+}
+#root .ui-dialogo.of-modal--amplio { max-width: 880px !important; }
+#root .ui-dialogo :is(h2,h3) { color: var(--ui-texto) !important; font-size: 1.25rem !important; line-height: 1.3; margin-bottom: 8px; }
+#root .ui-dialogo :is(.gm-modal-cabecera,.of-modal-cabecera,.modal-header), #root .ui-dialogo > header {
+  padding: 0 0 20px !important; margin-bottom: 20px; border-bottom: 1px solid var(--ui-borde) !important;
+}
+#root .ui-dialogo :is(.gm-modal-cuerpo,.of-modal-contenido) { padding: 0 !important; }
+#root .ui-dialogo :is(.gm-modal-pie,.of-modal-pie,.modal-footer,.pc-modal-botones), #root .ui-dialogo > footer {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px;
+  padding: 20px 0 0 !important; margin-top: 24px; border-top: 1px solid var(--ui-borde) !important; background: white !important;
+}
+#root .ui-dialogo :is(.modal-x,.modal-cerrar,.gm-cerrar,.of-modal-cerrar,button[aria-label^="Cerrar"]) {
+  width: 36px !important; height: 36px !important; min-height: 36px !important; padding: 0 !important;
+  border: 1px solid var(--ui-borde) !important; border-radius: 10px !important; background: var(--ui-fondo) !important; color: var(--ui-texto) !important;
+  display: inline-grid; place-items: center; flex-shrink: 0;
+}
+#root .ui-dialogo :is(.gm-form-grid,.of-form-grid) { gap: 16px; }
+@media (max-width: 600px) {
+  #root .ui-dialogo-fondo { padding: 12px !important; }
+  #root .ui-dialogo { padding: 20px !important; max-height: calc(100dvh - 24px) !important; }
+  #root table :is(th,td) { padding: 12px !important; }
+}
