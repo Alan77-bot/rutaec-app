@@ -99,7 +99,8 @@ router.post("/:id/resolver", async (req, res) => {
       }
       const referencia=String(req.body.referencia).trim();
       if(referencia.length<3||referencia.length>40||!pago.cuenta_bancaria_id)throw new ErrorRevision(400,'Referencia bancaria o cuenta inválidas.');
-      const proveedor=`BANCO:${pago.cooperativa_id}:${pago.cuenta_bancaria_id}`;
+      const cuenta = await tx.cuentas_bancarias.findUnique({where:{id:pago.cuenta_bancaria_id}});
+      const proveedor=process.env.NODE_ENV==='development' && cuenta?.banco.startsWith('BANCO DEMO') ? 'DEMO_SIN_COBRO' : `BANCO:${pago.cooperativa_id}:${pago.cuenta_bancaria_id}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${proveedor}:${referencia}`},0))`;
       const repetido=await tx.pagos.findFirst({where:{id:{not:pago.id},OR:[{proveedor,referencia_proveedor:referencia},{cuenta_bancaria_id:pago.cuenta_bancaria_id,estado:{in:['APROBADO','RECIBIDO_INCIDENCIA']},comprobantes_pago:{some:{numero_referencia:referencia}}}]}});
       if(repetido)throw new ErrorRevision(409,'La referencia bancaria ya está registrada en otro pago. Revisa la conciliación.');
@@ -109,6 +110,8 @@ router.post("/:id/resolver", async (req, res) => {
     if (salida.resultado === 'CONFIRMADA' && r.pago_id) {
       const pago = await tx.pagos.findUniqueOrThrow({ where: { id: r.pago_id }, select: { compra_id: true } });
       await tx.$executeRaw`SELECT rutaec.emitir_boletos(${pago.compra_id}::uuid)`;
+      const demo = await tx.pagos.findFirst({where:{compra_id:pago.compra_id,proveedor:'DEMO_SIN_COBRO',estado:'APROBADO'}});
+      if (demo) await tx.$executeRaw`UPDATE rutaec.boletos SET datos_emision=datos_emision || '{"modo_demo":true}'::jsonb WHERE compra_id=${pago.compra_id}::uuid`;
     }
     return salida.resultado;
   });

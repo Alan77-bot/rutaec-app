@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import { qrComoPng } from "./boletos.qr.js";
 import type { DatosEmision } from "./boletos.service.js";
+import { leerLogoPublico } from '../cooperativas/personalizacion.archivos.js';
 
 type BoletoParaPdf = {
   codigo: string;
@@ -38,6 +39,8 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
   const d = boleto.datos_emision;
   const qr = await qrComoPng(boleto.qr_token);
   const primario = colorValido(d.color_primario, "#1b3f68");
+  const secundario = colorValido(d.color_secundario, '#ffffff');
+  const logo = await leerLogoPublico(d.logo_archivo_id);
 
   const doc = new PDFDocument({
     size: [620, 270],
@@ -53,8 +56,12 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
 
   // Franja superior con el color de la cooperativa
   doc.rect(0, 0, 620, 52).fill(primario);
-  doc.fillColor("#ffffff").fontSize(18).font("Helvetica-Bold");
-  doc.text(d.cooperativa, 24, 17, { width: 400 });
+  if (logo) {
+    try { doc.image(logo, 12, 6, { fit: [40, 40], align: 'center', valign: 'center' }); }
+    catch { /* Una imagen dañada no debe impedir emitir el boleto. */ }
+  }
+  doc.fillColor(secundario).fontSize(18).font("Helvetica-Bold");
+  doc.text(d.cooperativa, logo ? 62 : 24, 17, { width: logo ? 330 : 360 });
   doc.fontSize(10).font("Helvetica");
   doc.text(d.modo_demo ? "DEMO - SIN COBRO REAL" : "RutaEC · Boleto de viaje", 400, 21, { width: 196, align: "right" });
 
@@ -75,6 +82,8 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
   fila("Asiento", `${d.asiento.numero ?? "—"}${d.asiento.categoria ? " · " + d.asiento.categoria : ""}`, 230, 108);
   fila("Bus", `${d.unidad ? "N.º " + d.unidad : "—"}${d.placa ? " · " + d.placa : ""}`, 230, 146);
   fila("Importe", dinero(d.importe, d.moneda), 230, 184);
+  doc.font('Helvetica').fontSize(8).fillColor('#6b7280');
+  doc.text([d.telefono, d.correo].filter(Boolean).join(' · '), 24, 242, { width: 395 });
 
   // QR
   doc.image(qr, 440, 70, { width: 150 });
