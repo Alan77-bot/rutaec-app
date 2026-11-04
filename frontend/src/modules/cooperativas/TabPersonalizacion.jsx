@@ -1,5 +1,7 @@
+import Dialogo from '../../components/ui/Dialogo'
 import { useEffect, useMemo, useState } from 'react'
 import './TabPersonalizacion.css'
+import { guardarPersonalizacion } from './services/personalizacion.service'
 
 const VALORES = {
   color_primario: '#16324F',
@@ -31,7 +33,7 @@ function prepararDatos(coop) {
         ? coop.color_secundario
         : VALORES.color_secundario,
     logo: coop?.logo || '',
-    fotografia: '',
+    fotografia: coop?.fotografia || '',
     correo: coop?.correo || '',
     telefono: coop?.telefono || '',
     direccion: coop?.direccion || '',
@@ -125,6 +127,7 @@ export default function TabPersonalizacion({ coop }) {
   const [form, setForm] = useState(() => prepararDatos(coop))
   const [original, setOriginal] = useState(() => prepararDatos(coop))
 
+  const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
@@ -170,6 +173,11 @@ export default function TabPersonalizacion({ coop }) {
 
   const seleccionarImagen = (campo, evento) => {
     const archivo = evento.target.files?.[0]
+    if (campo === 'logo' && archivo?.type === 'image/webp') {
+      setError('Para el logotipo utiliza PNG o JPG, compatibles con los boletos PDF.')
+      evento.target.value = ''
+      return
+    }
 
     cargarImagen(
       archivo,
@@ -187,7 +195,8 @@ export default function TabPersonalizacion({ coop }) {
     setMensaje('Se restauró la vista previa original.')
   }
 
-  const validar = () => {
+  const validar = async () => {
+    if (guardando) return
     if (
       !/^#[0-9a-f]{6}$/i.test(form.color_primario) ||
       !/^#[0-9a-f]{6}$/i.test(form.color_secundario)
@@ -212,9 +221,19 @@ export default function TabPersonalizacion({ coop }) {
     }
 
     setError('')
-    setMensaje(
-      'Vista previa validada. Estos cambios todavía no se guardan en el servidor.'
-    )
+    setGuardando(true)
+    try {
+      const datos = await guardarPersonalizacion(coop.id, form)
+      const guardados = prepararDatos(datos)
+      setForm(guardados)
+      setOriginal(guardados)
+      setMensaje('Personalización guardada correctamente.')
+      window.dispatchEvent(new CustomEvent('coop:personalizacion', { detail: datos }))
+    } catch (e) {
+      setError(e.message || 'No se pudo guardar la personalización.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const nombre =
@@ -249,16 +268,14 @@ export default function TabPersonalizacion({ coop }) {
         </div>
 
         <span className="pc-etiqueta">
-          Vista previa local
+          Identidad de tu cooperativa
         </span>
       </header>
 
       <div className="pc-informacion">
-        <strong>Modo de previsualización</strong>
+        <strong>Identidad compartida</strong>
         <p>
-          Puedes configurar la apariencia y comprobar el resultado.
-          La API actual no dispone de una operación autorizada
-          para guardar esta personalización desde el panel.
+          Los cambios guardados se aplican a tu cooperativa y a sus oficinistas, sin modificar la identidad de otras cooperativas.
         </p>
       </div>
 
@@ -270,6 +287,7 @@ export default function TabPersonalizacion({ coop }) {
 
           <button
             type="button"
+            disabled={guardando}
             onClick={() => setMostrarConfirmacion(true)}
           >
             Descartar
@@ -290,7 +308,7 @@ export default function TabPersonalizacion({ coop }) {
       )}
 
       <div className="pc-layout">
-        <div className="pc-formularios">
+        <fieldset className="pc-formularios" disabled={guardando} style={{ border: 0, padding: 0, margin: 0 }}>
           <Seccion
             numero="01"
             titulo="Identidad visual"
@@ -336,14 +354,14 @@ export default function TabPersonalizacion({ coop }) {
 
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg"
                   onChange={(evento) => {
                     seleccionarImagen('logo', evento)
                   }}
                 />
 
                 <small>
-                  PNG, JPG o WEBP · Máximo 2 MB
+                  PNG o JPG · Máximo 2 MB
                 </small>
 
                 {form.logo && (
@@ -352,7 +370,7 @@ export default function TabPersonalizacion({ coop }) {
                     className="pc-enlace"
                     onClick={() => cambiar('logo', '')}
                   >
-                    Quitar de la vista previa
+                    Quitar imagen
                   </button>
                 )}
               </label>
@@ -378,7 +396,7 @@ export default function TabPersonalizacion({ coop }) {
                     className="pc-enlace"
                     onClick={() => cambiar('fotografia', '')}
                   >
-                    Quitar de la vista previa
+                    Quitar imagen
                   </button>
                 )}
               </label>
@@ -388,7 +406,7 @@ export default function TabPersonalizacion({ coop }) {
           <Seccion
             numero="02"
             titulo="Información de contacto"
-            descripcion="Datos de contacto visibles en la vista previa."
+            descripcion="Datos de contacto públicos de tu cooperativa."
           >
             <div className="pc-grid">
               <Campo
@@ -452,7 +470,7 @@ export default function TabPersonalizacion({ coop }) {
               />
             </div>
           </Seccion>
-        </div>
+        </fieldset>
 
         <aside className="pc-preview-panel">
           <div className="pc-preview-titulo">
@@ -530,35 +548,28 @@ export default function TabPersonalizacion({ coop }) {
           </div>
 
           <div className="pc-preview-nota">
-            Esta vista previa no modifica el portal público,
-            los boletos ni los datos almacenados.
+            Comprueba el resultado antes de guardar. La identidad guardada se comparte con el personal de tu cooperativa.
           </div>
         </aside>
       </div>
 
       <footer className="pc-footer">
         <p>
-          El guardado definitivo estará disponible
-          cuando exista soporte autorizado en la API.
+          Los cambios se guardan únicamente para tu cooperativa.
         </p>
 
         <button
           type="button"
           className="pc-boton-validar"
+          disabled={!hayCambios || guardando}
           onClick={validar}
         >
-          Validar vista previa
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
         </button>
       </footer>
 
       {mostrarConfirmacion && (
-        <div className="pc-modal-fondo">
-          <div
-            className="pc-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pc-modal-titulo"
-          >
+        <Dialogo overlayProps={{"className": "pc-modal-fondo"}} panelProps={{"className": "pc-modal", "role": "dialog", "aria-modal": "true", "aria-labelledby": "pc-modal-titulo"}}>
             <h3 id="pc-modal-titulo">
               ¿Descartar los cambios?
             </h3>
@@ -584,8 +595,7 @@ export default function TabPersonalizacion({ coop }) {
                 Sí, descartar
               </button>
             </div>
-          </div>
-        </div>
+          </Dialogo>
       )}
     </div>
   )

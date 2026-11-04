@@ -21,6 +21,7 @@ export interface ViajeResultado {
   duracion: string;
   precio: number | null;
   precioVip: number | null;
+  precioNormal: number | null;
   moneda: string;
   libres: number;
   paradasIntermedias: number;
@@ -103,6 +104,7 @@ export function adaptarViaje(
     duracion: formatearDuracion(viaje.salida, viaje.llegada),
     precio: normal ?? vip,
     precioVip: vip,
+    precioNormal: normal,
     moneda: viaje.tarifas[0]?.moneda ?? "USD",
     libres: viaje.cupos_disponibles,
     paradasIntermedias: Math.max(0, tramos - 1),
@@ -113,7 +115,7 @@ export function adaptarViaje(
       id: viaje.cooperativa.id,
       nombre: viaje.cooperativa.nombre,
       color: viaje.cooperativa.color_primario,
-      logo: null,
+      logo: viaje.cooperativa.logo || null,
     },
     bus: {
       tipo: viaje.bus.pisos === 2 ? "dospisos" : "normal",

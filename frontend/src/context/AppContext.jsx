@@ -30,6 +30,11 @@ export function AppProvider({ children }) {
   const [usuarios, setUsuarios] = useState([])
   const [correos, setCorreos] = useState([])
   const [aviso, setAviso] = useState(null)
+  useEffect(() => {
+    const control = new AbortController()
+    fetch('/api/ajustes', { signal: control.signal }).then(async r => { if (!r.ok) throw new Error(); return r.json() }).then(setConfig).catch(() => {})
+    return () => control.abort()
+  }, [])
 
   const avisar = useCallback((texto) => {
     setAviso(texto)

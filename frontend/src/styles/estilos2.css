@@ -36,7 +36,7 @@ h1, h2, h3 { font-weight: 800; letter-spacing: -.02em; }
 .hero { background-color: #122c4a; background-size: cover; background-position: center 40%; min-height: 560px; padding: 110px 20px 130px; display: flex; align-items: center; }
 .hero-velo { position: absolute; inset: 0; z-index: 1; background: linear-gradient(95deg, rgba(12, 32, 56, .92) 0%, rgba(12, 32, 56, .72) 45%, rgba(12, 32, 56, .15) 100%), linear-gradient(0deg, rgba(12, 32, 56, .55), transparent 45%); }
 .hero-in { position: relative; z-index: 2; width: 100%; }
-.hero h1 { font-size: clamp(2.2rem, 5.2vw, 3.7rem); max-width: 680px; line-height: 1.05; }
+.hero h1 { color: #ffffff; font-size: clamp(2.2rem, 5.2vw, 3.7rem); max-width: 680px; line-height: 1.05; }
 .hero-stats { display: flex; gap: 34px; margin-top: 30px; }
 .hero-stats div { display: flex; flex-direction: column; }
 .hero-stats b { font-size: 2.1rem; font-weight: 800; color: var(--acento); line-height: 1; }

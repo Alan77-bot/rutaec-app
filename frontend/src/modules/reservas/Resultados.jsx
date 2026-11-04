@@ -1,7 +1,9 @@
-﻿import { useMemo, useState } from 'react'
+import Dialogo from '../../components/ui/Dialogo'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useBusquedaViajes } from './useBusquedaViajes'
 import { useCiudades } from './useCiudades'
+import { usePersonalizacion } from '../../context/PersonalizacionContext'
 import { urlCompra } from './reservas.enlaces'
 import { OPCIONES_FRANJA, OPCIONES_ORDEN, filtrarPorFranja, ordenarViajes } from './reservas.orden'
 
@@ -12,8 +14,7 @@ import { addDays, fechaLarga, hoy } from '../../data/fechas'
 function Modal({ viaje, onCerrar }) {
   const b = viaje.bus
   return (
-    <div className="modal-fondo" onClick={onCerrar}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <Dialogo overlayProps={{"className": "modal-fondo", "onClick": onCerrar}} panelProps={{"className": "modal", "onClick": (e) => e.stopPropagation()}}>
         <button className="modal-x" onClick={onCerrar}>✕</button>
         <img src={b.imagen || fotoBus(null, b.tipo)} alt={TIPOS_BUS[b.tipo].nombre} className="modal-bus foto" />
         <div className="modal-tit"><CoopLogo coop={viaje.coop} size={44} /><h3>Bus N.º {b.numero} · {viaje.coop.nombre}</h3></div>
@@ -39,8 +40,7 @@ function Modal({ viaje, onCerrar }) {
             </ol>
           </div>
         )}
-      </div>
-    </div>
+      </Dialogo>
   )
 }
 
@@ -54,7 +54,7 @@ export default function Resultados() {
   const fecha = q.get('fecha') || addDays(hoy(), 1)
   const n = Math.max(1, Number(q.get('n')) || 1)
 
-  const [fCoop, setFCoop] = useState('todos')
+  const { cooperativaId } = usePersonalizacion()
   const [fAsiento, setFAsiento] = useState('todos')
   const [fChasis, setFChasis] = useState('todos')
   const [fCarro, setFCarro] = useState('todos')
@@ -63,29 +63,23 @@ export default function Resultados() {
   const [orden, setOrden] = useState('hora')
   const [ver, setVer] = useState(null)
 
-  const { viajes, cargando, error, reintentar } = useBusquedaViajes({ origen, destino, fecha })
-  const { ciudades } = useCiudades()
+  const { viajes, cargando, error, reintentar } = useBusquedaViajes({ origen, destino, fecha, cooperativa: cooperativaId || undefined })
+  const { ciudades } = useCiudades(cooperativaId || undefined)
   // La ciudad buscada siempre figura en su selector, aunque la lista aun no haya llegado.
   const opcionesCon = (actual) => (ciudades.includes(actual) ? ciudades : [actual, ...ciudades])
 
-  const cooperativas = useMemo(() => {
-    const porId = new Map(viajes.map((v) => [v.coop.id, v.coop]))
-    return [...porId.values()]
-  }, [viajes])
   const marcasChasis = useMemo(() => [...new Set(viajes.map((v) => v.bus.chasis))], [viajes])
   const marcasCarro = useMemo(() => [...new Set(viajes.map((v) => v.bus.carroceria))], [viajes])
 
-  const coopActiva = vigente(fCoop, cooperativas.map((c) => c.id))
   const chasisActivo = vigente(fChasis, marcasChasis)
   const carroActiva = vigente(fCarro, marcasCarro)
 
   const filtrados = viajes.filter(
     (v) =>
-      (coopActiva === 'todos' || v.coop.id === coopActiva) &&
       (chasisActivo === 'todos' || v.bus.chasis === chasisActivo) &&
       (carroActiva === 'todos' || v.bus.carroceria === carroActiva) &&
       (fViaje === 'todos' || v.tipoViaje === fViaje) &&
-      (fAsiento === 'todos' || v.precioVip !== null)
+      (fAsiento === 'todos' || (fAsiento === 'normal' ? v.precioNormal !== null : v.precioVip !== null))
   )
   const lista = ordenarViajes(filtrarPorFranja(filtrados, fFranja), orden)
 
@@ -124,16 +118,10 @@ export default function Resultados() {
               {OPCIONES_FRANJA.map((o) => <option key={o.valor} value={o.valor}>{o.nombre}</option>)}
             </select>
           </label>
-          <label>Cooperativa
-            <select value={coopActiva} onChange={(e) => setFCoop(e.target.value)}>
-              <option value="todos">Todas</option>
-              {cooperativas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
-          </label>
           <label>Tipo de asiento
             <select value={fAsiento} onChange={(e) => setFAsiento(e.target.value)}>
               <option value="todos">Todos</option>
-              <option value="vip">Con asientos VIP</option>
+              <option value="normal">Normal</option><option value="vip">VIP</option>
             </select>
           </label>
           <label>Marca del chasis
@@ -230,7 +218,7 @@ export default function Resultados() {
                     {sinTarifa ? 'Sin tarifa' : v.libres === 0 ? 'Agotado' : 'No alcanzan'}
                   </button>
                 ) : (
-                  <Link className="btn btn-acento" to={urlCompra(v.id, { origen, destino, fecha, pasajeros: n })}>Elegir asientos</Link>
+                  <Link className="btn btn-acento" to={urlCompra(v.id, { origen, destino, fecha, pasajeros: n, cooperativa: v.coop.id })}>Elegir asientos</Link>
                 )}
               </div>
             </article>

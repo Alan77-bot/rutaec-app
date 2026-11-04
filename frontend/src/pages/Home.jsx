@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext'
 import Icon from '../components/Icon'
 import Reveal, { Contador } from '../components/Reveal'
 import CoopLogo from '../components/CoopLogo'
+import { usePersonalizacion } from '../context/PersonalizacionContext'
 import { addDays, hoy } from '../data/fechas'
 
 const DESTINOS = [
@@ -62,6 +63,7 @@ function Carrusel({ children }) {
 
 export default function Home() {
   const { config } = useApp()
+  const { cooperativa: identidad, cooperativaId, seleccionarCooperativa } = usePersonalizacion()
   const nav = useNavigate()
   const [origen, setOrigen] = useState('Ambato')
   const [destino, setDestino] = useState('Quito')
@@ -73,17 +75,17 @@ export default function Home() {
   const [cargando,setCargando]=useState(true)
   const [version,setVersion]=useState(0)
   useEffect(()=>{
-    if(!fecha)return
+    if(!fecha || !origen)return
     const control=new AbortController();setCargando(true);setError('')
-    fetch('/api/reservas/portada?'+new URLSearchParams({origen,fecha}),{signal:control.signal}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.error??'No se pudo cargar la portada.');return b.data}).then(d=>{
+    fetch('/api/reservas/portada?'+new URLSearchParams({origen,fecha,...(cooperativaId?{cooperativa:cooperativaId}:{})}),{signal:control.signal}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.error??'No se pudo cargar la portada.');return b.data}).then(d=>{
       setPortada(d)
       const nombres=d.ciudades.map(c=>c.nombre)
-      const nuevoOrigen=nombres.includes(origen)?origen:nombres[0]??''
+      const nuevoOrigen=nombres.includes(origen)?origen:nombres[0]??origen
       if(nuevoOrigen!==origen)setOrigen(nuevoOrigen)
       setDestino(actual=>nombres.includes(actual)&&actual!==nuevoOrigen?actual:nombres.find(c=>c!==nuevoOrigen)??'')
     }).catch(e=>{if(e.name!=='AbortError'){setError(e.message);setPortada(null)}}).finally(()=>{if(!control.signal.aborted)setCargando(false)})
     return()=>control.abort()
-  },[origen,fecha,version])
+  },[origen,fecha,version,cooperativaId])
   const ciudades=portada?.ciudades.map(c=>c.nombre)??[]
   const cooperativas=portada?.cooperativas??[]
   const destinos=cargando?[]:(portada?.destinos??[]).map(d=>({...d,...(DESTINOS.find(f=>f.ciudad===d.ciudad)??{foto:'/img/bus-azul.jpg',nota:'Viajes disponibles'})}))
@@ -91,7 +93,7 @@ export default function Home() {
   const buscar = (e) => {
     e.preventDefault()
     if(!origen||!destino||origen===destino)return
-    nav('/buscar?'+new URLSearchParams({origen,destino,fecha,n:String(n)}))
+    nav('/buscar?'+new URLSearchParams({origen,destino,fecha,n:String(n),...(cooperativaId?{cooperativa:cooperativaId}:{})}))
   }
   const cambiar = () => {
     setOrigen(destino)
@@ -100,12 +102,13 @@ export default function Home() {
 
   return (
     <>
-      <section className="hero" style={{ backgroundImage: 'url(/img/bus-azul.jpg)' }}>
+      <section className="hero" style={{ backgroundImage: `url(${JSON.stringify(identidad?.fotografia || '/img/bus-azul.jpg')})` }}>
         <div className="hero-velo" />
         <div className="hero-in">
-          <p className="etiqueta pop" style={{ animationDelay: '.05s' }}>Pasajes interprovinciales · Ecuador</p>
+          <p className="etiqueta pop" style={{ animationDelay: '.05s' }}>{identidad?.nombre || 'Pasajes interprovinciales · Ecuador'}</p>
           <h1 className="pop" style={{ animationDelay: '.15s' }}>Viaja entre provincias sin hacer fila en el terminal.</h1>
           <p className="hero-sub pop" style={{ animationDelay: '.28s' }}>Elige tu asiento, paga con transferencia y recibe tu boleto con código QR.</p>
+          {identidad && <p className="hero-contacto">{[identidad.telefono, identidad.correo].filter(Boolean).join(' · ')}</p>}
           <div className="hero-stats pop" style={{ animationDelay: '.4s' }}>
             <div><b>{portada?<Contador hasta={cooperativas.length} />:'—'}</b><span>cooperativas</span></div>
             <div><b>{portada?<Contador hasta={portada.frecuencias} />:'—'}</b><span>frecuencias</span></div>
@@ -157,7 +160,7 @@ export default function Home() {
                 <Link
                   key={d.ciudad}
                   className="destino"
-                  to={'/buscar?'+new URLSearchParams({origen,destino:d.ciudad,fecha,n:'1'})}
+                  to={'/buscar?'+new URLSearchParams({origen,destino:d.ciudad,fecha,n:'1',...(cooperativaId?{cooperativa:cooperativaId}:{})})}
                 >
                   <img src={d.foto} alt={`Vista de ${d.ciudad}`} loading="lazy" draggable="false" />
                   <div className="destino-info">
@@ -228,14 +231,14 @@ export default function Home() {
         </div>
       </section>
 
-      <Reveal as="section" className="banda" style={{ backgroundImage: 'url(/img/quito.jpg)' }}>
+      {!cooperativaId && <Reveal as="section" className="banda" style={{ backgroundImage: 'url(/img/quito.jpg)' }}>
         <div className="banda-velo" />
         <div className="banda-in">
           <h2>¿Tienes una cooperativa de transporte?</h2>
           <p>Administra tus buses, tus frecuencias y la hoja de ruta, y vende en línea y en ventanilla desde un solo lugar.</p>
           <Link to="/ingresar" className="btn btn-acento btn-lg">Ingresar al panel <Icon n="arrow" size={18} /></Link>
         </div>
-      </Reveal>
+      </Reveal>}
 
       <section className="seccion crema">
         <div className="contenedor">
@@ -245,8 +248,9 @@ export default function Home() {
           <div className="coops">
             {cooperativas.map((c, i) => (
               <Reveal key={c.id} delay={i * 80} className="coop-chip" style={{ '--c': c.color }}>
+                {c.fotografia && <img className="coop-fotografia" src={c.fotografia} alt={`Cooperativa ${c.nombre}`} />}
                 <CoopLogo coop={c} size={52} />
-                <div><b>{c.nombre}</b><small>{c.ciudad}</small></div>
+                <div><b style={{ color: c.color }}>{c.nombre}</b><small>{c.ciudad}</small><small>{c.telefono}</small><small>{c.correo}</small><button type="button" className="btn btn-claro" onClick={() => seleccionarCooperativa(c.id)}>Ver cooperativa</button></div>
               </Reveal>
             ))}
           </div>

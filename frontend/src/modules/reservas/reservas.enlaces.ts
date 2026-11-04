@@ -1,4 +1,5 @@
 export interface DatosEnlaceCompra {
+  cooperativa?: string;
   origen: string;
   destino: string;
   fecha: string;
@@ -18,6 +19,8 @@ export function urlCompra(viajeId: string, datos: DatosEnlaceCompra): string {
     n: String(datos.pasajeros),
   });
 
+  if (datos.cooperativa) consulta.set("cooperativa", datos.cooperativa);
+
   return `/comprar/${encodeURIComponent(viajeId)}?${consulta.toString()}`;
 }
 
@@ -29,6 +32,8 @@ export function urlResultados(datos: DatosEnlaceCompra): string {
     fecha: datos.fecha,
     n: String(datos.pasajeros),
   });
+
+  if (datos.cooperativa) consulta.set("cooperativa", datos.cooperativa);
 
   return `/buscar?${consulta.toString()}`;
 }
