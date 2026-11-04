@@ -43,6 +43,7 @@ export default function RecuperarContrasena() {
 
   return (
     <section className="auth-form">
+      {import.meta.env.DEV && <p><Link to="/correo-local" target="_blank">Consultar correo local de desarrollo</Link></p>}
       <div className="auth-card">
         <h1>Recuperar contraseña</h1>
 

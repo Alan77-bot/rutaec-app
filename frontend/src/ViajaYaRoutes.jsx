@@ -1,3 +1,4 @@
+import CorreoLocal from './modules/usuarios/CorreoLocal';
 import MisReservas from "./modules/reservas/MisReservas";
 import Descuentos from "./modules/reservas/Descuentos";
 import DetalleReserva from "./modules/reservas/DetalleReserva";
@@ -88,6 +89,7 @@ export default function ViajaYaRoutes() {
           <Route path="/reporte-operativo" element={<Protegida roles={["oficinista","cooperativa","admin"]}><ReporteOperativo /></Protegida>} />
           <Route path="/" element={<Home />} />
           <Route path="/ingresar" element={<Login />} />
+          <Route path="/correo-local" element={<CorreoLocal />} />
           <Route path="/perfil" element={<Protegida roles={["admin", "cooperativa", "oficinista", "usuario"]}><Perfil /></Protegida>} />
 
           <Route path="/buscar" element={<Resultados />} />
