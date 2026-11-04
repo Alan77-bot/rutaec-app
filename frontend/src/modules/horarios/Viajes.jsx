@@ -42,7 +42,7 @@ function tramosDe(ruta) {
   return tramos
 }
 
-export default function Viajes() {
+export default function Viajes({ integrada = false }) {
   const { sesion, ejecutar } = useApp()
   const esCoop = sesion?.rol === 'cooperativa'
 
@@ -163,7 +163,7 @@ export default function Viajes() {
   if (cargando) return <div className="splash" role="status">Cargando programación...</div>
 
   return (
-    <div className="contenedor">
+    <div className={integrada ? "gestion-programacion" : "contenedor"}>
       <div className="seccion-cab izq">
         <h1>Programación de viajes</h1>
         <p>Genera los viajes de cada frecuencia con su bus, sus tarifas por tramo y sus asientos.</p>
