@@ -4,6 +4,7 @@ import { obtenerCooperativas } from './services/cooperativas.service'
 import { busesService } from './services/buses.service'
 import TabOficinistas from './TabOficinistas'
 import TabFlota from './TabFlota'
+import TabAsientos from './TabAsientos'
 import BusArt from '../../components/BusArt'
 import { TIPOS_BUS, generarHoja } from '../../data/mock'
 import { addDays, DIAS, fechaCorta, hoy, parse } from '../../data/fechas'
@@ -32,17 +33,17 @@ function TabBuses({ coop, misBuses }) {
           <article key={b.id} className="bus-card">
             <BusArt tipo={b.tipo} color={coop.color} />
             <div>
-              <b>N.Âº {b.numero} Â· {b.placa}</b>
-              <small>{TIPOS_BUS[b.tipo].nombre} Â· {b.chasis} / {b.carroceria}</small>
+              <b>N.Ã‚Âº {b.numero} Ã‚Â· {b.placa}</b>
+              <small>{TIPOS_BUS[b.tipo].nombre} Ã‚Â· {b.chasis} / {b.carroceria}</small>
             </div>
             <button className="btn-link rojo" onClick={() => quitar(b.id)}>Quitar</button>
           </article>
         ))}
-        {misBuses.length === 0 && <div className="vacio"><b>AÃºn no registras buses.</b></div>}
+        {misBuses.length === 0 && <div className="vacio"><b>AÃƒÂºn no registras buses.</b></div>}
       </div>
       <form className="panel" onSubmit={agregar}>
         <h4>Nuevo bus</h4>
-        <label>NÃºmero<input value={form.numero} inputMode="numeric" onChange={(e) => setForm({ ...form, numero: e.target.value })} /></label>
+        <label>NÃƒÂºmero<input value={form.numero} inputMode="numeric" onChange={(e) => setForm({ ...form, numero: e.target.value })} /></label>
         <label>Placa<input placeholder="TBA-1234" value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value })} /></label>
         <label>Grupo
           <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
@@ -54,7 +55,7 @@ function TabBuses({ coop, misBuses }) {
             {['Hino', 'Volkswagen', 'Mercedes-Benz', 'Scania'].map((m) => <option key={m}>{m}</option>)}
           </select>
         </label>
-        <label>CarrocerÃ­a
+        <label>CarrocerÃƒÂ­a
           <select value={form.carroceria} onChange={(e) => setForm({ ...form, carroceria: e.target.value })}>
             {['Busscar', 'Marcopolo', 'Picasso', 'Varma'].map((m) => <option key={m}>{m}</option>)}
           </select>
@@ -93,12 +94,12 @@ function TabFrecuencias({ coop, misFrecs }) {
       <div className="tabla-wrap">
         <table className="tabla">
           <thead>
-            <tr><th>Ruta</th><th>Hora</th><th>ResoluciÃ³n ANT</th><th>Tipo</th><th>DÃ­as de venta</th><th>Precio</th><th>Estado</th></tr>
+            <tr><th>Ruta</th><th>Hora</th><th>ResoluciÃƒÂ³n ANT</th><th>Tipo</th><th>DÃƒÂ­as de venta</th><th>Precio</th><th>Estado</th></tr>
           </thead>
           <tbody>
             {misFrecs.map((f) => (
               <tr key={f.id} className={f.activa ? '' : 'inactiva'}>
-                <td><b>{f.paradas[0]} â†’ {f.paradas.at(-1)}</b>{f.tipo === 'compartida' && <small>vÃ­a {f.paradas.slice(1, -1).join(', ')}</small>}</td>
+                <td><b>{f.paradas[0]} Ã¢â€ â€™ {f.paradas.at(-1)}</b>{f.tipo === 'compartida' && <small>vÃƒÂ­a {f.paradas.slice(1, -1).join(', ')}</small>}</td>
                 <td>{f.hora}</td>
                 <td>{f.resolucion}</td>
                 <td><span className={'badge ' + (f.tipo === 'directa' ? 'verde' : f.tipo === 'tour' ? 'gris' : 'ambar')}>{f.tipo === 'directa' ? 'Directa' : f.tipo === 'tour' ? 'Tour' : 'Con paradas'}</span></td>
@@ -124,7 +125,7 @@ function TabFrecuencias({ coop, misFrecs }) {
           <label>Origen<select value={nueva.origen} onChange={(e) => setNueva({ ...nueva, origen: e.target.value })}>{ciudades.map((c) => <option key={c}>{c}</option>)}</select></label>
           <label>Destino<select value={nueva.destino} onChange={(e) => setNueva({ ...nueva, destino: e.target.value })}>{ciudades.map((c) => <option key={c}>{c}</option>)}</select></label>
           <label>Hora<input type="time" value={nueva.hora} onChange={(e) => setNueva({ ...nueva, hora: e.target.value })} /></label>
-          <label>N.Âº de resoluciÃ³n<input placeholder="ANT-2026-0001" value={nueva.resolucion} onChange={(e) => setNueva({ ...nueva, resolucion: e.target.value })} /></label>
+          <label>N.Ã‚Âº de resoluciÃƒÂ³n<input placeholder="ANT-2026-0001" value={nueva.resolucion} onChange={(e) => setNueva({ ...nueva, resolucion: e.target.value })} /></label>
           <label>Tipo<select value={nueva.tipo} onChange={(e) => setNueva({ ...nueva, tipo: e.target.value })}><option value="directa">Directa</option><option value="compartida">Con paradas</option></select></label>
           <label>Precio<input type="number" step="0.25" value={nueva.precio} onChange={(e) => setNueva({ ...nueva, precio: e.target.value })} /></label>
         </div>
@@ -156,7 +157,7 @@ function TabHoja({ coop, misBuses, misFrecs }) {
   }, [actual])
 
   const generar = () => {
-    if (misBuses.length <= activas.length) avisar('Ojo: no queda ningÃºn bus libre para dÃ­as de parada.')
+    if (misBuses.length <= activas.length) avisar('Ojo: no queda ningÃƒÂºn bus libre para dÃƒÂ­as de parada.')
     setBorrador(generarHoja(misBuses, misFrecs, inicio, Number(dias)))
   }
   const ciclar = (busId, d) => {
@@ -168,7 +169,7 @@ function TabHoja({ coop, misBuses, misFrecs }) {
     setBorrador({ ...actual, celdas })
   }
   const guardar = async () => {
-    const r = await ejecutar(() => acciones.guardarHoja(coop.id, { inicio: actual.inicio, dias: actual.dias, celdas: actual.celdas }), 'Hoja de ruta guardada. Ya estÃ¡ disponible para la venta.')
+    const r = await ejecutar(() => acciones.guardarHoja(coop.id, { inicio: actual.inicio, dias: actual.dias, celdas: actual.celdas }), 'Hoja de ruta guardada. Ya estÃƒÂ¡ disponible para la venta.')
     if (r.ok) setBorrador(null)
   }
   const nombre = (id) => {
@@ -180,19 +181,19 @@ function TabHoja({ coop, misBuses, misFrecs }) {
     <>
       <div className="panel hoja-ctrl">
         <div>
-          <b>{misBuses.length} buses Â· {activas.length} frecuencias activas</b>
-          <p className="muted">{misBuses.length - activas.length > 0 ? `${misBuses.length - activas.length} bus(es) en parada cada dÃ­a.` : 'Sin buses de reserva.'} Venta abierta hasta el {fechaCorta(finHoja(hoja))}.</p>
+          <b>{misBuses.length} buses Ã‚Â· {activas.length} frecuencias activas</b>
+          <p className="muted">{misBuses.length - activas.length > 0 ? `${misBuses.length - activas.length} bus(es) en parada cada dÃƒÂ­a.` : 'Sin buses de reserva.'} Venta abierta hasta el {fechaCorta(finHoja(hoja))}.</p>
         </div>
-        <label>VÃ¡lida desde<input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} /></label>
-        <label>DÃ­as<input type="number" min="7" max="60" value={dias} onChange={(e) => setDias(e.target.value)} /></label>
-        <button className="btn btn-claro" onClick={generar}>Generar automÃ¡tica</button>
+        <label>VÃƒÂ¡lida desde<input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} /></label>
+        <label>DÃƒÂ­as<input type="number" min="7" max="60" value={dias} onChange={(e) => setDias(e.target.value)} /></label>
+        <button className="btn btn-claro" onClick={generar}>Generar automÃƒÂ¡tica</button>
       </div>
 
       {(borrador || conflictos > 0) && (
         <div className={'aviso-hoja' + (conflictos > 0 ? ' mal' : '')}>
           {conflictos > 0
-            ? `Hay ${conflictos} dÃ­a(s) con una frecuencia asignada a dos buses. CorrÃ­gelo antes de guardar.`
-            : 'Tienes cambios sin guardar. Los clientes verÃ¡n la nueva hoja cuando la guardes.'}
+            ? `Hay ${conflictos} dÃƒÂ­a(s) con una frecuencia asignada a dos buses. CorrÃƒÂ­gelo antes de guardar.`
+            : 'Tienes cambios sin guardar. Los clientes verÃƒÂ¡n la nueva hoja cuando la guardes.'}
           <span>
             <button className="btn btn-claro" onClick={() => setBorrador(null)}>Descartar</button>
             <button className="btn btn-acento" onClick={guardar} disabled={conflictos > 0}>Guardar hoja</button>
@@ -216,10 +217,10 @@ function TabHoja({ coop, misBuses, misFrecs }) {
           <tbody>
             {misBuses.map((b) => (
               <tr key={b.id}>
-                <th>N.Âº {b.numero}</th>
+                <th>N.Ã‚Âº {b.numero}</th>
                 {(actual.celdas[b.id] || []).slice(0, mostrar).map((fid, d) => (
                   <td key={d}>
-                    <button className={'celda-h' + (fid ? '' : ' parada')} style={fid ? { background: colorDe(fid) } : null} onClick={() => ciclar(b.id, d)} title={fid ? nombre(fid) : 'DÃ­a de parada'}>
+                    <button className={'celda-h' + (fid ? '' : ' parada')} style={fid ? { background: colorDe(fid) } : null} onClick={() => ciclar(b.id, d)} title={fid ? nombre(fid) : 'DÃƒÂ­a de parada'}>
                       {fid ? nombre(fid).split(' ')[0] : 'P'}
                     </button>
                   </td>
@@ -230,7 +231,7 @@ function TabHoja({ coop, misBuses, misFrecs }) {
         </table>
       </div>
       <div className="leyenda-h">
-        {activas.map((f) => <span key={f.id}><i style={{ background: colorDe(f.id) }} />{f.paradas[0]} â†’ {f.paradas.at(-1)} {f.hora}</span>)}
+        {activas.map((f) => <span key={f.id}><i style={{ background: colorDe(f.id) }} />{f.paradas[0]} Ã¢â€ â€™ {f.paradas.at(-1)} {f.hora}</span>)}
         <span><i className="parada" />Parada</span>
         <small className="muted">Haz clic en una celda para cambiarla a mano.</small>
       </div>
@@ -379,7 +380,14 @@ export default function PanelCoop() {
           className={tab === 'buses' ? 'on' : ''}
           onClick={() => setTab('buses')}
         >
-          Buses <i>{totalBuses ?? '—'}</i>
+          Buses <i>{totalBuses ?? 'â€”'}</i>
+        </button>
+
+        <button
+          className={tab === 'asientos' ? 'on' : ''}
+          onClick={() => setTab('asientos')}
+        >
+          Distribución de asientos
         </button>
 
         <button
@@ -401,7 +409,7 @@ export default function PanelCoop() {
     <div className="panel">
       <h4>Hoja de ruta no disponible</h4>
       <p className="muted">
-        Todavía no hay una hoja de ruta cargada para esta cooperativa.
+        TodavÃ­a no hay una hoja de ruta cargada para esta cooperativa.
       </p>
     </div>
   )
@@ -415,6 +423,8 @@ export default function PanelCoop() {
       )}
 
       {tab === 'buses' && <TabFlota onTotalBusesChange={setTotalBuses} />}
+
+      {tab === 'asientos' && <TabAsientos cooperativaId={coop.id} />}
 
       {tab === 'oficinistas' && <TabOficinistas />}
     </div>
