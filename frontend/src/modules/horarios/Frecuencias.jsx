@@ -1,3 +1,4 @@
+import { horaLlegada } from './horaLlegada'
 import { Link } from 'react-router-dom'
 import Dialogo from '../../components/ui/Dialogo'
 import { useCallback, useEffect, useState } from 'react'
@@ -159,7 +160,7 @@ export default function Frecuencias({ integrada = false, onTotalChange }) {
               <tr>
                 <th>Código</th>
                 <th>Ruta</th>
-                <th>Salida</th>
+                <th>Salida</th><th>Llegada estimada</th>
                 <th>Días</th>
                 <th>Activa</th>
               </tr>
@@ -167,7 +168,7 @@ export default function Frecuencias({ integrada = false, onTotalChange }) {
             <tbody>
               {visibles.length === 0 && (
                 <tr>
-                  <td colSpan={5}>Todavía no hay frecuencias registradas.</td>
+                  <td colSpan={6}>Todavía no hay frecuencias registradas.</td>
                 </tr>
               )}
               {visibles.map((f) => (
@@ -180,7 +181,7 @@ export default function Frecuencias({ integrada = false, onTotalChange }) {
                     {f.ruta}
                     <small>Resolución {f.resolucion}</small>
                   </td>
-                  <td>{f.hora_salida}</td>
+                  <td>{f.hora_salida}</td><td>{horaLlegada(f.hora_salida, rutas.find(r => r.id === f.ruta_id)?.paradas)}</td>
                   <td>{textoDias(f.dias)}</td>
                   <td>
                     <button
@@ -279,6 +280,7 @@ export default function Frecuencias({ integrada = false, onTotalChange }) {
               required
             />
           </label>
+          <label>Hora estimada de llegada<input readOnly value={horaLlegada(form.hora_salida, rutas.find(r => r.id === form.ruta_id)?.paradas)} placeholder="Selecciona ruta y salida" /><small>Calculada con la duración acumulada del recorrido.</small></label>
 
           <p><b>Días de operación</b></p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>

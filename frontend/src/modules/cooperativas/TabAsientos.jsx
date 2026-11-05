@@ -1,3 +1,4 @@
+import { generarAsientos } from './asientos.distribucion'
 import { useEffect, useMemo, useState } from "react";
 import { busesService } from "./services/buses.service";
 import ModalAsientos from "./ModalAsientos";
@@ -51,18 +52,18 @@ const estilo = {
 
 const clave = (piso, fila, columna) => `${piso}-${fila}-${columna}`;
 
-function configuracionInicial(pisos) {
+function configuracionInicial(pisos, capacidad = 0) {
   return Array.from({ length: pisos }, (_, i) => ({
     piso: i + 1,
-    filas: 12,
+    filas: capacidad ? Math.max(3,Math.ceil(capacidad/pisos/4)) : 12,
     columnas: 5,
     pasillo: 3,
     espacios: [],
   }));
 }
 
-function inferirConfiguracion(pisos, asientos) {
-  return configuracionInicial(pisos).map((config) => {
+function inferirConfiguracion(pisos, asientos, capacidad = 0) {
+  return configuracionInicial(pisos, capacidad).map((config) => {
     const lista = asientos.filter((a) => Number(a.piso) === config.piso);
     if (!lista.length) return config;
 
@@ -82,37 +83,6 @@ function inferirConfiguracion(pisos, asientos) {
   });
 }
 
-function generarAsientos(capacidad, configuraciones) {
-  const resultado = [];
-  let numero = 1;
-
-  for (const config of configuraciones) {
-    const especiales = new Set(
-      config.espacios.map((e) => clave(config.piso, e.fila, e.columna))
-    );
-
-    for (let fila = 1; fila <= config.filas; fila++) {
-      for (let columna = 1; columna <= config.columnas; columna++) {
-        if (columna === config.pasillo) continue;
-        if (especiales.has(clave(config.piso, fila, columna))) continue;
-        if (numero > capacidad) return resultado;
-
-        resultado.push({
-          numero: String(numero++),
-          piso: config.piso,
-          fila,
-          columna,
-          categoria: "NORMAL",
-          preferencial: false,
-          accesible: false,
-          activo: true,
-        });
-      }
-    }
-  }
-
-  return resultado;
-}
 
 function capacidadDelPlano(configuraciones) {
   return configuraciones.reduce((total, config) => {
@@ -387,7 +357,7 @@ export default function TabAsientos({ cooperativaId }) {
         setAsientos(lista);
         setConfiguraciones(inferirConfiguracion(
           Math.max(1, Number(datos?.pisos) || 1),
-          lista
+          lista, Number(datos?.capacidad)||capacidad
         ));
         setPisoActivo(1);
         setCambios(false);
@@ -515,17 +485,12 @@ export default function TabAsientos({ cooperativaId }) {
   function aplicarAsiento() {
     if (!seleccion) return;
 
-    setAsientos((actual) => actual.map((a) =>
-      String(a.numero) === String(seleccion.numero)
-        ? {
-            ...a,
-            categoria: seleccion.categoria,
-            preferencial: seleccion.preferencial,
-            accesible: seleccion.accesible,
-            activo: seleccion.activo,
-          }
-        : a
-    ));
+    const piso=Number(seleccion.piso),fila=Number(seleccion.fila),columna=Number(seleccion.columna);
+    const destino=configuraciones.find(c=>c.piso===piso);
+    if(!destino||!Number.isInteger(fila)||!Number.isInteger(columna)||fila<1||fila>destino.filas||columna<1||columna>destino.columnas||columna===destino.pasillo||destino.espacios.some(e=>e.fila===fila&&e.columna===columna)){setError('Selecciona una posición válida, fuera del pasillo y espacios especiales.');return;}
+    const original=asientos.find(a=>String(a.numero)===String(seleccion.numero));
+    const intercambiar=asientos.find(a=>a.piso===piso&&a.fila===fila&&a.columna===columna&&a.numero!==original.numero);
+    setAsientos(actual=>actual.map(a=>String(a.numero)===String(seleccion.numero)?{...a,piso,fila,columna,categoria:seleccion.categoria,preferencial:seleccion.preferencial,accesible:seleccion.accesible,activo:seleccion.activo}:intercambiar&&a.numero===intercambiar.numero?{...a,piso:original.piso,fila:original.fila,columna:original.columna}:a));
 
     setCambios(true);
     setModal(null);
@@ -576,7 +541,9 @@ export default function TabAsientos({ cooperativaId }) {
   }
 
   function ejecutarGeneracion() {
-    setAsientos(generarAsientos(capacidad, configuraciones));
+    const nuevos = generarAsientos(capacidad, configuraciones);
+    if (nuevos.length !== capacidad) { setError("Amplía las filas de cada piso para distribuir la capacidad entre todos los pisos."); return; }
+    setAsientos(nuevos);
     setCambios(true);
     setMensaje("Plano generado. Revisa los asientos antes de guardar.");
     setModal(null);
@@ -1032,10 +999,12 @@ export default function TabAsientos({ cooperativaId }) {
 
                         const fondo = !asiento.activo
                           ? "#e5e7eb"
+                          : asiento.categoria === "VIP"
+                          ? "#fbbf24"
                           : asiento.accesible
                           ? "#dbeafe"
                           : asiento.preferencial
-                          ? "#fef3c7"
+                          ? "#fdba74"
                           : "#dcfce7";
 
                         return (
@@ -1331,6 +1300,8 @@ export default function TabAsientos({ cooperativaId }) {
             </>
           }
         >
+          {error && <p role="alert">{error}</p>}
+          <div className="barra-filtros"><label>Piso<select value={seleccion.piso} onChange={e=>setSeleccion(v=>({...v,piso:Number(e.target.value)}))}>{configuraciones.map(c=><option key={c.piso} value={c.piso}>Piso {c.piso}</option>)}</select></label><label>Fila<input type="number" min="1" value={seleccion.fila} onChange={e=>setSeleccion(v=>({...v,fila:Number(e.target.value)}))}/></label><label>Columna<input type="number" min="1" value={seleccion.columna} onChange={e=>setSeleccion(v=>({...v,columna:Number(e.target.value)}))}/></label></div><small>Si la posición está ocupada, ambos asientos intercambian su ubicación.</small>
           <label>Categoría<select style={estilo.input} value={seleccion.categoria} onChange={e => setSeleccion(s => ({ ...s, categoria: e.target.value }))}><option value="NORMAL">Normal</option><option value="VIP">VIP</option></select></label>
           {[
             ["preferencial", "Preferencial"],

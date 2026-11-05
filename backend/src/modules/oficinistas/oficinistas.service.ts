@@ -1,9 +1,7 @@
 
 import { prisma } from "../../lib/prisma.js";
 import { ErrorAutenticacion } from "../usuarios/usuarios.service.js";
-import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { enviarCodigoVerificacion } from "../usuarios/correo.service.js";
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -557,16 +555,7 @@ export async function registrarNuevoOficinista(
     );
   }
 
-  const codigo = randomInt(0, 1000000)
-    .toString()
-    .padStart(6, "0");
-
-  const [passwordHash, codigoHash] = await Promise.all([
-    bcrypt.hash(clave, 12),
-    bcrypt.hash(codigo, 12),
-  ]);
-
-  const venceEn = new Date(Date.now() + 10 * 60 * 1000);
+  const passwordHash = await bcrypt.hash(clave, 12);
 
   const registro = await prisma
     .$transaction(async (tx) => {
@@ -598,19 +587,9 @@ export async function registrarNuevoOficinista(
         },
       });
 
-      const verificacion = await tx.tokens_acceso.create({
-        data: {
-          usuario_id: usuario.id,
-          proposito: "VERIFICAR_CORREO",
-          token_hash: codigoHash,
-          vence_en: venceEn,
-        },
-        select: { id: true },
-      });
-
       return {
         usuario,
-        verificacionId: verificacion.id,
+
       };
     })
     .catch((error: unknown) => {
@@ -629,36 +608,9 @@ export async function registrarNuevoOficinista(
       throw error;
     });
 
-  try {
-    await enviarCodigoVerificacion(
-      correo,
-      codigo,
-      venceEn
-    );
-  } catch {
-    await prisma.tokens_acceso.updateMany({
-      where: {
-        id: registro.verificacionId,
-        proposito: "VERIFICAR_CORREO",
-        consumido_en: null,
-        revocado_en: null,
-      },
-      data: {
-        revocado_en: new Date(),
-      },
-    });
-
-    throw new ErrorAutenticacion(
-      503,
-      "El oficinista fue registrado, pero no se pudo enviar el correo. Debe solicitar un nuevo código."
-    );
-  }
-
   return {
     ...registro.usuario,
     cooperativa_id: cooperativaId,
     correo_verificado: false,
-    verificacionId: registro.verificacionId,
-    venceEn: venceEn.toISOString(),
   };
 }

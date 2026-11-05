@@ -130,6 +130,7 @@ function DatoBus({ etiqueta, valor }) {
 
 export default function TabFlota({ onTotalBusesChange }) {
   const [buses, setBuses] = useState([]);
+  const [imagenArchivo, setImagenArchivo] = useState(null);
   const [grupos, setGrupos] = useState([]);
   const [comodidadesDisponibles, setComodidadesDisponibles] =
   useState([]);
@@ -201,6 +202,7 @@ export default function TabFlota({ onTotalBusesChange }) {
   }
 
   function abrirRegistro() {
+    setImagenArchivo(null);
     setBusEditando(null);
     setForm({ ...FORM_INICIAL });
     setErrorFormulario("");
@@ -208,6 +210,7 @@ export default function TabFlota({ onTotalBusesChange }) {
   }
 
   function abrirEdicion(bus) {
+    setImagenArchivo(null);
     setBusEditando(bus.id);
 
     setForm({
@@ -262,10 +265,13 @@ export default function TabFlota({ onTotalBusesChange }) {
     };
 
     try {
-      if (busEditando) {
-        await busesService.editar(busEditando, datos);
-      } else {
-        await busesService.registrar(datos);
+      const guardado = busEditando ? await busesService.editar(busEditando, datos) : await busesService.registrar(datos);
+      const id = busEditando || guardado.id;
+      setBusEditando(id);
+      if (imagenArchivo) {
+        const body = new FormData(); body.append('archivo', imagenArchivo);
+        const r = await fetch(`/api/imagenes-buses/${id}`, {method:'POST',credentials:'include',body});
+        const b = await r.json(); if (!r.ok) throw new Error(b.error || 'Bus guardado. Vuelve a seleccionar su imagen y guarda otra vez.');
       }
 
       setMostrarFormulario(false);
@@ -1208,7 +1214,11 @@ export default function TabFlota({ onTotalBusesChange }) {
                 </label>
 
                 <label>
-                  URL de imagen (opcional)
+                  Imagen desde tu PC
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => {const file=e.target.files?.[0];if(file && file.size>2*1024*1024){setErrorFormulario('La imagen debe pesar hasta 2 MB.');e.target.value='';return;}setImagenArchivo(file||null)}} />
+                  {imagenArchivo && <small>{imagenArchivo.name}</small>}
+                </label><label>
+                  URL de imagen (opcional, si no cargas un archivo)
                   <input
                     type="url"
                     maxLength={2048}

@@ -50,7 +50,7 @@ export async function pdfBoleto(req: Request, res: Response): Promise<void> {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="boleto-${fila.codigo.slice(0, 8)}.pdf"`
+      `${req.query.imprimir === "1" ? "inline" : "attachment"}; filename="boleto-${fila.codigo.slice(0, 8)}.pdf"`
     );
     res.status(200).send(pdf);
   } catch (error) {
