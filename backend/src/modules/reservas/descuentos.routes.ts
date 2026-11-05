@@ -17,7 +17,8 @@ router.use((req, res, next) => {
   next();
 });
 router.get('/politicas', async (_req,res) => {
-  const datos = await prisma.politicas_descuento.findMany({ where: { activa:true, vigente_desde:{lte:new Date()}, OR:[{vigente_hasta:null},{vigente_hasta:{gte:new Date()}}] }, orderBy:{codigo:'asc'} });
+  const hoy=new Date(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Guayaquil'}).format(new Date()));
+  const datos = await prisma.politicas_descuento.findMany({ where: { activa:true, vigente_desde:{lte:hoy}, OR:[{vigente_hasta:null},{vigente_hasta:{gte:hoy}}] }, orderBy:{codigo:'asc'} });
   res.json({datos});
 });
 router.get('/mios', async (req,res) => {

@@ -124,7 +124,7 @@ async function guardar(req: import('express').Request, res: import('express').Re
   const data = { codigo: texto(b.codigo,'código',true,30).toUpperCase(), version, descripcion: texto(b.descripcion,'descripción'), porcentaje, edad_minima: min, edad_maxima: max, documento_requerido: texto(b.documento_requerido,'documento requerido'), fuente_normativa: texto(b.fuente_normativa,'fuente'), vigente_desde: desde, vigente_hasta: hasta, activa: b.activa !== false };
   if (id) {
     if (!await prisma.politicas_descuento.findUnique({ where: { id } })) throw new ErrorGestion(404,'Política no encontrada.');
-    if (await prisma.validaciones_descuento.count({ where: { politica_id: id } })) throw new ErrorGestion(409,'La política ya está en uso. Crea una nueva versión para conservar las validaciones anteriores.');
+    if (await prisma.validaciones_descuento.count({ where: { politica_id: id } }) || await prisma.detalle_compra.count({where:{politica_presencial_id:id}})) throw new ErrorGestion(409,'La política ya está en uso. Crea una nueva versión para conservar las validaciones anteriores.');
     res.json({ datos: await prisma.politicas_descuento.update({ where: { id }, data }) });
   } else res.status(201).json({ datos: await prisma.politicas_descuento.create({ data }) });
 }

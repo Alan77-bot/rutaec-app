@@ -118,6 +118,7 @@ async function procesarEvento(evento: EventoPendiente): Promise<void> {
   if (boletos.length === 0) throw new Error("La compra no tiene boletos emitidos");
 
   const destino = boletos[0].correo_destino;
+  if (!destino) return; // Venta presencial sin correo: documentos disponibles en caja.
   const clave = `boletos-correo:${evento.entidad_id}`;
 
   // Un solo registro de envío por compra: si el evento se reintenta no se duplica el correo.
