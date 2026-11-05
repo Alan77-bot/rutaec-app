@@ -1,4 +1,4 @@
-﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { api, guardarToken } from '../services/viajayaApi'
 import { usuariosService } from '../modules/usuarios/services/usuarios.service'
 
@@ -127,11 +127,11 @@ export function AppProvider({ children }) {
     arrancar()
   }, [arrancar])
 
-  // La sesiÃ³n venciÃ³ en el servidor
+  // La sesión venció en el servidor
   useEffect(() => {
     const f = () => {
       limpiarSesion()
-      avisar('Tu sesiÃ³n venciÃ³, vuelve a ingresar.')
+      avisar('Tu sesión venció, vuelve a ingresar.')
     }
     window.addEventListener('vy:sesion-vencida', f)
     return () => window.removeEventListener('vy:sesion-vencida', f)
@@ -151,7 +151,7 @@ export function AppProvider({ children }) {
     return () => clearInterval(t)
   }, [cargando, errorRed, sesion])
 
-  /* ---------- sesiÃ³n ---------- */
+  /* ---------- sesión ---------- */
 
     const entrarConRespuesta = useCallback(
     async ({ sesion: usuario }) => {
@@ -320,7 +320,7 @@ export function AppProvider({ children }) {
     []
   )
 
-  // Ejecuta una acciÃ³n mostrando el error del servidor (si lo hay) y devuelve { ok, datos }.
+  // Ejecuta una acción mostrando el error del servidor (si lo hay) y devuelve { ok, datos }.
   const ejecutar = useCallback(
     async (fn, mensajeOk) => {
       try {
@@ -328,7 +328,7 @@ export function AppProvider({ children }) {
         if (mensajeOk) avisar(mensajeOk)
         return { ok: true, datos }
       } catch (e) {
-        avisar(e.message || 'OcurriÃ³ un error inesperado.')
+        avisar(e.message || 'Ocurrió un error inesperado.')
         return { ok: false, error: e }
       }
     },
@@ -341,7 +341,7 @@ export function AppProvider({ children }) {
       const respuesta = await fetch('/api/notificaciones/leidas', { method:'POST', credentials:'include' }); if (!respuesta.ok) return
       setCorreos((l) => l.map((c) => (c.para === sesion.correo ? { ...c, leido: true } : c)))
     } catch {
-      /* no es crÃ­tico */
+      /* no es crítico */
     }
   }, [sesion])
 
