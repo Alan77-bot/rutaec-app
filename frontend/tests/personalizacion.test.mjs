@@ -58,6 +58,25 @@ test('al volver a todas las cooperativas el pie recupera la marca general', () =
   const html = renderToStaticMarkup(React.createElement(Footer))
   assert.ok(html.includes('RutaEC')); assert.ok(!html.includes('contacto@a.example'))
 })
+test('el color de plataforma corresponde a admin y a todas las cooperativas; cada cooperativa conserva el suyo', () => {
+  const anterior = globalThis.pruebaApp
+  try {
+    globalThis.pruebaApp = { config: { nombre: 'RutaEC', color: '#2563EB', redes: {} }, sesion: { rol: 'admin' } }
+    globalThis.pruebaIdentidad = { cooperativa: { nombre: 'Otra marca', color_primario: '#50162a' } }
+    let html = renderToStaticMarkup(React.createElement(Footer))
+    assert.ok(html.includes('--footer-fondo:#2563EB')); assert.ok(!html.includes('Otra marca'))
+    globalThis.pruebaApp.sesion = { rol: 'usuario' }
+    globalThis.pruebaIdentidad = { cooperativa: null, cooperativaId: null }
+    html = renderToStaticMarkup(React.createElement(Footer))
+    assert.ok(html.includes('--footer-fondo:#2563EB'))
+    for (const rol of ['usuario', 'cooperativa', 'oficinista']) {
+      globalThis.pruebaApp.sesion = { rol }
+      globalThis.pruebaIdentidad = { cooperativa: { nombre: 'Sierra Azul', color_primario: '#50162a' } }
+      html = renderToStaticMarkup(React.createElement(Footer))
+      assert.ok(html.includes('--footer-fondo:#50162a')); assert.ok(!html.includes('--footer-fondo:#2563EB'))
+    }
+  } finally { globalThis.pruebaApp = anterior; globalThis.pruebaIdentidad = { cooperativa: null, cooperativaId: null } }
+})
 test('el espacio de una cooperativa usa su portada y oculta la promoción para empresas', () => {
   globalThis.pruebaIdentidad = { cooperativaId: A, cooperativa: { nombre: 'Cooperativa A', fotografia: '/foto-a.png' } }
   const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(Home)))

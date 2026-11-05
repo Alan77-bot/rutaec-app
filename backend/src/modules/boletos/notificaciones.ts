@@ -43,7 +43,7 @@ export function iniciarNotificacionesTramites() {
         try{
           const c=await contexto(e);
           await prisma.notificaciones.upsert({where:{clave_deduplicacion:`tramite-aviso:${e.id}`},update:{},create:{usuario_id:c.usuarioId,cooperativa_id:e.cooperativa_id,evento_id:e.id,tipo:e.tipo,titulo:titulos[e.tipo],mensaje:c.texto,destino_interno:c.destino,clave_deduplicacion:`tramite-aviso:${e.id}`}});
-          for(const destinatario of c.destinatarios){
+          for(const destinatario of c.destinatarios.filter(d=>!!d)){
             const clave=`tramite:${e.id}:${destinatario}`;
             const envio=await prisma.envios_correo.upsert({where:{clave_deduplicacion:clave},update:{},create:{evento_id:e.id,destinatario,plantilla:e.tipo,compra_id:c.compraId,clave_deduplicacion:clave}});
             if(envio.estado==='ENVIADO')continue;

@@ -1,4 +1,4 @@
-import NavegacionPanel from '../../components/ui/NavegacionPanel'
+import { useSearchParams } from 'react-router-dom'
 import { apartadosGerente } from '../../data/apartados'
 import { useEffect, useState } from 'react'
 import { useApp } from '../../context/AppContext'
@@ -19,7 +19,9 @@ import { usePersonalizacion } from '../../context/PersonalizacionContext'
 export default function PanelCoop() {
   const { sesion, cooperativas } = useApp()
 
-  const [tab, setTab] = useState('oficinistas')
+  const [parametros] = useSearchParams()
+  const seccion = parametros.get('seccion')
+  const tab = apartadosGerente.some(o => o.id === seccion) ? seccion : 'hoja'
   const [cooperativaRemota, setCooperativaRemota] = useState(null)
   const [cargandoCoop, setCargandoCoop] = useState(true)
   const [errorCoop, setErrorCoop] = useState('')
@@ -138,7 +140,6 @@ export default function PanelCoop() {
       </div>
 
       <div className="resumen-panel" aria-label="Resumen de flota"><span><strong>{totalBuses ?? '—'}</strong> buses registrados</span><span><strong>{totalFrecuencias ?? '—'}</strong> frecuencias {totalFrecuencias === null ? 'por consultar' : 'consultadas'}</span><span>Gestión exclusiva de tu cooperativa</span></div>
-      <NavegacionPanel opciones={apartadosGerente} activa={tab} onChange={setTab} />
 
       {tab === 'grupos' && <GestionCatalogo recurso="grupos" />}
       {tab === 'hoja' && <HojaRuta />}

@@ -1,0 +1,74 @@
+.marco-panel { --lateral-ancho: 274px; --lateral-color: var(--coop-primario, var(--acento, #1b3f68)); display: flex; min-height: 100dvh; }
+.marco-panel.lateral-compacta { --lateral-ancho: 86px; }
+.marco-contenido { margin-left: var(--lateral-ancho); width: calc(100% - var(--lateral-ancho)); min-width: 0; display: flex; flex-direction: column; }
+.marco-contenido>.pagina { flex: 1; min-width: 0; }
+.marco-contenido .contenedor { width: 100%; max-width: 1480px; padding-left: 30px; padding-right: 30px; box-sizing: border-box; }
+.barra-lateral { position: fixed; inset: 0 auto 0 0; z-index: 35; width: var(--lateral-ancho); display: flex; flex-direction: column; background: color-mix(in srgb,var(--lateral-color) 92%,transparent); backdrop-filter: blur(16px); border-right: 1px solid color-mix(in srgb,var(--lateral-color) 16%,white); }
+.lateral-marca { display: flex; align-items: center; gap: 8px; padding: 22px 20px; min-height: 86px; box-sizing: border-box; border-bottom: 1px solid color-mix(in srgb,var(--lateral-color) 12%,white); }
+.lateral-marca>a { display: flex; align-items: center; gap: 12px; color: var(--lateral-color); font-size: 1.12rem; font-weight: 800; min-width: 0; }
+.lateral-marca img { width: 44px; height: 44px; object-fit: contain; border-radius: 12px; flex-shrink: 0; }
+.lateral-marca a>span { overflow-wrap: anywhere; }
+.lateral-persona { margin: 18px 16px 8px; padding: 12px; display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--ui-borde); border-radius: 14px; color: var(--ui-texto); }
+.lateral-persona>span:last-child { min-width: 0; display: grid; gap: 3px; }
+.lateral-persona small { font-size: .7rem; color: var(--ui-suave); }
+.lateral-persona strong { font-size: .82rem; overflow-wrap: anywhere; }
+.lateral-avatar { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; background: color-mix(in srgb,var(--lateral-color) 13%,white); color: var(--ui-texto); font-weight: 800; }
+.lateral-opciones { padding: 0 14px 20px; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.lateral-opciones section { margin-top: 22px; }
+#root .lateral-opciones h2 { font-size: .65rem; color: var(--ui-suave); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; margin: 0 12px 10px; }
+#root .lateral-enlace { display: flex; align-items: center; gap: 12px; padding: 11px 12px; margin: 3px 0; min-height: 44px; border-radius: 10px; color: var(--ui-texto); font-size: .84rem; font-weight: 550; text-decoration: none; line-height: 1.35; border: 1px solid transparent; }
+#root .lateral-enlace:hover { background: color-mix(in srgb,var(--lateral-color) 12%,white); }
+#root .lateral-enlace.activo { background: color-mix(in srgb,var(--lateral-color) 17%,white); border-color: color-mix(in srgb,var(--lateral-color) 35%,white); box-shadow: inset 3px 0 var(--lateral-color); font-weight: 800; }
+.lateral-enlace>.ico,.lateral-simbolo { width: 21px; flex-shrink: 0; text-align: center; }
+.lateral-simbolo { font-size: 1.2rem; }
+#root .lateral-plegar { display: flex; gap: 14px; align-items: center; background: transparent; border: 0; border-top: 1px solid var(--ui-borde); border-radius: 0; color: var(--ui-texto); padding: 16px 28px; font-size: .8rem; cursor: pointer; }
+.lateral-plegar>span:first-child { font-size: 1.3rem; }
+.lateral-compacta .lateral-marca { padding: 22px 20px; }
+.lateral-compacta :is(.lateral-marca a>span,.lateral-persona>span:last-child,.lateral-enlace>span:last-child,.lateral-opciones h2,.lateral-plegar>span:last-child) { display: none; }
+.lateral-compacta .lateral-persona { padding: 8px; margin: 18px 16px 0; border: 0; background: transparent; }
+.lateral-compacta .lateral-enlace { justify-content: center; padding: 11px 6px; }
+.marco-panel .navbar-in { max-width: none; min-height: 76px; padding: 10px 30px; justify-content: flex-end; }
+.navbar-panel .marca { display: none; }
+.lateral-abrir { display: none; }
+.marco-panel .nav-der { margin-left: auto; }
+#root .ui-dialogo-fondo.lateral-fondo { --lateral-color: var(--coop-primario, var(--acento, #1b3f68)); justify-content: flex-start !important; align-items: stretch !important; padding: 0 !important; }
+#root .ui-dialogo.lateral-dialogo { width: min(310px,90vw) !important; max-width: 310px !important; height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; display: flex; flex-direction: column; background: color-mix(in srgb,var(--lateral-color) 96%,transparent) !important; backdrop-filter: blur(16px); }
+#root .ui-dialogo.lateral-dialogo .lateral-opciones h2 { font-size: .65rem !important; color: var(--ui-suave) !important; }
+.lateral-dialogo .lateral-marca>button { margin-left: auto; border: 0; background: white; color: var(--ui-texto); padding: 8px; cursor: pointer; }
+@media(max-width:1050px) {
+  .barra-lateral { display: none; }
+  .marco-contenido { margin-left: 0; width: 100%; }
+  .marco-panel .navbar-in { padding: 10px 18px; gap: 12px; }
+  .navbar-panel .marca { display: flex; font-size: 1rem; }
+  .navbar-panel .marca-logo { width: 36px; height: 36px; }
+  #root .lateral-abrir { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--ui-borde); background: white; color: var(--ui-texto); flex-shrink: 0; cursor: pointer; }
+  .marco-contenido .contenedor { padding-left: 20px; padding-right: 20px; }
+}
+@media(max-width:600px) {
+  .navbar-panel .marca-nombre { display: none; }
+  .navbar-panel .chip-user>div { display: none; }
+  .marco-panel .navbar-in { gap: 8px; min-height: 66px; padding: 10px 12px; }
+  .marco-contenido .contenedor { padding-left: 14px; padding-right: 14px; }
+}
+@media print { .barra-lateral,.navbar-panel { display: none !important; } .marco-contenido { margin-left: 0; width: 100%; } }
+
+/* El color de la cooperativa ocupa toda la barra, con transparencia ligera. */
+#root :is(.barra-lateral,.lateral-dialogo) .lateral-marca>a,
+#root :is(.barra-lateral,.lateral-dialogo) .lateral-enlace,
+#root .barra-lateral .lateral-plegar { color: var(--lateral-texto); }
+#root :is(.barra-lateral,.ui-dialogo.lateral-dialogo) .lateral-opciones h2 { color: var(--lateral-texto) !important; opacity: .75; }
+#root :is(.barra-lateral,.lateral-dialogo) .lateral-enlace:hover { background: color-mix(in srgb,var(--lateral-texto) 12%,transparent); }
+#root :is(.barra-lateral,.lateral-dialogo) .lateral-enlace.activo { background: color-mix(in srgb,var(--lateral-texto) 18%,transparent); border-color: color-mix(in srgb,var(--lateral-texto) 32%,transparent); box-shadow: inset 3px 0 var(--lateral-texto); }
+.lateral-marca img { background: white; padding: 3px; box-sizing: border-box; }
+
+/* Desplazamiento integrado al tema, sin el carril blanco del navegador. */
+.lateral-opciones {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb,var(--lateral-texto) 24%,transparent) transparent;
+  scrollbar-gutter: stable;
+}
+.lateral-opciones::-webkit-scrollbar { width: 5px; }
+.lateral-opciones::-webkit-scrollbar-track { background: transparent; border-radius: 20px; }
+.lateral-opciones::-webkit-scrollbar-thumb { background: color-mix(in srgb,var(--lateral-texto) 24%,transparent); border: 0; border-radius: 20px; }
+.lateral-opciones::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb,var(--lateral-texto) 42%,transparent); }
+.lateral-opciones::-webkit-scrollbar-button { display: none; width: 0; height: 0; }

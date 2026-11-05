@@ -1,5 +1,5 @@
 import Dialogo from '../../components/ui/Dialogo'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useBusquedaViajes } from './useBusquedaViajes'
 import { useCiudades } from './useCiudades'
@@ -44,8 +44,6 @@ function Modal({ viaje, onCerrar }) {
   )
 }
 
-// Un filtro solo se aplica si su valor sigue existiendo en los resultados actuales.
-const vigente = (valor, opciones) => (opciones.includes(valor) ? valor : 'todos')
 
 export default function Resultados() {
   const [q, setQ] = useSearchParams()
@@ -56,8 +54,6 @@ export default function Resultados() {
 
   const { cooperativaId } = usePersonalizacion()
   const [fAsiento, setFAsiento] = useState('todos')
-  const [fChasis, setFChasis] = useState('todos')
-  const [fCarro, setFCarro] = useState('todos')
   const [fViaje, setFViaje] = useState('todos')
   const [fFranja, setFFranja] = useState('todos')
   const [orden, setOrden] = useState('hora')
@@ -68,16 +64,10 @@ export default function Resultados() {
   // La ciudad buscada siempre figura en su selector, aunque la lista aun no haya llegado.
   const opcionesCon = (actual) => (ciudades.includes(actual) ? ciudades : [actual, ...ciudades])
 
-  const marcasChasis = useMemo(() => [...new Set(viajes.map((v) => v.bus.chasis))], [viajes])
-  const marcasCarro = useMemo(() => [...new Set(viajes.map((v) => v.bus.carroceria))], [viajes])
 
-  const chasisActivo = vigente(fChasis, marcasChasis)
-  const carroActiva = vigente(fCarro, marcasCarro)
 
   const filtrados = viajes.filter(
     (v) =>
-      (chasisActivo === 'todos' || v.bus.chasis === chasisActivo) &&
-      (carroActiva === 'todos' || v.bus.carroceria === carroActiva) &&
       (fViaje === 'todos' || v.tipoViaje === fViaje) &&
       (fAsiento === 'todos' || (fAsiento === 'normal' ? v.precioNormal !== null : v.precioVip !== null))
   )
@@ -124,18 +114,8 @@ export default function Resultados() {
               <option value="normal">Normal</option><option value="vip">VIP</option>
             </select>
           </label>
-          <label>Marca del chasis
-            <select value={chasisActivo} onChange={(e) => setFChasis(e.target.value)}>
-              <option value="todos">Todas</option>
-              {marcasChasis.map((m) => <option key={m}>{m}</option>)}
-            </select>
-          </label>
-          <label>Carrocería
-            <select value={carroActiva} onChange={(e) => setFCarro(e.target.value)}>
-              <option value="todos">Todas</option>
-              {marcasCarro.map((m) => <option key={m}>{m}</option>)}
-            </select>
-          </label>
+
+
           <label>Tipo de viaje
             <select value={fViaje} onChange={(e) => setFViaje(e.target.value)}>
               <option value="todos">Cualquiera</option>

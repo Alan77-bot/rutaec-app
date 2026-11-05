@@ -21,8 +21,6 @@ export default function Historial() {
       .mios()
       .then((l) => activo && setBoletos(l))
       .catch((e) => activo && setError(e.message))
-    const visibles = boletos?.filter(b => (!estado || b.estado === estado) && `${b.datos.origen} ${b.datos.destino} ${b.datos.cooperativa} ${b.codigo}`.toLowerCase().includes(busqueda.toLowerCase()))
-
   return () => {
       activo = false
     }
@@ -45,7 +43,7 @@ export default function Historial() {
       {boletos?.length > 0 && visibles?.length === 0 && <div className="estado-vacio"><strong>Sin coincidencias</strong><button className="btn btn-claro" onClick={() => { setBusqueda(''); setEstado('') }}>Limpiar filtros</button></div>}
       <div className="hist">
         {visibles?.map((b) => (
-          <Link key={b.id} to={`/boleto/${b.id}`} className="hist-item">
+          <article key={b.id} className="hist-item">
             <div className="hist-fecha"><b>{fechaCorta(b.datos.salida)}</b><small>{hora(b.datos.salida)}</small></div>
             <div className="hist-ruta">
               <b>{b.datos.origen} → {b.datos.destino}</b>
@@ -53,7 +51,8 @@ export default function Historial() {
             </div>
             <span className={'badge ' + (CLASE[b.estado] ?? '')}>{ETIQUETA[b.estado] ?? b.estado}</span>
             <b className="hist-total">{b.datos.moneda} {Number(b.datos.importe).toFixed(2)}</b>
-          </Link>
+            <div className="acciones"><Link className="btn btn-claro" to={`/boleto/${b.id}`}>Ver boleto</Link><a className="btn btn-oscuro" href={`/api/boletos/${b.id}/pdf`} download>Descargar PDF</a></div>
+          </article>
         ))}
       </div>
     </div>

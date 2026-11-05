@@ -5,7 +5,7 @@ import DetalleReserva from "./modules/reservas/DetalleReserva";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
-import Navbar from "./components/Navbar";
+import MarcoPanel from "./components/MarcoPanel";
 import Footer from "./components/Footer";
 import CancelacionViajes from "./modules/horarios/CancelacionViajes";
 import { useApp } from "./context/AppContext";
@@ -74,7 +74,7 @@ export default function ViajaYaRoutes() {
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [loc.pathname]);
+  }, [loc.pathname, loc.search]);
 
   if (cargando) {
     return <div className="splash" role="status">Cargando...</div>;
@@ -94,7 +94,7 @@ export default function ViajaYaRoutes() {
 
   return (
     <>
-      <Navbar />
+      <MarcoPanel>
       {!esPersonal(sesion?.rol) && ['/', '/buscar'].includes(loc.pathname) && <SelectorCooperativa />}
 
       <main key={loc.pathname} className="pagina">
@@ -212,6 +212,7 @@ export default function ViajaYaRoutes() {
       </main>
 
       {loc.pathname !== "/ingresar" && <Footer />}
+      </MarcoPanel>
       {aviso && <div className="toast" role="status">{aviso}</div>}
     </>
   );

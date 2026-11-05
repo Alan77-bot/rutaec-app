@@ -13,6 +13,7 @@ export default function HojaRuta() {
   const [desde, setDesde] = useState(fecha()), [hasta, setHasta] = useState(fecha(7))
   const [datos, setDatos] = useState(null), [frecuencias, setFrecuencias] = useState([]), [rutas, setRutas] = useState([])
   const [error, setError] = useState(''), [version, setVersion] = useState(0), [modal, setModal] = useState(false), [manual, setManual] = useState(false)
+  const [agendaAbierta, setAgendaAbierta] = useState(false)
   const [ocupado, setOcupado] = useState(false), [resultado, setResultado] = useState(null)
   const [form, setForm] = useState({ frecuencia_id:'', bus_ids:[], desde:fecha(1), hasta:fecha(7), fuente_normativa:'', minutos_cierre:'60', tarifas:{} })
   useEffect(() => {
@@ -42,6 +43,8 @@ export default function HojaRuta() {
   }
   return <section>
     <h2>Hoja de ruta</h2><p>Asignaciones reales por bus y día. Los buses sin viaje quedan como parada; los descansos y mantenimientos bloquean nuevas asignaciones.</p>
+    <div className="acciones"><button className="btn btn-claro" onClick={() => setAgendaAbierta(v => !v)}>{agendaAbierta ? 'Volver a la hoja de ruta' : 'Mantenimiento y descansos'}</button></div>
+    {agendaAbierta ? <section className="panel"><AgendaBuses /><button className="btn btn-claro" onClick={() => {setAgendaAbierta(false);setVersion(v=>v+1)}}>Cerrar y actualizar hoja</button></section> : <>
     <div className="acciones"><label>Desde<input type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></label>
       <button className="btn btn-claro" onClick={()=>setVersion(v=>v+1)}>Actualizar hoja</button><button className="btn btn-oscuro" onClick={()=>{setError('');setModal(true)}}>Generar con rotación</button><button className="btn btn-claro" onClick={()=>setManual(v=>!v)}>{manual?'Ocultar programación':'Programación manual'}</button>
     </div>
@@ -56,7 +59,7 @@ export default function HojaRuta() {
       })}</tr>)}
     </tbody></table></div>}
     {manual && <Viajes integrada />}
-    <div style={{marginTop:24}}><AgendaBuses /></div>
+    </> }
     {modal && <Dialogo overlayProps={{onMouseDown:e=>{if(e.target===e.currentTarget)cerrar()}}} panelProps={{'aria-labelledby':'rotacion-titulo'}}>
       <header className="modal-header"><div><h2 id="rotacion-titulo">Generación con rotación</h2><p>Distribuye los días de una frecuencia entre los buses seleccionados y respeta sus bloqueos.</p></div><button aria-label="Cerrar" disabled={ocupado} onClick={cerrar}>×</button></header>
       {error&&<p role="alert">{error}</p>}

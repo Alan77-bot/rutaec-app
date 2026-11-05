@@ -77,6 +77,7 @@ export async function generarPdfBoleto(boleto: BoletoParaPdf): Promise<Buffer> {
 
   const nombre = `${d.pasajero.nombres ?? ""} ${d.pasajero.apellidos ?? ""}`.trim();
   fila("Pasajero", nombre || "—", 24, 108);
+  doc.font("Helvetica").fontSize(8).text(`Documento: ${d.pasajero.numero_documento ?? d.pasajero.documento ?? "—"}`,24,136);
   fila("Salida", fechaHora(d.salida), 24, 146);
   fila("Llegada", fechaHora(d.llegada), 24, 184);
   fila("Asiento", `${d.asiento.numero ?? "—"}${d.asiento.categoria ? " · " + d.asiento.categoria : ""}`, 230, 108);

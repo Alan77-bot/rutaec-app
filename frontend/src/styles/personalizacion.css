@@ -19,6 +19,8 @@
 .tema-cooperativa .footer :is(p, h5, .footer-marca, .footer-pie) { color: var(--coop-secundario); }
 .footer a:hover { text-decoration: underline; }
 .footer-logo { display: block; width: 56px; height: 56px; object-fit: contain; background: white; border-radius: 10px; margin-bottom: 12px; }
+#root .footer { background: var(--footer-fondo, #16324F); color: var(--footer-texto, #FFFFFF); }
+#root .footer :is(p, h5, a, .footer-marca, .footer-pie) { color: var(--footer-texto, #FFFFFF); }
 .banda h2 { color: #ffffff; }
 .selector-cooperativa { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; max-width: 1120px; padding: 20px; margin: auto; }
 .selector-cooperativa p { margin: 4px 0 0; font-size: .9rem; }

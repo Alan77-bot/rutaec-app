@@ -6,14 +6,14 @@ export const apartadosAdmin = [
   { id:'config', icono:'◈', titulo:'Identidad de la plataforma' },
 ]
 export const apartadosGerente = [
-  { id:'grupos', icono:'▦', titulo:'Grupos de buses' },
-  { id:'resoluciones', icono:'▤', titulo:'Resoluciones' },
+  { id:'hoja', icono:'▦', titulo:'Hoja de ruta' },
   { id:'rutas', icono:'↗', titulo:'Rutas y paradas' },
+  { id:'resoluciones', icono:'▤', titulo:'Resoluciones' },
   { id:'frec', icono:'◷', titulo:'Frecuencias' },
+  { id:'grupos', icono:'▦', titulo:'Grupos de buses' },
   { id:'buses', icono:'▣', titulo:'Flota de buses' },
   { id:'asientos', icono:'▥', titulo:'Distribución de asientos' },
-  { id:'hoja', icono:'▦', titulo:'Hoja de ruta' },
-  { id:'cuentas', icono:'$', titulo:'Cuentas bancarias' },
   { id:'oficinistas', icono:'◎', titulo:'Equipo de oficinistas' },
+  { id:'cuentas', icono:'$', titulo:'Cuentas bancarias' },
   { id:'personalizacion', icono:'◈', titulo:'Personalización' },
 ]

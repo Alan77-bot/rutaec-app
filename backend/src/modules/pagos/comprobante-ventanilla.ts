@@ -1,3 +1,4 @@
+import { bloquearOcupacionCompra } from './ocupacion-compra.js';
 import { Router, raw } from 'express';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, writeFile, unlink } from 'node:fs/promises';
@@ -21,7 +22,7 @@ router.post('/comprobante', raw({ type: 'multipart/form-data', limit: '6mb' }), 
   if (referencia.length < 3 || referencia.length > 40 || !/^\d+(\.\d{1,2})?$/.test(importe) || Number(importe) <= 0 || Number(importe) > 99999999) throw new ErrorComprobante(400, 'Referencia o importe inválidos.');
   const dia = new Date(fecha);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(dia.getTime()) || dia.toISOString().slice(0, 10) !== fecha || dia > new Date()) throw new ErrorComprobante(400, 'Fecha de operación inválida.');
-  const compra = await prisma.compras.findFirst({ where: { id: compraId, cooperativa_id: s.coopId }, select: { id: true, cooperativa_id: true } });
+  const compra = await prisma.compras.findFirst({ where: { id: compraId, cooperativa_id: s.coopId }, select: { id: true, cooperativa_id: true,canal:true } });
   if (!compra) throw new ErrorComprobante(404, 'Compra no encontrada en tu cooperativa.');
   const file = form.get('archivo');
   if (!file || typeof file === 'string' || file.size < 1 || file.size > 5 * 1024 * 1024) throw new ErrorComprobante(400, 'Adjunta un comprobante de hasta 5 MB.');
@@ -44,6 +45,21 @@ router.post('/comprobante', raw({ type: 'multipart/form-data', limit: '6mb' }), 
       const archivo = await tx.archivos.create({ data: { propietario_id: s.id, cooperativa_id: compra.cooperativa_id, finalidad: 'COMPROBANTE', objeto_clave: clave, nombre_original: file.name.slice(0,120), mime_type: tipo, tamano_bytes: BigInt(bytes.length), sha256: createHash('sha256').update(bytes).digest('hex'), estado: 'DISPONIBLE', privado: true } });
       const [fila] = await tx.$queryRaw<{ id: string | null }[]>`SELECT rutaec.recibir_comprobante(${compraId}::uuid, ${cuentaId}::uuid, ${metodo}, ${archivo.id}::uuid, ${referencia}, ${fecha}::date, ${importe}::numeric, ${idempotencia}::uuid) AS id`;
       if (!fila?.id) { await tx.archivos.update({ where: { id: archivo.id }, data: { estado: 'ELIMINADO', eliminado_en: new Date() } }); return { pagoId: null, usado: false }; }
+      if (form.get('confirmado') === 'true') {
+        if(compra.canal !== 'VENTANILLA') throw new ErrorComprobante(403,'Solo las ventas presenciales se confirman desde caja.');
+        if(!await bloquearOcupacionCompra(tx,compraId)) throw new ErrorComprobante(409,'Los asientos ya no están disponibles.');
+        const pago=await tx.pagos.findUniqueOrThrow({where:{id:fila.id}});
+        if(Number(pago.importe)!==Number(importe)) throw new ErrorComprobante(400,'El importe debe coincidir con el total de la venta.');
+        const proveedor=`BANCO:${compra.cooperativa_id}:${cuentaId}`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${proveedor+':'+referencia},0))::text`;
+        if(await tx.pagos.findFirst({where:{id:{not:fila.id},proveedor,referencia_proveedor:referencia}})) throw new ErrorComprobante(409,'Referencia bancaria ya utilizada.');
+        await tx.pagos.update({where:{id:fila.id},data:{proveedor,referencia_proveedor:referencia}});
+        const revision=await tx.revisiones.findUniqueOrThrow({where:{pago_id:fila.id}});
+        await tx.$executeRaw`SELECT rutaec.tomar_revision(${revision.id}::uuid)`;
+        const [salida]=await tx.$queryRaw<{resultado:string}[]>`SELECT rutaec.resolver_revision_pago(${revision.id}::uuid,'APROBAR','Pago comprobado presencialmente en caja',${importe}::numeric,${referencia}) AS resultado`;
+        if(salida.resultado!=='CONFIRMADA') throw new ErrorComprobante(409,'El pago necesita conciliación antes de emitir.');
+        await tx.$executeRaw`SELECT rutaec.emitir_boletos(${compraId}::uuid)`;
+      }
       return { pagoId: fila.id, usado: true };
     });
     if (!resultado.usado) await unlink(destino);

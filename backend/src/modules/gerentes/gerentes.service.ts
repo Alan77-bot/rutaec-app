@@ -1,7 +1,5 @@
-﻿import { randomInt } from "node:crypto";
-import bcrypt from "bcryptjs";
+﻿import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma.js";
-import { enviarCodigoVerificacion } from "../usuarios/correo.service.js";
 import { ErrorAutenticacion } from "../usuarios/usuarios.service.js";
 export async function obtenerGerentes() {
   return prisma.miembros_cooperativa.findMany({
@@ -181,14 +179,7 @@ export async function registrarGerente(entrada: unknown) {
     );
   }
 
-  const codigo = randomInt(0, 1000000).toString().padStart(6, "0");
-
-  const [passwordHash, codigoHash] = await Promise.all([
-    bcrypt.hash(datos.clave, 12),
-    bcrypt.hash(codigo, 12),
-  ]);
-
-  const venceEn = new Date(Date.now() + DURACION_CODIGO_MS);
+  const passwordHash = await bcrypt.hash(datos.clave, 12);
 
   const registro = await prisma.$transaction(async (tx) => {
     const usuario = await tx.usuarios.create({
@@ -219,19 +210,9 @@ export async function registrarGerente(entrada: unknown) {
       },
     });
 
-    const verificacion = await tx.tokens_acceso.create({
-      data: {
-        usuario_id: usuario.id,
-        proposito: "VERIFICAR_CORREO",
-        token_hash: codigoHash,
-        vence_en: venceEn,
-      },
-      select: { id: true },
-    });
-
     return {
       usuario,
-      verificacionId: verificacion.id,
+
     };
   }).catch((error: unknown) => {
     if (
@@ -249,37 +230,10 @@ export async function registrarGerente(entrada: unknown) {
     throw error;
   });
 
-  try {
-    await enviarCodigoVerificacion(
-      datos.correo,
-      codigo,
-      venceEn
-    );
-  } catch {
-    await prisma.tokens_acceso.updateMany({
-      where: {
-        id: registro.verificacionId,
-        proposito: "VERIFICAR_CORREO",
-        consumido_en: null,
-        revocado_en: null,
-      },
-      data: {
-        revocado_en: new Date(),
-      },
-    });
-
-    throw new ErrorAutenticacion(
-      503,
-      "El gerente fue registrado, pero no se pudo enviar el correo. Debe solicitar un nuevo código."
-    );
-  }
-
   return {
     ...registro.usuario,
     cooperativa_id: datos.cooperativa_id,
     correo_verificado: false,
-    verificacionId: registro.verificacionId,
-    venceEn: venceEn.toISOString(),
   };
 }
 

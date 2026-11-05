@@ -311,6 +311,8 @@ model detalle_compra {
   categoria                                                         String
   tarifa_id                                                         String                    @db.Uuid
   validacion_descuento_id                                           String?                   @db.Uuid
+  politica_presencial_id                                           String?                   @db.Uuid
+  verificado_presencial_por                                        String?                   @db.Uuid
   pasajero_snapshot                                                 Json
   asiento_snapshot                                                  Json
   precio_base                                                       Decimal                   @db.Decimal(12, 2)
