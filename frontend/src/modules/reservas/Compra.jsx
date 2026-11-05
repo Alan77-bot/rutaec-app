@@ -43,6 +43,8 @@ export default function Compra() {
   const ventanilla = sesion?.rol === 'oficinista'
   const volver = urlResultados({ origen, destino, fecha, pasajeros: n, cooperativa: cooperativaId || undefined })
 
+  const [presencial] = useState(() => {try{return ventanilla?JSON.parse(sessionStorage.getItem('rutaec:comprador-presencial')||'null'):null}catch{return null}})
+  const [tipoAsiento, setTipoAsiento] = useState('todos')
   const [paso, setPaso] = useState(0)
   const [elegidos, setElegidos] = useState([])
   const [comprobando, setComprobando] = useState(false)
@@ -167,9 +169,9 @@ export default function Compra() {
         elegidos.map((id, i) => {
           const a = frescos.get(id)
           return {
-            nombre: i === 0 && sesion?.rol === 'usuario' ? sesion.nombre : '',
-            cedula: '',
-            correo: i === 0 ? sesion?.correo || '' : '',
+            nombre: i===0&&presencial?`${presencial.nombres} ${presencial.apellidos}`:i===0&&sesion?.rol==='usuario'?sesion.nombre:'',
+            cedula: i===0&&presencial?presencial.documento:'',
+            correo: i===0 ? (ventanilla?presencial?.correo||'':sesion?.correo||'') : '',
             descuento: 'ninguno',
             categoria: a.categoria,
             asiento: a.numero,
@@ -195,7 +197,7 @@ export default function Compra() {
     pasajeros.forEach((p, i) => {
       if (p.nombre.trim().length < 3) err[`n${i}`] = 'Escribe el nombre completo'
       if (p.tipoDocumento === 'PASAPORTE' ? !/^[A-Z0-9]{4,20}$/i.test(p.cedula) : !cedulaValida(p.cedula)) err[`c${i}`] = 'Cédula no válida'
-      if (!/^\S+@\S+\.\S+$/.test(p.correo)) err[`m${i}`] = 'Correo no válido'
+      if ((!ventanilla || p.correo) && !/^\S+@\S+\.\S+$/.test(p.correo)) err[`m${i}`] = 'Correo no válido'
     })
     setErrores(err)
     if (Object.keys(err).length) return avisar('Revisa los datos marcados en rojo.')
@@ -268,8 +270,9 @@ export default function Compra() {
                 {hayPreferenciales && <span><i className="asiento" style={ESTILO_PREFERENCIAL} />Preferencial</span>}
                 <span><i className="asiento sel" />Tuyo</span>
               </div>
+              <label>Tipo de asiento<select value={tipoAsiento} onChange={e => setTipoAsiento(e.target.value)}><option value="todos">Todos</option><option value="NORMAL">Normal</option><option value="VIP">VIP</option><option value="PREFERENCIAL">Preferencial</option></select></label>
               <MapaAsientos
-                asientos={asientos}
+                asientos={asientos.map(a => tipoAsiento === "todos" || (tipoAsiento === "PREFERENCIAL" ? a.preferencial : a.categoria === tipoAsiento) ? a : {...a, estado:"NO_VENDIBLE"})}
                 elegidos={elegidos}
                 onElegir={clickAsiento}
                 onNoDisponible={asientoNoDisponible}
@@ -298,7 +301,7 @@ export default function Compra() {
                     <input value={p.cedula} inputMode={p.tipoDocumento === "PASAPORTE" ? "text" : "numeric"} maxLength={p.tipoDocumento === "PASAPORTE" ? 20 : 10} onChange={(e) => cambiarPas(i, 'cedula', e.target.value)} />
                     {errores[`c${i}`] && <small>{errores[`c${i}`]}</small>}
                   </label>
-                  <label className={errores[`m${i}`] ? 'err' : ''}>Correo
+                  <label className={errores[`m${i}`] ? 'err' : ''}>Correo {ventanilla ? '(opcional)' : ''}
                     <input value={p.correo} onChange={(e) => cambiarPas(i, 'correo', e.target.value)} />
                     {errores[`m${i}`] && <small>{errores[`m${i}`]}</small>}
                   </label>
