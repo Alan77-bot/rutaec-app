@@ -214,13 +214,13 @@ export default function VerificarCorreo({
 
       <button
         type="button"
-        className="btn-link"
+        className={verificacionId ? "btn-link" : "btn btn-oscuro btn-lg ancho"}
         onClick={reenviar}
         disabled={ocupado || espera > 0}
       >
         {espera > 0
           ? `Solicitar otro código en ${espera}s`
-          : 'Enviar un nuevo código'}
+          : verificacionId ? 'Enviar un nuevo código' : 'Enviar código de verificación'}
       </button>
 
       <button
