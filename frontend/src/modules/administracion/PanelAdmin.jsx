@@ -579,7 +579,7 @@ function Configuracion() {
         <label>Instagram<input value={form.redes.instagram} onChange={(e) => redes('instagram', e.target.value)} /></label>
         <label>Facebook<input value={form.redes.facebook} onChange={(e) => redes('facebook', e.target.value)} /></label>
         <label>WhatsApp<input value={form.redes.whatsapp} onChange={(e) => redes('whatsapp', e.target.value)} /></label>
-        <button className="btn btn-oscuro" onClick={guardar} disabled={guardando}>{guardando ? 'Guardandoâ€¦' : 'Guardar'}</button>
+        <button className="btn btn-oscuro" onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
       </div>
       <div className="panel previa">
         <h4>Vista previa</h4>
@@ -621,7 +621,7 @@ function Usuarios() {
                 <td><b>{u.nombre}</b></td>
                 <td>{u.correo}</td>
                 <td><span className="badge gris">{ROLES[u.rol]}</span></td>
-                <td>{cooperativas.find((c) => c.id === u.coopId)?.nombre || 'â€”'}</td>
+                <td>{cooperativas.find((c) => c.id === u.coopId)?.nombre || '—'}</td>
                 <td>{u.id !== sesion.id && <button className="btn-link rojo" onClick={() => quitar(u)}>Eliminar</button>}</td>
               </tr>
             ))}
