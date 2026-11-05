@@ -1,0 +1,86 @@
+#root .revisiones-espacio { max-width:1440px; }
+#root .revisiones-cabecera { display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px; }
+#root .revisiones-cabecera h1 { margin:0;font-size:clamp(1.7rem,3vw,2.3rem); }
+#root .revisiones-resumen { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px; }
+#root .revisiones-resumen button { display:flex;align-items:center;justify-content:space-between;text-align:left;gap:12px;padding:18px 20px;background:white;border:1px solid var(--ui-borde);color:var(--ui-texto);cursor:pointer; }
+#root .revisiones-resumen button span { font-size:.83rem;color:#586b7c; }
+#root .revisiones-resumen button strong { font-size:1.6rem; }
+#root .revisiones-resumen button.activa { border-color:var(--ui-marca);box-shadow:inset 0 -3px var(--ui-marca); }
+#root .revisiones-filtros { display:grid;grid-template-columns:minmax(220px,1fr) 180px 220px;gap:14px;margin-bottom:24px; }
+#root .revisiones-filtros label, #root .revision-formulario label, #root .revision-motivo, #root .revision-avanzado label { display:grid;gap:7px;font-size:.8rem;font-weight:600;color:#586b7c; }
+#root .revisiones-distribucion { display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:22px;align-items:start; }
+#root .revisiones-listado { background:white;border:1px solid var(--ui-borde);border-radius:16px;overflow:hidden;position:sticky;top:90px;max-height:calc(100dvh - 110px);overflow-y:auto; }
+#root .revision-listado-titulo { display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--ui-borde); }
+#root .revision-listado-titulo h2 { font-size:.95rem;margin:0; }
+#root .revision-listado-titulo>span { background:var(--ui-fondo);padding:4px 9px;border-radius:20px;font-size:.75rem;color:#586b7c; }
+#root .revision-fila { display:block;width:100%;padding:18px;text-align:left;background:white;border:0;border-bottom:1px solid var(--ui-borde);border-radius:0;cursor:pointer;color:var(--ui-texto); }
+#root .revision-fila:hover { background:#f7f9fc; }
+#root .revision-fila.seleccionada { background:color-mix(in srgb,var(--ui-marca) 6%,white);box-shadow:inset 4px 0 var(--ui-marca); }
+#root .revision-fila-superior { display:flex;align-items:center;gap:11px; }
+#root .revision-fila-superior>div { min-width:0; }
+#root .revision-avatar { width:36px;height:36px;display:grid;place-items:center;background:color-mix(in srgb,var(--ui-marca) 10%,white);color:var(--ui-texto);border-radius:11px;flex-shrink:0; }
+#root .revision-fila strong { display:block;font-size:.88rem;overflow-wrap:anywhere; }
+#root .revision-fila small { display:block;font-size:.73rem;font-weight:400;color:#64748b;margin-top:4px;line-height:1.5; }
+#root .revision-fila-pie { display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px; }
+#root .revision-fila time { font-size:.67rem;color:#64748b;font-weight:400; }
+#root .revision-fila .revision-asignacion { margin-top:10px; }
+#root .revision-estado { display:inline-flex;align-items:center;width:fit-content;padding:5px 9px;border-radius:7px;font-size:.69rem;font-weight:700;white-space:nowrap;background:#eef2f7;color:#475569; }
+#root .revision-estado.estado-pendiente { background:#fff4d6;color:#8a5300; }
+#root .revision-estado.estado-en_revision { background:#eaf1ff;color:#2454a5; }
+#root .revision-estado.estado-aprobada { background:#e6f5ec;color:#17603a; }
+#root .revision-estado.estado-rechazada { background:#feeceb;color:#a32624; }
+#root .revision-estado.estado-correccion { background:#fff0e4;color:#9e5014; }
+#root .revision-detalle { background:white;border:1px solid var(--ui-borde);border-radius:16px;padding:26px;min-width:0;box-shadow:var(--ui-sombra); }
+#root .revision-detalle-cab { display:flex;align-items:start;justify-content:space-between;gap:18px;margin-bottom:22px; }
+#root .revision-detalle-cab h2 { font-size:1.4rem;margin:0 0 7px; }
+#root .revision-detalle-cab p { font-size:.82rem;color:#64748b;margin:0;overflow-wrap:anywhere; }
+#root .revision-datos { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:18px 0;border-top:1px solid var(--ui-borde);border-bottom:1px solid var(--ui-borde);margin:0 0 18px; }
+#root .revision-datos dt { font-size:.72rem;color:#64748b;margin-bottom:6px; }
+#root .revision-datos dd { font-size:.84rem;margin:0;font-weight:600;overflow-wrap:anywhere; }
+#root .revision-beneficiario { display:grid;gap:7px;border-radius:10px;background:var(--ui-fondo);padding:15px 17px;margin-bottom:22px; }
+#root .revision-beneficiario strong { font-size:.85rem; }
+#root .revision-beneficiario span { display:block;font-size:.77rem;color:#586b7c;line-height:1.6; }
+#root .revision-evidencia-cab { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px; }
+#root .revision-evidencia-cab h3 { margin:0;font-size:1rem; }
+#root .revision-evidencia-cab label { font-size:.75rem;max-width:65%; }
+#root .revision-evidencia-cab select { width:100%; }
+#root .revision-referencia { display:flex;flex-wrap:wrap;gap:18px;padding:12px 0;font-size:.77rem;color:#586b7c; }
+#root .revision-documento { border:1px solid var(--ui-borde);border-radius:12px;overflow:hidden; }
+#root .revision-documento-barra { display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;background:#f7f9fc;border-bottom:1px solid var(--ui-borde); }
+#root .revision-documento-barra strong { display:block;font-size:.8rem;overflow-wrap:anywhere; }
+#root .revision-documento-barra small { display:block;font-size:.69rem;color:#64748b;margin-top:4px; }
+#root .revision-herramientas { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+#root .revision-herramientas button { cursor:pointer;min-height:34px;padding:6px 10px;border:1px solid var(--ui-borde);background:white;color:var(--ui-texto);font-size:.75rem; }
+#root .revision-herramientas .btn { min-height:34px;padding:7px 10px;font-size:.73rem; }
+#root .revision-lienzo { height:460px;overflow:auto;background:#edf0f5;text-align:center;position:relative; }
+#root .revision-lienzo>img { display:block;max-width:none;height:auto;margin:0 auto;object-fit:contain; }
+#root .revision-lienzo>iframe { display:block;border:0;width:100%;height:100%;background:white; }
+#root .revision-lienzo>p { padding-top:160px;color:#64748b; }
+#root .revision-documento-vacio { min-height:200px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;padding:30px 20px;text-align:center;color:#64748b; }
+#root .revision-documento-vacio>span { font-size:2.8rem;color:#a5b2c3; }
+#root .revision-documento-vacio strong { font-size:.92rem;color:#475569; }
+#root .revision-documento-vacio p { font-size:.82rem;margin:0;line-height:1.6; }
+#root .revision-plazo { display:flex;gap:12px;flex-wrap:wrap;font-size:.75rem;color:#64748b;padding:15px 0; }
+#root .revision-decision { margin-top:22px;padding:22px;background:#f8fafc;border:1px solid var(--ui-borde);border-radius:12px; }
+#root .revision-decision h3 { margin:0;font-size:1rem; }
+#root .revision-decision .cabecera-acciones { margin-bottom:16px; }
+#root .revision-formulario { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px; }
+#root .revision-formulario .revision-checkbox { grid-column:1/-1;display:flex;align-items:center;gap:10px;font-weight:400;line-height:1.6; }
+#root .revision-motivo textarea { width:100%;resize:vertical; }
+#root .revision-decision .acciones { margin-bottom:0; }
+#root .revision-avanzado { border-top:1px solid var(--ui-borde);margin-top:20px;padding-top:16px; }
+#root .revision-avanzado summary, #root .revision-historial summary { cursor:pointer;font-size:.85rem;font-weight:600;color:var(--ui-texto); }
+#root .revision-avanzado label { margin:14px 0; }
+#root .revision-historial { border-top:1px solid var(--ui-borde);margin-top:24px;padding-top:20px; }
+#root .revision-historial summary span { margin-left:7px;color:#64748b; }
+#root .revision-historial ol { list-style:none;padding:0 0 0 10px;margin:20px 0 0; }
+#root .revision-historial li { border-left:2px solid var(--ui-borde);padding:0 0 20px 18px; }
+#root .revision-historial li strong { display:block;font-size:.8rem; }
+#root .revision-historial li small { display:block;font-size:.73rem;color:#64748b;margin-top:5px; }
+#root .revision-historial li p { font-size:.82rem;line-height:1.6;margin:8px 0 0; }
+#root .revision-resultado, #root .revision-exito { padding:16px 18px;background:#eaf7ef;border:1px solid #c7e6d3;border-radius:10px;color:#1c5d38;font-size:.85rem;margin-top:20px; }
+#root .ui-dialogo.revision-documento-dialogo { max-width:1200px !important;padding:0 !important; }
+#root .revision-documento-dialogo>header { margin:0;padding:16px 20px !important; }
+#root .revision-lienzo.ampliado { height:calc(100dvh - 145px); }
+@media(max-width:1000px){#root .revisiones-distribucion {grid-template-columns:260px minmax(0,1fr);gap:14px;}#root .revision-detalle {padding:18px;}#root .revision-datos {grid-template-columns:1fr 1fr;}#root .revisiones-filtros {grid-template-columns:1fr 150px 180px;} }
+@media(max-width:750px){#root .revisiones-distribucion {grid-template-columns:1fr;}#root .revisiones-listado {position:static;max-height:340px;}#root .revisiones-resumen {grid-template-columns:1fr 1fr;}#root .revisiones-filtros {grid-template-columns:1fr 1fr;}#root .revisiones-filtros label:first-child {grid-column:1/-1;}#root .revision-detalle-cab {flex-wrap:wrap;}#root .revision-lienzo {height:380px;}#root .revision-formulario {grid-template-columns:1fr;}#root .revision-fila-pie {justify-content:start;}#root .revisiones-cabecera {align-items:start;} }
