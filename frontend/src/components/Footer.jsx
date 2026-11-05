@@ -6,14 +6,19 @@ function enlaceSeguro(valor) {
 }
 
 export default function Footer() {
-  const { config } = useApp()
-  const { cooperativa } = usePersonalizacion()
+  const { config, sesion } = useApp()
+  const { cooperativa: identidad } = usePersonalizacion()
+  const cooperativa = sesion?.rol === 'admin' ? null : identidad
   const nombre = cooperativa?.nombre || config.nombre
   const telefono = cooperativa?.telefono || (!cooperativa ? config.soporteTel : '')
   const correo = cooperativa?.correo || (!cooperativa ? config.soporteMail : '')
   const redes = cooperativa?.redes_sociales || config.redes || {}
   const whatsapp = String(redes.whatsapp || '').replace(/\D/g, '')
-  return <footer className="footer">
+  const color = cooperativa ? cooperativa.color_primario || cooperativa.color || '#16324F' : config.color || '#16324F'
+  const rgb = /^#[a-f0-9]{6}$/i.test(color) ? color.slice(1).match(/../g).map(v => parseInt(v, 16) / 255) : [0, 0, 0]
+  const luminancia = rgb.map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((s, v, i) => s + v * [.2126, .7152, .0722][i], 0)
+  const texto = luminancia > .179 ? '#172033' : '#FFFFFF'
+  return <footer className="footer" style={{ '--footer-fondo': color, '--footer-texto': texto }}>
     <div className="footer-in">
       <div>
         {cooperativa?.logo && <img className="footer-logo" src={cooperativa.logo} alt="" />}

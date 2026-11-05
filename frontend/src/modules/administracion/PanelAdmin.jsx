@@ -1,4 +1,4 @@
-import NavegacionPanel from '../../components/ui/NavegacionPanel'
+import { useSearchParams } from 'react-router-dom'
 import { apartadosAdmin } from '../../data/apartados'
 import Dialogo from '../../components/ui/Dialogo'
 import { useEffect, useState } from 'react'
@@ -15,7 +15,7 @@ import {
 import CooperativaRegistroForm from '../cooperativas/CooperativaRegistroForm'
 import CooperativaEditarForm from '../cooperativas/CooperativaEditarForm'
 
-const COLORES = ['#f2a33a', '#e4572e', '#2a9d8f', '#4f7cac', '#8a5a9e', '#c0392b']
+const COLORES = ['#145DA0','#16324F','#2563EB','#7C3AED','#DB2777','#DC2626','#EA580C','#F59E0B','#16A34A','#0D9488','#475569','#111827']
 
 
 
@@ -566,7 +566,7 @@ function Configuracion() {
           <input type="file" accept="image/*" onChange={subirLogo} />
         </label>
         <div>
-          <span className="lbl">Color de acento</span>
+          <span className="lbl">Paleta de la plataforma</span><div className="barra-filtros"><label>Color personalizado<input type="color" value={form.color} onChange={e => setForm({...form,color:e.target.value})} /></label><label>Código hexadecimal<input value={form.color} pattern="#[0-9a-fA-F]{6}" maxLength={7} onChange={e => setForm({...form,color:e.target.value})} /></label></div>
           <div className="swatches">
             {COLORES.map((c) => (
               <button key={c} style={{ background: c }} className={form.color === c ? 'on' : ''} onClick={() => setForm({ ...form, color: c })} aria-label={c} />
@@ -654,14 +654,15 @@ function Usuarios() {
 }
 
 export default function PanelAdmin() {
-  const [tab, setTab] = useState('coops')
+  const [parametros] = useSearchParams()
+  const seccion = parametros.get('seccion')
+  const tab = apartadosAdmin.some(o => o.id === seccion) ? seccion : 'coops'
   return (
     <div className="contenedor">
       <div className="seccion-cab izq">
         <h1>Administración</h1>
         <p>Cooperativas, usuarios y apariencia de la aplicación.</p>
       </div>
-      <NavegacionPanel opciones={apartadosAdmin} activa={tab} onChange={setTab} />
       {tab === 'terminales' && <GestionCatalogo recurso="terminales" />}
       {tab === 'coops' && <Cooperativas />}
       {tab === 'users' && <GestionUsuariosGerentes />}

@@ -9,7 +9,7 @@ const Contexto = createContext(null)
 export const usePersonalizacion = () => useContext(Contexto)
 
 export function PersonalizacionProvider({ children }) {
-  const { sesion } = useApp()
+  const { sesion, cooperativas = [] } = useApp()
   const [consulta, setConsulta] = useSearchParams()
   const [seleccion, setSeleccion] = useState(() => {
     try { return sessionStorage.getItem('rutaec:cooperativa-publica') } catch { return null }
@@ -61,7 +61,15 @@ export function PersonalizacionProvider({ children }) {
       window.removeEventListener('coop:personalizacion', guardar)
     }
   }, [id])
-  const cooperativa = datos?.id === id ? datos : null
+  // La identidad pública evita mostrar la marca de la plataforma mientras se
+  // consulta la personalización completa, siempre limitada a la cooperativa visible.
+  const publica = cooperativas.find(c => c.id === id)
+  const cooperativa = datos?.id === id ? datos : publica ? {
+    ...publica,
+    nombre: publica.nombre || publica.nombre_comercial,
+    color_primario: publica.color_primario || publica.color || '#16324F',
+    color_secundario: publica.color_secundario || '#FFFFFF',
+  } : null
   const estilo = cooperativa ? {
     '--coop-primario': cooperativa.color_primario,
     '--coop-secundario': cooperativa.color_secundario,
