@@ -3,13 +3,7 @@ import type { SesionAutenticada } from "../../middlewares/autenticacion.js";
 
 const SIN_RESULTADOS = "00000000-0000-0000-0000-000000000000";
 
-export class ErrorPago extends Error {
-  estado: number;
-  constructor(estado: number, mensaje: string) {
-    super(mensaje);
-    this.estado = estado;
-  }
-}
+export { ErrorPago } from "./errores.js";
 
 function filtroPorSesion(sesion: SesionAutenticada) {
   if (sesion.rol === "admin") return {};
