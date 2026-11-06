@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   leerCampos,
+  mapearErrorBD,
   tipoReal,
   uuidValido,
 } from "./comprobantes.validacion.js";
@@ -108,5 +109,29 @@ describe("leerCampos", () => {
     for (const importe of ["", "abc", "0", "-5", "100000000"]) {
       esperaError(() => leerCampos(campos({ importe_declarado: importe })), 400, /importe_declarado/);
     }
+  });
+});
+
+describe("mapearErrorBD", () => {
+  function mapea(mensaje: string) {
+    return mapearErrorBD({ meta: { message: mensaje } });
+  }
+
+  it("traduce los errores de recibir_comprobante a codigos HTTP", () => {
+    assert.equal(mapea("Sin permiso sobre la compra")?.estado, 404);
+    assert.equal(mapea("La compra no admite comprobante inicial")?.estado, 409);
+    assert.equal(mapea("Clave idempotente reutilizada")?.estado, 409);
+    assert.equal(mapea('duplicate key value violates "pago_abierto_uq"')?.estado, 409);
+    assert.equal(mapea("Cuenta bancaria no habilitada")?.estado, 400);
+    assert.equal(mapea("Archivo no disponible")?.estado, 400);
+  });
+
+  it("lee tambien el mensaje directo del error", () => {
+    assert.equal(mapearErrorBD(new Error("Clave idempotente reutilizada"))?.estado, 409);
+  });
+
+  it("devuelve null ante errores desconocidos para no ocultarlos", () => {
+    assert.equal(mapea("conexion perdida"), null);
+    assert.equal(mapearErrorBD(undefined), null);
   });
 });
